@@ -13,7 +13,7 @@ public class ScriptSafeMerge {
 
 	private final ArgumentStack args;
 
-	private final ScriptGraphLoader loader;
+	private final ScriptGraphLoader loader = new ScriptGraphLoader();
 
 	private ScriptGraphFile leftFile;
 	private ScriptGraphFile rightFile;
@@ -22,7 +22,6 @@ public class ScriptSafeMerge {
 
 	private ScriptSafeMerge(ArgumentStack args) {
 		this.args = args;
-		loader = new ScriptGraphLoader();
 	}
 
 	private void run() {
@@ -35,8 +34,10 @@ public class ScriptSafeMerge {
 			leftGraph = loader.loadGraph(leftFile);
 			rightGraph = loader.loadGraph(rightFile);
 
-			Log.log("Left graph is a %s from file %s", leftFile.type.name, leftFile.file.getAbsolutePath());
-			Log.log("Right graph is a %s from file %s", rightFile.type.name, rightFile.file.getAbsolutePath());
+			Log.log("Left graph is a %s from file %s with %d routines", leftFile.type.name,
+					leftFile.file.getAbsolutePath(), leftGraph.getRoutineCount());
+			Log.log("Right graph is a %s from file %s with %d routines", rightFile.type.name,
+					rightFile.file.getAbsolutePath(), rightGraph.getRoutineCount());
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}

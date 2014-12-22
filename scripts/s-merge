@@ -1,0 +1,20 @@
+#!/bin/bash
+
+. $csc/scripts/cs-common
+
+function print_usage() {
+  echo "Usage: s-merge <left-graph> <right-graph>"
+  exit
+}
+
+check_help $1 print_usage
+
+append_classpath "SCRIPT_SAFE_MERGE_DIR"
+append_classpath "CROWD_SAFE_COMMON_DIR"
+
+# echo "classpath: $cp"
+
+main_class="edu.uci.eecs.scriptsafe.merge.main.ScriptSafeMerge"
+
+java $vm_args -cp $cp $main_class $@
+  

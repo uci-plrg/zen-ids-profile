@@ -9,6 +9,7 @@ import java.util.Set;
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
@@ -21,16 +22,28 @@ class ScriptRunLoader {
 		final int toIndex;
 
 		public RawOpcodeEdge(long routineId, int fromIndex, int toIndex) {
-			super();
 			this.routineId = routineId;
 			this.fromIndex = fromIndex;
 			this.toIndex = toIndex;
 		}
 	}
 
+	private static class RawRoutineEdge {
+		final long fromRoutineId;
+		final int fromIndex;
+		final long toRoutineId;
+
+		public RawRoutineEdge(long fromRoutineId, int fromIndex, long toRoutineId) {
+			this.fromRoutineId = fromRoutineId;
+			this.fromIndex = fromIndex;
+			this.toRoutineId = toRoutineId;
+		}
+	}
+
 	private static class RawRoutineGraph {
 		final long id;
 		final Map<Integer, Set<RawOpcodeEdge>> opcodeEdges = new HashMap<Integer, Set<RawOpcodeEdge>>();
+		final Map<Integer, Set<RawRoutineEdge>> routineEdges = new HashMap<Integer, Set<RawRoutineEdge>>();
 
 		public RawRoutineGraph(long id) {
 			this.id = id;
@@ -44,21 +57,36 @@ class ScriptRunLoader {
 			}
 			existingEdges.add(edge);
 		}
-	}
 
-	private ScriptNode createNode(int opcode, int index, long routineId) {
-		RawRoutineGraph graph = getRawGraph(routineId);
-		if (graph != null) {
-			Set<RawOpcodeEdge> edges = graph.opcodeEdges.get(index);
-			if (edges != null && edges.size() > 1)
-				return new ScriptBranchNode(opcode, index);
+		void addRawEdge(RawRoutineEdge edge) {
+			Set<RawRoutineEdge> existingEdges = routineEdges.get(edge.fromIndex);
+			if (existingEdges == null) {
+				existingEdges = new HashSet<RawRoutineEdge>();
+				routineEdges.put(edge.fromIndex, existingEdges);
+			}
+			existingEdges.add(edge);
 		}
-		return new ScriptNode(opcode, index);
 	}
 
 	private final Map<Long, RawRoutineGraph> rawGraphs = new HashMap<Long, RawRoutineGraph>();
 
 	ScriptRunLoader() {
+	}
+
+	private ScriptNode createNode(int opcode, int index, long routineId) {
+		RawRoutineGraph graph = getRawGraph(routineId);
+		if (graph != null) {
+			Set<RawOpcodeEdge> opcodeEdges = graph.opcodeEdges.get(index);
+			Set<RawRoutineEdge> routineEdges = graph.routineEdges.get(index);
+			if (opcodeEdges != null && opcodeEdges.size() > 1 && routineEdges != null)
+				throw new IllegalStateException(String.format(
+						"Node %d in routine %x has both opcode edges and routine edges!", index, routineId));
+			if (opcodeEdges != null && opcodeEdges.size() > 1)
+				return new ScriptBranchNode(opcode, index);
+			if (routineEdges != null)
+				return new ScriptCallNode(opcode, index);
+		}
+		return new ScriptNode(opcode, index);
 	}
 
 	private RawRoutineGraph getRawGraph(Long id) {
@@ -72,6 +100,7 @@ class ScriptRunLoader {
 
 	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
 		loadOpcodeEdges(run);
+		loadRoutineEdges(run);
 		loadNodes(run, graph);
 	}
 
@@ -79,7 +108,7 @@ class ScriptRunLoader {
 		int unitHash, routineHash, fromIndex, toIndex;
 		long routineId;
 		RawRoutineGraph graph;
-		LittleEndianInputStream input = new LittleEndianInputStream(run.nodeFile);
+		LittleEndianInputStream input = new LittleEndianInputStream(run.opcodeEdgeFile);
 
 		while (input.ready(16)) {
 			unitHash = input.readInt();
@@ -89,17 +118,39 @@ class ScriptRunLoader {
 			fromIndex = input.readInt();
 			toIndex = input.readInt();
 
+			Log.log("Raw opcode edge from %d to %d", fromIndex, toIndex);
+
 			graph = getRawGraph(routineId);
 			graph.addRawEdge(new RawOpcodeEdge(routineId, fromIndex, toIndex));
 		}
 	}
 
+	private void loadRoutineEdges(ScriptRunFileSet run) throws IOException {
+		int fromUnitHash, fromRoutineHash, fromIndex, toUnitHash, toRoutineHash;
+		long fromRoutineId, toRoutineId;
+		RawRoutineGraph graph;
+		LittleEndianInputStream input = new LittleEndianInputStream(run.routineEdgeFile);
+
+		while (input.ready(24)) {
+			fromUnitHash = input.readInt();
+			fromRoutineHash = input.readInt();
+			fromIndex = input.readInt();
+			toUnitHash = input.readInt();
+			toRoutineHash = input.readInt();
+
+			fromRoutineId = ScriptRoutineGraph.constructId(fromUnitHash, fromRoutineHash);
+			toRoutineId = ScriptRoutineGraph.constructId(toUnitHash, toRoutineHash);
+
+			graph = getRawGraph(fromRoutineId);
+			graph.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId));
+		}
+	}
+
 	private void loadNodes(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
-		int unitHash, routineHash, opcode, nodeIndex = 0, currentUnitHash = 0;
+		int unitHash, routineHash, opcode, nodeIndex = 0;
 		long routineId;
 		ScriptNode node, lastNode = null;
 		ScriptRoutineGraph routine = null;
-		Set<Integer> visitedUnits = new HashSet<Integer>();
 		LittleEndianInputStream input = new LittleEndianInputStream(run.nodeFile);
 
 		while (input.ready(16)) {
@@ -113,27 +164,14 @@ class ScriptRunLoader {
 				graph.addRoutine(routine);
 			}
 
-			// maintain multiple node indexes, one for each routine in the current unit
-			
-			if (unitHash != currentUnitHash) {
-				currentUnitHash = unitHash;
-				if (visitedUnits.contains(unitHash)) {
-					// omit repeats in script-cfi!
-					Log.log("Warning: Routine graphs are interleaved in %s", run.nodeFile.getAbsolutePath());
-				} else {
-					visitedUnits.add(currentUnitHash);
-				}
-			}
-
 			opcode = input.readInt();
-			node = createNode(opcode, nodeIndex, currentUnitHash);
+			nodeIndex = input.readInt();
+			node = createNode(opcode, nodeIndex, routineId);
 			if (lastNode != null)
 				lastNode.setNext(node);
 			lastNode = node;
 
 			Log.log("Opcode %x (%x|%x): %s", opcode, unitHash, routineHash, node.getClass().getSimpleName());
-
-			input.readInt(); // skip empty dword
 
 			routine.addNode(node);
 		}

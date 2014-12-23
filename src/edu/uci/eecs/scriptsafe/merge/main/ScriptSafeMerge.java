@@ -4,7 +4,7 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphFile;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptRunFileSet;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphLoader;
 
 public class ScriptSafeMerge {
@@ -15,8 +15,8 @@ public class ScriptSafeMerge {
 
 	private final ScriptGraphLoader loader = new ScriptGraphLoader();
 
-	private ScriptGraphFile leftFile;
-	private ScriptGraphFile rightFile;
+	private ScriptRunFileSet leftFiles;
+	private ScriptRunFileSet rightFiles;
 	private ScriptFlowGraph leftGraph;
 	private ScriptFlowGraph rightGraph;
 
@@ -28,16 +28,16 @@ public class ScriptSafeMerge {
 		try {
 			Log.addOutput(System.out);
 
-			leftFile = ScriptGraphFile.fromPath(args.pop());
-			rightFile = ScriptGraphFile.fromPath(args.pop());
+			leftFiles = new ScriptRunFileSet(args.pop());
+			rightFiles = new ScriptRunFileSet(args.pop());
 
-			leftGraph = loader.loadGraph(leftFile);
-			rightGraph = loader.loadGraph(rightFile);
+			leftGraph = loader.loadGraph(leftFiles);
+			rightGraph = loader.loadGraph(rightFiles);
 
-			Log.log("Left graph is a %s from file %s with %d routines", leftFile.type.name,
-					leftFile.file.getAbsolutePath(), leftGraph.getRoutineCount());
-			Log.log("Right graph is a %s from file %s with %d routines", rightFile.type.name,
-					rightFile.file.getAbsolutePath(), rightGraph.getRoutineCount());
+			Log.log("Left graph is a %s from file %s with %d routines", leftFiles.type.name,
+					leftFiles.file.getAbsolutePath(), leftGraph.getRoutineCount());
+			Log.log("Right graph is a %s from file %s with %d routines", rightFiles.type.name,
+					rightFiles.file.getAbsolutePath(), rightGraph.getRoutineCount());
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}

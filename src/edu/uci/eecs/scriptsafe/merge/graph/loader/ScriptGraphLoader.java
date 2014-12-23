@@ -20,23 +20,33 @@ public class ScriptGraphLoader {
 		}
 	}
 
-	public ScriptFlowGraph loadGraph(ScriptGraphFile file) throws IOException {
-		int unitHash, routineHash, opcode;
-		long routineId;
-		ScriptNode node, lastNode = null;
-		ScriptRoutineGraph routine;
+	public ScriptFlowGraph loadGraph(ScriptRunFileSet files) throws IOException {
 		ScriptFlowGraph graph = new ScriptFlowGraph();
-		LittleEndianInputStream input = new LittleEndianInputStream(file.file);
-		
+		loadNodes(files, graph);
+		return graph;
+	}
+
+	private void loadNodes(ScriptRunFileSet files, ScriptFlowGraph graph) throws IOException {
+		int unitHash, routineHash, opcode;
+		long routineId, currentRoutineId = 0L;
+		ScriptNode node, lastNode = null;
+		ScriptRoutineGraph routine = null;
+		LittleEndianInputStream input = new LittleEndianInputStream(files.nodeFile);
+
 		while (input.ready(16)) {
 			unitHash = input.readInt();
 			routineHash = input.readInt();
 			routineId = ScriptRoutineGraph.constructId(unitHash, routineHash);
 
-			routine = graph.getRoutine(routineId);
-			if (routine == null) {
-				routine = new ScriptRoutineGraph(unitHash, routineHash);
-				graph.addRoutine(routine);
+			if (routineId != currentRoutineId) {
+				routine = graph.getRoutine(routineId);
+				if (routine == null) {
+					routine = new ScriptRoutineGraph(unitHash, routineHash);
+					graph.addRoutine(routine);
+					currentRoutineId = routineId;
+				} else {
+					Log.log("Warning: Routine graphs are interleaved in %s", files.nodeFile.getAbsolutePath());
+				}
 			}
 
 			opcode = input.readInt();
@@ -45,12 +55,12 @@ public class ScriptGraphLoader {
 				lastNode.setNext(node);
 			lastNode = node;
 
+			input.readInt(); // skip empty dword
+
 			routine.addNode(node);
 		}
 
-		//if (input.ready())
-	//		throw new IllegalArgumentException("Input file " + file.file.getAbsolutePath() + " has trailing data!");
-
-		return graph;
+		if (input.ready())
+			throw new IllegalArgumentException("Input file " + files.nodeFile.getAbsolutePath() + " has trailing data!");
 	}
 }

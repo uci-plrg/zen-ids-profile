@@ -4,8 +4,8 @@ public class ScriptBranchNode extends ScriptNode {
 
 	private ScriptNode target;
 
-	public ScriptBranchNode(int opcode) {
-		super(opcode);
+	public ScriptBranchNode(int opcode, int index) {
+		super(opcode, index);
 	}
 
 	public void setTarget(ScriptNode target) {

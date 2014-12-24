@@ -102,6 +102,7 @@ class ScriptRunLoader {
 		loadOpcodeEdges(run);
 		loadRoutineEdges(run);
 		loadNodes(run, graph);
+		linkNodes(graph);
 	}
 
 	private void loadOpcodeEdges(ScriptRunFileSet run) throws IOException {
@@ -122,6 +123,26 @@ class ScriptRunLoader {
 
 			graph = getRawGraph(routineId);
 			graph.addRawEdge(new RawOpcodeEdge(routineId, fromIndex, toIndex));
+		}
+	}
+	
+	private void linkNodes(ScriptFlowGraph graph) {
+		ScriptRoutineGraph routine, fromRoutine, toRoutine;
+		ScriptBranchNode fromNode;
+		ScriptCallNode callSite;
+		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
+			for (RawOpcodeEdge edge : rawGraph.opcodeEdges.values()) {
+				routine = graph.getRoutine(edge.routineId);
+				fromNode = routine.getNode(edge.fromIndex);
+				fromNode.setTarget(routine.getNode(edge.toIndex));
+			}
+			
+			for (RawRoutineEdge edge : rawGraph.routineEdges.values()) {
+				fromRoutine = graph.getRoutine(edge.fromRoutineId);
+				toRoutine = graph.getRoutine(edge.toRoutineId);
+				callSite = fromRoutine.getNode(edge.fromIndex);
+				callSite.addTarget(toRoutine);
+			}
 		}
 	}
 

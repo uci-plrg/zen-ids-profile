@@ -100,7 +100,7 @@ class ScriptRunLoader {
 
 	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
 		loadOpcodeEdges(run);
-		loadRoutineEdges(run);
+		loadRoutineEdges(run, graph);
 		loadNodes(run, graph);
 		linkNodes(graph);
 	}
@@ -125,31 +125,50 @@ class ScriptRunLoader {
 			graph.addRawEdge(new RawOpcodeEdge(routineId, fromIndex, toIndex));
 		}
 	}
-	
+
 	private void linkNodes(ScriptFlowGraph graph) {
 		ScriptRoutineGraph routine, fromRoutine, toRoutine;
-		ScriptBranchNode fromNode;
+		ScriptNode fromNode;
+		ScriptBranchNode branchNode;
 		ScriptCallNode callSite;
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
-			for (RawOpcodeEdge edge : rawGraph.opcodeEdges.values()) {
-				routine = graph.getRoutine(edge.routineId);
-				fromNode = routine.getNode(edge.fromIndex);
-				fromNode.setTarget(routine.getNode(edge.toIndex));
+			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
+				for (RawOpcodeEdge edge : edges) {
+					routine = graph.getRoutine(edge.routineId);
+					fromNode = routine.getNode(edge.fromIndex);
+
+					if (!(fromNode instanceof ScriptBranchNode)) {
+						throw new IllegalArgumentException(String.format(
+								"Branch from non-branch node with opcode %d at index %d in routine 0x%x!",
+								fromNode.opcode, edge.fromIndex, edge.routineId));
+					}
+
+					branchNode = (ScriptBranchNode) routine.getNode(edge.fromIndex);
+					branchNode.setTarget(routine.getNode(edge.toIndex));
+				}
 			}
-			
-			for (RawRoutineEdge edge : rawGraph.routineEdges.values()) {
-				fromRoutine = graph.getRoutine(edge.fromRoutineId);
-				toRoutine = graph.getRoutine(edge.toRoutineId);
-				callSite = fromRoutine.getNode(edge.fromIndex);
-				callSite.addTarget(toRoutine);
+
+			for (Set<RawRoutineEdge> edges : rawGraph.routineEdges.values()) {
+				for (RawRoutineEdge edge : edges) {
+					fromRoutine = graph.getRoutine(edge.fromRoutineId);
+					toRoutine = graph.getRoutine(edge.toRoutineId);
+
+					if (fromRoutine == null) {
+						throw new IllegalArgumentException(String.format(
+								"Found a routine edge from an unknown routine 0x%x", edge.fromRoutineId));
+					}
+
+					callSite = (ScriptCallNode) fromRoutine.getNode(edge.fromIndex);
+					callSite.addTarget(toRoutine);
+				}
 			}
 		}
 	}
 
-	private void loadRoutineEdges(ScriptRunFileSet run) throws IOException {
+	private void loadRoutineEdges(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
 		int fromUnitHash, fromRoutineHash, fromIndex, toUnitHash, toRoutineHash;
 		long fromRoutineId, toRoutineId;
-		RawRoutineGraph graph;
+		RawRoutineGraph routine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.routineEdgeFile);
 
 		while (input.ready(24)) {
@@ -158,12 +177,20 @@ class ScriptRunLoader {
 			fromIndex = input.readInt();
 			toUnitHash = input.readInt();
 			toRoutineHash = input.readInt();
+			input.readInt(); // toIndex is always 0
 
 			fromRoutineId = ScriptRoutineGraph.constructId(fromUnitHash, fromRoutineHash);
 			toRoutineId = ScriptRoutineGraph.constructId(toUnitHash, toRoutineHash);
 
-			graph = getRawGraph(fromRoutineId);
-			graph.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId));
+			/*
+			 * if (graph.getRoutine(fromRoutineId) == null) throw new
+			 * IllegalArgumentException(String.format("Found a routine edge from an unknown routine 0x%x",
+			 * fromRoutineId)); if (graph.getRoutine(toRoutineId) == null) throw new
+			 * IllegalArgumentException(String.format("Found a routine edge to an unknown routine 0x%x", toRoutineId));
+			 */
+
+			routine = getRawGraph(fromRoutineId);
+			routine.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId));
 		}
 	}
 

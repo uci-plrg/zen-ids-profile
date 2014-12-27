@@ -5,17 +5,21 @@ import java.util.Map;
 
 public class ScriptFlowGraph {
 
-	private final Map<Long, ScriptRoutineGraph> routines = new HashMap<Long, ScriptRoutineGraph>();
-	
+	final Map<Long, ScriptRoutineGraph> routines = new HashMap<Long, ScriptRoutineGraph>();
+
 	public void addRoutine(ScriptRoutineGraph routine) {
 		routines.put(routine.id, routine);
 	}
-	
+
 	public ScriptRoutineGraph getRoutine(Long id) {
 		return routines.get(id);
 	}
-	
+
 	public int getRoutineCount() {
 		return routines.size();
+	}
+
+	public Iterable<ScriptRoutineGraph> getRoutines() {
+		return routines.values();
 	}
 }

@@ -21,6 +21,11 @@ public class ScriptRoutineGraph {
 
 		this.id = constructId(unitHash, routineHash);
 	}
+	
+	public ScriptRoutineGraph copy()
+	{
+		return new ScriptRoutineGraph(unitHash, routineHash);
+	}
 
 	public void addNode(ScriptNode node) {
 		nodes.add(node);
@@ -28,5 +33,9 @@ public class ScriptRoutineGraph {
 
 	public ScriptNode getNode(int index) {
 		return nodes.get(index);
+	}
+	
+	public int getNodeCount() {
+		return nodes.size();
 	}
 }

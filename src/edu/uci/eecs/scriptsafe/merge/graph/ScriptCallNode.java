@@ -5,10 +5,10 @@ import java.util.Map;
 
 public class ScriptCallNode extends ScriptNode {
 
-	private final Map<Long, ScriptRoutineGraph> targets = new HashMap<Long, ScriptRoutineGraph>();
+	final Map<Long, ScriptRoutineGraph> targets = new HashMap<Long, ScriptRoutineGraph>();
 
 	public ScriptCallNode(int opcode, int index) {
-		super(opcode, index);
+		super(Type.CALL, opcode, index);
 	}
 
 	public void addTarget(ScriptRoutineGraph target) {
@@ -17,5 +17,9 @@ public class ScriptCallNode extends ScriptNode {
 
 	public ScriptRoutineGraph getTarget(Long id) {
 		return targets.get(id);
+	}
+	
+	public Iterable<ScriptRoutineGraph> getTargets() {
+		return targets.values();
 	}
 }

@@ -77,6 +77,10 @@ class ScriptRunLoader {
 		RawRoutineGraph graph = getRawGraph(routineId);
 		if (graph != null) {
 			Set<RawOpcodeEdge> opcodeEdges = graph.opcodeEdges.get(index);
+
+			if (opcodeEdges != null)
+				Log.log("Found %d opcode edges for node with index %d", opcodeEdges.size(), index);
+
 			Set<RawRoutineEdge> routineEdges = graph.routineEdges.get(index);
 			if (opcodeEdges != null && opcodeEdges.size() > 1 && routineEdges != null)
 				throw new IllegalStateException(String.format(
@@ -98,7 +102,7 @@ class ScriptRunLoader {
 		return graph;
 	}
 
-	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
+	void loadrun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
 		loadOpcodeEdges(run);
 		loadRoutineEdges(run, graph);
 		loadNodes(run, graph);
@@ -133,6 +137,8 @@ class ScriptRunLoader {
 		ScriptCallNode callSite;
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
+				if (edges.size() == 1)
+					continue;
 				for (RawOpcodeEdge edge : edges) {
 					routine = graph.getRoutine(edge.routineId);
 					fromNode = routine.getNode(edge.fromIndex);

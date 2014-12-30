@@ -22,4 +22,8 @@ public class ScriptCallNode extends ScriptNode {
 	public Iterable<ScriptRoutineGraph> getTargets() {
 		return targets.values();
 	}
+	
+	public int getTargetCount() {
+		return targets.size();
+	}
 }

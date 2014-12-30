@@ -25,7 +25,6 @@ public class ScriptMerge {
 	}
 
 	public ScriptFlowGraph merge() {
-
 		for (ScriptRoutineGraph leftRoutine : left.getRoutines()) {
 			ScriptRoutineGraph rightRoutine = target.getRoutine(leftRoutine.id);
 			if (rightRoutine == null) {
@@ -41,12 +40,13 @@ public class ScriptMerge {
 	private void mergeRoutines(ScriptRoutineGraph leftRoutine, ScriptRoutineGraph targetRoutine) {
 		int nodeCount = leftRoutine.getNodeCount();
 		if (nodeCount != targetRoutine.getNodeCount())
-			throw new MergeException("Node counts differ for routine 0x%x", leftRoutine.id);
+			throw new MergeException("Node counts differ for routine 0x%x: %d vs. %d", leftRoutine.id, nodeCount,
+					targetRoutine.getNodeCount());
 		for (int i = 0; i < nodeCount; i++) {
 			ScriptNode leftNode = leftRoutine.getNode(i);
 			ScriptNode targetNode = targetRoutine.getNode(i);
-			leftNode.verifyEqual  (targetNode);
-			
+			leftNode.verifyEqual(targetNode);
+
 			if (leftNode.type == ScriptNode.Type.CALL) {
 				ScriptCallNode leftCall = (ScriptCallNode) leftNode;
 				ScriptCallNode targetCall = (ScriptCallNode) targetNode;
@@ -58,5 +58,9 @@ public class ScriptMerge {
 				}
 			}
 		}
+	}
+
+	public static void main(String[] args) {
+
 	}
 }

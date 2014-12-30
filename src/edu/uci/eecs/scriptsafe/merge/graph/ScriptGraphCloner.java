@@ -39,7 +39,7 @@ public class ScriptGraphCloner {
 				if (target != null)
 					branchCopy.setTarget(routineCopy.getNode(target.index));
 			}
-			flowCopy.routines.put(routine.id, routine.copy());
+			flowCopy.routines.put(routine.id, routineCopy);
 		}
 
 		// Third: link call targets in copy

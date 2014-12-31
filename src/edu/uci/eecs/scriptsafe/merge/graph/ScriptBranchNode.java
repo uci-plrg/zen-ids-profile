@@ -15,4 +15,9 @@ public class ScriptBranchNode extends ScriptNode {
 	public ScriptNode getTarget() {
 		return target;
 	}
+	
+	@Override
+	public ScriptNode copy() {
+		return new ScriptBranchNode(opcode, index);
+	}
 }

@@ -56,9 +56,13 @@ public class ScriptSafeMerge {
 					leftPath.getAbsolutePath(), leftGraph.getRoutineCount());
 			Log.log("Right graph is a %s from %s with %d routines", rightDataSource.getClass().getSimpleName(),
 					rightPath.getAbsolutePath(), rightGraph.getRoutineCount());
-			
+
 			ScriptMerge merge = new ScriptMerge(leftGraph, rightGraph);
 			ScriptFlowGraph merged = merge.merge();
+
+			Log.log("Merged graph is a %s with %d routines and %d eval routines", merged.getClass().getSimpleName(),
+					merged.getRoutineCount(), merged.getEvalProxyCount());
+
 			File outputFile = new File(outputDir.getValue());
 			ScriptDatasetGenerator output = new ScriptDatasetGenerator(merged);
 			output.generateDataset(outputFile);

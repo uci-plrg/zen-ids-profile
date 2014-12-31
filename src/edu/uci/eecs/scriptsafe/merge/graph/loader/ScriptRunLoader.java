@@ -10,9 +10,11 @@ import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraphProxy;
 
 class ScriptRunLoader {
 
@@ -87,8 +89,12 @@ class ScriptRunLoader {
 						"Node %d in routine %x has both opcode edges and routine edges!", index, routineId));
 			if (opcodeEdges != null && opcodeEdges.size() > 1)
 				return new ScriptBranchNode(opcode, index);
-			if (routineEdges != null)
-				return new ScriptCallNode(opcode, index);
+			if (routineEdges != null) {
+				if (ScriptRoutineGraph.isEval(routineEdges.iterator().next().toRoutineId))
+					return new ScriptEvalNode(opcode, index);
+				else
+					return new ScriptCallNode(opcode, index);
+			}
 		}
 		return new ScriptNode(opcode, index);
 	}
@@ -102,7 +108,7 @@ class ScriptRunLoader {
 		return graph;
 	}
 
-	void loadrun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
+	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
 		loadOpcodeEdges(run);
 		loadRoutineEdges(run, graph);
 		loadNodes(run, graph);
@@ -132,9 +138,11 @@ class ScriptRunLoader {
 
 	private void linkNodes(ScriptFlowGraph graph) {
 		ScriptRoutineGraph routine, fromRoutine, toRoutine;
+		ScriptRoutineGraphProxy toRoutineProxy;
 		ScriptNode fromNode;
 		ScriptBranchNode branchNode;
 		ScriptCallNode callSite;
+		ScriptEvalNode evalSite;
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
 				if (edges.size() == 1)
@@ -157,15 +165,22 @@ class ScriptRunLoader {
 			for (Set<RawRoutineEdge> edges : rawGraph.routineEdges.values()) {
 				for (RawRoutineEdge edge : edges) {
 					fromRoutine = graph.getRoutine(edge.fromRoutineId);
-					toRoutine = graph.getRoutine(edge.toRoutineId);
-
 					if (fromRoutine == null) {
 						throw new IllegalArgumentException(String.format(
 								"Found a routine edge from an unknown routine 0x%x", edge.fromRoutineId));
 					}
 
-					callSite = (ScriptCallNode) fromRoutine.getNode(edge.fromIndex);
-					callSite.addTarget(toRoutine);
+					if (ScriptRoutineGraph.isEval(edge.toRoutineId)) {
+						toRoutineProxy = graph.getEvalProxy(ScriptRoutineGraph.getEvalId(edge.toRoutineId));
+
+						evalSite = (ScriptEvalNode) fromRoutine.getNode(edge.fromIndex);
+						evalSite.addTarget(toRoutineProxy);
+					} else {
+						toRoutine = graph.getRoutine(edge.toRoutineId);
+
+						callSite = (ScriptCallNode) fromRoutine.getNode(edge.fromIndex);
+						callSite.addTarget(toRoutine);
+					}
 				}
 			}
 		}

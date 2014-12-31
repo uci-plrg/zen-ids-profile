@@ -3,46 +3,75 @@ package edu.uci.eecs.scriptsafe.merge.graph;
 import java.util.HashMap;
 import java.util.Map;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
+
 public class ScriptGraphCloner {
 
 	private final Map<ScriptBranchNode, ScriptBranchNode> branchNodeCopies = new HashMap<ScriptBranchNode, ScriptBranchNode>();
 	private final Map<ScriptCallNode, ScriptCallNode> callNodeCopies = new HashMap<ScriptCallNode, ScriptCallNode>();
+	private final Map<ScriptEvalNode, ScriptEvalNode> evalNodeCopies = new HashMap<ScriptEvalNode, ScriptEvalNode>();
 
 	public ScriptFlowGraph deepCopy(ScriptFlowGraph original) {
 		ScriptFlowGraph flowCopy = new ScriptFlowGraph();
+		deepCopy(original, flowCopy);
+		return flowCopy;
+	}
 
-		for (ScriptRoutineGraph routine : original.routines.values()) {
-			branchNodeCopies.clear();
-			ScriptRoutineGraph routineCopy = routine.copy();
-			
-			// First: shallow copy
-			for (int i = 0; i < routine.getNodeCount(); i++) {
-				ScriptNode nodeOriginal = routine.getNode(i);
-				ScriptNode nodeCopy = nodeOriginal.copy();
-				routineCopy.addNode(nodeCopy);
-				switch (nodeCopy.type) {
-					case BRANCH:
-						branchNodeCopies.put((ScriptBranchNode) nodeCopy, (ScriptBranchNode) nodeOriginal);
-						break;
-					case CALL:
-						callNodeCopies.put((ScriptCallNode) nodeCopy, (ScriptCallNode) nodeOriginal);
-						break;
-				}
-			}
-			
-			// Second: link branch targets in copy 
-			for (Map.Entry<ScriptBranchNode, ScriptBranchNode> entry : branchNodeCopies.entrySet()) {
-				ScriptBranchNode branchCopy = entry.getKey();
-				ScriptBranchNode branchOriginal = entry.getValue();
+	public ScriptMergeTarget copyToMergeTarget(ScriptFlowGraph original) {
+		ScriptMergeTarget flowCopy = new ScriptMergeTarget();
+		deepCopy(original, flowCopy);
+		return flowCopy;
+	}
 
-				ScriptNode target = branchOriginal.getTarget();
-				if (target != null)
-					branchCopy.setTarget(routineCopy.getNode(target.index));
+	private void deepCopy(ScriptRoutineGraph routineOriginal, ScriptRoutineGraph routineCopy) {
+		branchNodeCopies.clear();
+
+		// First: shallow copy
+		for (int i = 0; i < routineOriginal.getNodeCount(); i++) {
+			ScriptNode nodeOriginal = routineOriginal.getNode(i);
+			ScriptNode nodeCopy = nodeOriginal.copy();
+			routineCopy.addNode(nodeCopy);
+			switch (nodeCopy.type) {
+				case BRANCH:
+					branchNodeCopies.put((ScriptBranchNode) nodeCopy, (ScriptBranchNode) nodeOriginal);
+					break;
+				case CALL:
+					callNodeCopies.put((ScriptCallNode) nodeCopy, (ScriptCallNode) nodeOriginal);
+					break;
+				case EVAL:
+					evalNodeCopies.put((ScriptEvalNode) nodeCopy, (ScriptEvalNode) nodeOriginal);
+					break;
 			}
-			flowCopy.routines.put(routine.id, routineCopy);
 		}
 
-		// Third: link call targets in copy
+		// Second: link branch targets in copy
+		for (Map.Entry<ScriptBranchNode, ScriptBranchNode> entry : branchNodeCopies.entrySet()) {
+			ScriptBranchNode branchCopy = entry.getKey();
+			ScriptBranchNode branchOriginal = entry.getValue();
+
+			ScriptNode target = branchOriginal.getTarget();
+			if (target != null)
+				branchCopy.setTarget(routineCopy.getNode(target.index));
+		}
+	}
+
+	private void deepCopy(ScriptFlowGraph original, ScriptFlowGraph flowCopy) {
+
+		for (ScriptRoutineGraph routine : original.getRoutines()) {
+			ScriptRoutineGraph routineCopy = routine.copy();
+			deepCopy(routine, routineCopy);
+			flowCopy.addRoutine(routineCopy);
+		}
+		Log.log("Copying %d eval proxies", original.getEvalProxyCount());
+		for (ScriptRoutineGraphProxy proxy : original.getEvalProxies()) {
+			ScriptRoutineGraph copyProxyTarget = proxy.getTarget();
+			ScriptRoutineGraph routineCopy = copyProxyTarget.copy();
+			deepCopy(copyProxyTarget, routineCopy);
+			flowCopy.addRoutine(routineCopy);
+		}
+		Log.log("Copy now has %d eval proxies", flowCopy.getEvalProxyCount());
+
+		// Third: link call and eval targets in copy
 		for (Map.Entry<ScriptCallNode, ScriptCallNode> entry : callNodeCopies.entrySet()) {
 			ScriptCallNode callCopy = entry.getKey();
 			ScriptCallNode callOriginal = entry.getValue();
@@ -50,7 +79,12 @@ public class ScriptGraphCloner {
 				callCopy.addTarget(flowCopy.getRoutine(targetOriginal.id));
 			}
 		}
-		
-		return flowCopy;
+		for (Map.Entry<ScriptEvalNode, ScriptEvalNode> entry : evalNodeCopies.entrySet()) {
+			ScriptEvalNode evalCopy = entry.getKey();
+			ScriptEvalNode evalOriginal = entry.getValue();
+			for (ScriptRoutineGraphProxy targetOriginal : evalOriginal.getTargets()) {
+				evalCopy.addTarget(flowCopy.getEvalProxy(targetOriginal.getEvalId()));
+			}
+		}
 	}
 }

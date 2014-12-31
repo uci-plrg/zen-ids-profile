@@ -26,4 +26,9 @@ public class ScriptCallNode extends ScriptNode {
 	public int getTargetCount() {
 		return targets.size();
 	}
+	
+	@Override
+	public ScriptNode copy() {
+		return new ScriptCallNode(opcode, index);
+	}
 }

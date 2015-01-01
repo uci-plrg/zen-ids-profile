@@ -10,12 +10,12 @@ public class ScriptRoutineGraph {
 	public static boolean isEval(long routineId) {
 		return (routineId >> 16) == 0;
 	}
-	
+
 	public static int getEvalId(long routineId) {
 		if (!isEval(routineId))
 			return -1;
-		
-		return (int) (routineId & 0xffffffff);
+
+		return (int) (routineId & 0xffffffffL);
 	}
 
 	public static long constructId(int unitHash, int routineHash) {
@@ -35,11 +35,11 @@ public class ScriptRoutineGraph {
 
 		this.id = constructId(unitHash, routineHash);
 	}
-	
+
 	public boolean isRedundant() {
 		return redundant;
 	}
-	
+
 	public void setRedundant(boolean redundant) {
 		this.redundant = redundant;
 	}
@@ -47,7 +47,7 @@ public class ScriptRoutineGraph {
 	public ScriptRoutineGraph copy() {
 		return new ScriptRoutineGraph(unitHash, routineHash);
 	}
-	
+
 	public ScriptRoutineGraph rename(int unitHash, int routineHash) {
 		ScriptRoutineGraph renamed = new ScriptRoutineGraph(unitHash, routineHash);
 		renamed.nodes.addAll(nodes);
@@ -65,15 +65,15 @@ public class ScriptRoutineGraph {
 	public int getNodeCount() {
 		return nodes.size();
 	}
-	
+
 	public Iterable<ScriptNode> getNodes() {
 		return nodes;
 	}
-	
+
 	public boolean isSameRoutine(ScriptRoutineGraph other) {
 		if (nodes.size() != other.nodes.size())
 			return false;
-		
+
 		for (int i = 0; i < nodes.size(); i++) {
 			if (!nodes.get(i).isEqual(other.nodes.get(i)))
 				return false;

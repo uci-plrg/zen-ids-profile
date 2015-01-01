@@ -64,8 +64,8 @@ public class ScriptSafeMerge {
 					merged.getRoutineCount(), merged.getEvalProxyCount());
 
 			File outputFile = new File(outputDir.getValue());
-			ScriptDatasetGenerator output = new ScriptDatasetGenerator(merged);
-			output.generateDataset(outputFile);
+			ScriptDatasetGenerator output = new ScriptDatasetGenerator(merged, outputFile);
+			output.generateDataset();
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}

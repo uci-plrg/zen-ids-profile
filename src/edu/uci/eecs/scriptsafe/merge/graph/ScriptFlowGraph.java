@@ -7,6 +7,7 @@ import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
 public class ScriptFlowGraph {
 
@@ -24,11 +25,12 @@ public class ScriptFlowGraph {
 		}
 	}
 
-	public void appendEvalRoutine(ScriptRoutineGraph eval) {
-		if (eval.unitHash != ScriptRoutineGraph.EVAL_UNIT_HASH)
-			throw new MergeException("Attempt to append a non-eval routine 0x%x", eval.id);
-
-		addRoutine(eval.rename(eval.unitHash, evalProxies.size() + 1));
+	public void appendEvalRoutine(ScriptRoutineGraphProxy evalProxy) {
+		ScriptRoutineGraph append = evalProxy.getTarget()
+				.rename(evalProxy.getTarget().unitHash, evalProxies.size() + 1);
+		evalProxy.getTarget().setRedundant(true);
+		evalProxy.setTarget(append);
+		evalProxies.add(evalProxy);
 	}
 
 	public ScriptRoutineGraph getRoutine(Long id) {
@@ -59,11 +61,54 @@ public class ScriptFlowGraph {
 		return evalProxies.size();
 	}
 
-	public Iterable<ScriptRoutineGraphProxy> getEvalProxies() {
+	// dislike letting this out whole
+	public List<ScriptRoutineGraphProxy> getEvalProxies() {
 		return evalProxies;
 	}
 
 	protected void clearEvalProxies() {
 		evalProxies.clear();
+	}
+
+	protected boolean hasEvalProxyFor(ScriptRoutineGraph eval) {
+		for (ScriptRoutineGraphProxy evalProxy : evalProxies) {
+			if (evalProxy.getTarget() == eval)
+				return true;
+		}
+		return false;
+	}
+
+	public void redirectProxies(ScriptRoutineGraph discard, ScriptRoutineGraph keep) {
+		for (ScriptRoutineGraphProxy evalProxy : evalProxies) {
+			if (evalProxy.getTarget() == discard)
+				evalProxy.setTarget(keep);
+		}
+		discard.setRedundant(true);
+	}
+
+	public void checkIntegrity() {
+		int i = 1;
+		for (ScriptRoutineGraphProxy target : getEvalProxies()) {
+			if (target.getTarget().isRedundant())
+				throw new MergeException("Redundant eval proxy in flow graph");
+			if (target.getEvalId() != i) {
+				throw new MergeException("Found eval proxy with an inconsistent id: expected %d but found %d", i,
+						target.getEvalId());
+			}
+			i++;
+		}
+		for (ScriptRoutineGraph routine : getRoutines()) {
+			for (ScriptNode node : routine.getNodes()) {
+				if (node.type == Type.EVAL) {
+					ScriptEvalNode eval = (ScriptEvalNode) node;
+					for (ScriptRoutineGraphProxy target : eval.getTargets()) {
+						if (!hasEvalProxyFor(target.getTarget()))
+							throw new MergeException("Missing cached instance of eval proxy");
+						if (target.getTarget().isRedundant())
+							throw new MergeException("Redundant target of eval node");
+					}
+				}
+			}
+		}
 	}
 }

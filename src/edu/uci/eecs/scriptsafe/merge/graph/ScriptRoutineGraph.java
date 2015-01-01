@@ -26,6 +26,7 @@ public class ScriptRoutineGraph {
 	public final int routineHash;
 	public final Long id;
 
+	private boolean redundant = false;
 	private final List<ScriptNode> nodes = new ArrayList<ScriptNode>();
 
 	public ScriptRoutineGraph(int unitHash, int routineHash) {
@@ -33,6 +34,14 @@ public class ScriptRoutineGraph {
 		this.routineHash = routineHash;
 
 		this.id = constructId(unitHash, routineHash);
+	}
+	
+	public boolean isRedundant() {
+		return redundant;
+	}
+	
+	public void setRedundant(boolean redundant) {
+		this.redundant = redundant;
 	}
 
 	public ScriptRoutineGraph copy() {
@@ -55,6 +64,10 @@ public class ScriptRoutineGraph {
 
 	public int getNodeCount() {
 		return nodes.size();
+	}
+	
+	public Iterable<ScriptNode> getNodes() {
+		return nodes;
 	}
 	
 	public boolean isSameRoutine(ScriptRoutineGraph other) {

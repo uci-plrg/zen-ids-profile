@@ -17,14 +17,21 @@ public class ScriptDatasetGenerator {
 	private final ScriptFlowGraph graph;
 	private final List<ScriptBranchNode> branches = new ArrayList<ScriptBranchNode>();
 	private final List<ScriptCallNode> calls = new ArrayList<ScriptCallNode>();
+	private final LittleEndianOutputStream out;
 
-	public ScriptDatasetGenerator(ScriptFlowGraph graph) {
+	public ScriptDatasetGenerator(ScriptFlowGraph graph, File outputFile) throws IOException {
 		this.graph = graph;
+		out = new LittleEndianOutputStream(outputFile);
 	}
 
-	public void generateDataset(File outputFile) throws IOException {
-		LittleEndianOutputStream out = new LittleEndianOutputStream(outputFile);
+	public void generateDataset() throws IOException {
+		writeRoutineData();
 
+		out.flush();
+		out.close();
+	}
+
+	private void writeRoutineData() throws IOException {
 		for (ScriptRoutineGraph routine : graph.getRoutines()) {
 			out.writeInt(routine.unitHash);
 			out.writeInt(routine.routineHash);
@@ -58,8 +65,5 @@ public class ScriptDatasetGenerator {
 				}
 			}
 		}
-
-		out.flush();
-		out.close();
 	}
 }

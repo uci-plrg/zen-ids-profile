@@ -12,13 +12,11 @@ public class ScriptGraphCloner {
 	private final Map<ScriptEvalNode, ScriptEvalNode> evalNodeCopies = new HashMap<ScriptEvalNode, ScriptEvalNode>();
 
 	public ScriptFlowGraph deepCopy(ScriptFlowGraph original) {
+		branchNodeCopies.clear();
+		callNodeCopies.clear();
+		evalNodeCopies.clear();
+		
 		ScriptFlowGraph flowCopy = new ScriptFlowGraph();
-		deepCopy(original, flowCopy);
-		return flowCopy;
-	}
-
-	public ScriptMergeTarget copyToMergeTarget(ScriptFlowGraph original) {
-		ScriptMergeTarget flowCopy = new ScriptMergeTarget();
 		deepCopy(original, flowCopy);
 		return flowCopy;
 	}

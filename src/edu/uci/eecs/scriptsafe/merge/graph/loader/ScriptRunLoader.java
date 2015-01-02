@@ -8,6 +8,7 @@ import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
@@ -87,7 +88,7 @@ class ScriptRunLoader {
 			if (opcodeEdges != null && opcodeEdges.size() > 1 && routineEdges != null)
 				throw new IllegalStateException(String.format(
 						"Node %d in routine %x has both opcode edges and routine edges!", index, routineId));
-			if (opcodeEdges != null && opcodeEdges.size() > 1)
+			if (opcodeEdges != null && (opcodeEdges.size() > 1 || opcode == 42))
 				return new ScriptBranchNode(opcode, index);
 			if (routineEdges != null) {
 				if (ScriptRoutineGraph.isEval(routineEdges.iterator().next().toRoutineId))
@@ -129,6 +130,9 @@ class ScriptRunLoader {
 			fromIndex = input.readInt();
 			toIndex = input.readInt();
 
+			if (toIndex == (fromIndex + 1))
+				continue;
+
 			Log.log("Raw opcode edge from %d to %d", fromIndex, toIndex);
 
 			graph = getRawGraph(routineId);
@@ -145,20 +149,25 @@ class ScriptRunLoader {
 		ScriptEvalNode evalSite;
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
-				if (edges.size() == 1)
-					continue;
+				// if (edges.size() == 1)
+				// continue;
 				for (RawOpcodeEdge edge : edges) {
 					routine = graph.getRoutine(edge.routineId);
 					fromNode = routine.getNode(edge.fromIndex);
 
 					if (!(fromNode instanceof ScriptBranchNode)) {
-						throw new IllegalArgumentException(String.format(
+						throw new MergeException(
 								"Branch from non-branch node with opcode %d at index %d in routine 0x%x!",
-								fromNode.opcode, edge.fromIndex, edge.routineId));
+								fromNode.opcode, edge.fromIndex, edge.routineId);
 					}
 
 					branchNode = (ScriptBranchNode) routine.getNode(edge.fromIndex);
 					branchNode.setTarget(routine.getNode(edge.toIndex));
+
+					if (routine.getNode(edge.toIndex).index != edge.toIndex) {
+						throw new MergeException("Incorrect node index: expected %d but found %d", edge.toIndex,
+								routine.getNode(edge.toIndex).index);
+					}
 				}
 			}
 

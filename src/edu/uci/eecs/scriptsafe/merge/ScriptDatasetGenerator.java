@@ -128,10 +128,11 @@ public class ScriptDatasetGenerator {
 	}
 
 	private void writeEvalList() throws IOException {
+		out.writeInt(evalOffsets.size());
 		for (Integer evalOffset : evalOffsets) {
 			out.writeInt(evalOffset);
 		}
-		filePtr += evalOffsets.size();
+		filePtr += (1 + evalOffsets.size());
 	}
 
 	private void writeRoutineHashtable() throws IOException {

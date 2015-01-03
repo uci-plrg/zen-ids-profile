@@ -8,7 +8,7 @@ public class ScriptRoutineGraph {
 	public static final int EVAL_UNIT_HASH = 0;
 
 	public static boolean isEval(long routineId) {
-		return (routineId >> 16) == 0;
+		return (int) (routineId >> 16) == 0;
 	}
 
 	public static int getEvalId(long routineId) {

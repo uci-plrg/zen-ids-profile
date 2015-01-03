@@ -149,8 +149,6 @@ class ScriptRunLoader {
 		ScriptEvalNode evalSite;
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
-				// if (edges.size() == 1)
-				// continue;
 				for (RawOpcodeEdge edge : edges) {
 					routine = graph.getRoutine(edge.routineId);
 					fromNode = routine.getNode(edge.fromIndex);

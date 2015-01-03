@@ -9,9 +9,11 @@ import java.util.List;
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraphProxy;
 
 public class ScriptDatasetGenerator {
 
@@ -69,7 +71,7 @@ public class ScriptDatasetGenerator {
 		final long routineId;
 		HashtableEntry next = null;
 		final int dataOffset;
-		int  chainOffset;
+		int chainOffset;
 
 		public HashtableEntry(long routineId, int dataOffset) {
 			this.routineId = routineId;
@@ -80,13 +82,15 @@ public class ScriptDatasetGenerator {
 	private static final int HASHTABLE_ENTRY_SIZE = 4;
 
 	private final ScriptFlowGraph graph;
-	private final List<ScriptCallNode> calls = new ArrayList<ScriptCallNode>();
 	private final File outputFile;
 	private final LittleEndianOutputStream out;
+
 	private final HashtableConfiguration hashtableConfiguration;
 	private final Hashtable hashtable;
+	private final List<Integer> evalOffsets = new ArrayList<Integer>();
 
 	private int filePtr = 0;
+	private int callTargetPtr;
 	private int hashtableStart;
 
 	public ScriptDatasetGenerator(ScriptFlowGraph graph, File outputFile) throws IOException {
@@ -104,9 +108,10 @@ public class ScriptDatasetGenerator {
 		out.writeInt(graph.getRoutineCount());
 		filePtr += 2;
 
-		writeRoutineData();
+		writeRoutines();
 		writeRoutineHashtableChains();
 		writeRoutineHashtable();
+		writeEvalList();
 
 		out.flush();
 		out.close();
@@ -122,6 +127,13 @@ public class ScriptDatasetGenerator {
 		insertOut.close();
 	}
 
+	private void writeEvalList() throws IOException {
+		for (Integer evalOffset : evalOffsets) {
+			out.writeInt(evalOffset);
+		}
+		filePtr += evalOffsets.size();
+	}
+
 	private void writeRoutineHashtable() throws IOException {
 		hashtableStart = filePtr;
 		out.writeInt(hashtableConfiguration.mask);
@@ -132,7 +144,7 @@ public class ScriptDatasetGenerator {
 				out.writeInt(hashtable.table[i].chainOffset);
 		}
 	}
-	
+
 	private void writeRoutineHashtableChains() throws IOException {
 		for (int i = 0; i < hashtableConfiguration.size; i++) {
 			HashtableEntry entry = hashtable.table[i];
@@ -146,52 +158,78 @@ public class ScriptDatasetGenerator {
 				out.writeInt(0); // null-terminate the chain
 				filePtr++;
 			}
-		}		
+		}
 	}
 
-	private void writeRoutineData() throws IOException {
-		int callTargetPtr;
+	private void writeRoutineData(ScriptRoutineGraph routine) throws IOException {
+		List<ScriptNode> calls = new ArrayList<ScriptNode>();
+		out.writeInt(routine.unitHash);
+		out.writeInt(routine.routineHash);
+		out.writeInt(routine.getNodeCount());
+		callTargetPtr = filePtr + (3 + (routine.getNodeCount() * 2));
+
+		for (int i = 0; i < routine.getNodeCount(); i++) {
+			ScriptNode node = routine.getNode(i);
+			out.writeInt(node.opcode);
+
+			switch (node.type) {
+				case NORMAL:
+					out.writeInt(0);
+					break;
+				case BRANCH:
+					out.writeInt(((ScriptBranchNode) node).getTarget().index);
+					break;
+				case CALL:
+					ScriptCallNode call = (ScriptCallNode) node;
+					calls.add(call);
+					out.writeInt(callTargetPtr);
+					callTargetPtr += (1 + (2 * call.getTargetCount()));
+					break;
+				case EVAL:
+					ScriptEvalNode eval = (ScriptEvalNode) node;
+					calls.add(eval);
+					out.writeInt(callTargetPtr);
+					callTargetPtr += (1 + eval.getTargetCount());
+
+					break;
+			}
+		}
+		filePtr += (3 + (routine.getNodeCount() * 2));
+
+		for (ScriptNode callNode : calls) {
+			switch (callNode.type) {
+				case CALL: {
+					ScriptCallNode call = (ScriptCallNode) callNode;
+					out.writeInt(call.getTargetCount());
+					for (ScriptRoutineGraph target : call.getTargets()) {
+						out.writeInt(target.unitHash);
+						out.writeInt(target.routineHash);
+					}
+					filePtr += (1 + (2 * call.getTargetCount()));
+				}
+					break;
+				case EVAL: {
+					ScriptEvalNode eval = (ScriptEvalNode) callNode;
+					for (ScriptRoutineGraphProxy target : eval.getTargets()) {
+						out.writeInt(target.getEvalId());
+					}
+					out.writeInt(0); // null terminator
+					filePtr += (1 + eval.getTargetCount());
+				}
+			}
+		}
+	}
+
+	private void writeRoutines() throws IOException {
+		callTargetPtr = 0;
+		evalOffsets.clear();
 		for (ScriptRoutineGraph routine : graph.getRoutines()) {
 			hashtable.putEntry(routine.id, filePtr);
-
-			out.writeInt(routine.unitHash);
-			out.writeInt(routine.routineHash);
-			out.writeInt(routine.getNodeCount());
-			callTargetPtr = filePtr + (3 + (routine.getNodeCount() * 2));
-
-			for (int i = 0; i < routine.getNodeCount(); i++) {
-				ScriptNode node = routine.getNode(i);
-				out.writeInt(node.opcode);
-
-				switch (node.type) {
-					case NORMAL:
-						out.writeInt(0);
-						break;
-					case BRANCH:
-						out.writeInt(((ScriptBranchNode) node).getTarget().index);
-						break;
-					case CALL:
-						ScriptCallNode call = (ScriptCallNode) node;
-						calls.add(call);
-						out.writeInt(callTargetPtr);
-						callTargetPtr += (1 + (2 * call.getTargetCount()));
-						break;
-					case EVAL:
-						out.writeInt(0); // for now
-						break;
-				}
-			}
-
-			filePtr += (3 + (routine.getNodeCount() * 2));
-
-			for (ScriptCallNode call : calls) {
-				out.writeInt(call.getTargetCount());
-				for (ScriptRoutineGraph target : call.getTargets()) {
-					out.writeInt(target.unitHash);
-					out.writeInt(target.routineHash);
-				}
-				filePtr += (1 + (2 * call.getTargetCount()));
-			}
+			writeRoutineData(routine);
+		}
+		for (ScriptRoutineGraphProxy evalProxy : graph.getEvalProxies()) {
+			evalOffsets.add(filePtr);
+			writeRoutineData(evalProxy.getTarget());
 		}
 	}
 }

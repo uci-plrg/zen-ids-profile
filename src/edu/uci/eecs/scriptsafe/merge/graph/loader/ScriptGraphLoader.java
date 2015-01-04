@@ -15,6 +15,11 @@ public class ScriptGraphLoader {
 
 	public ScriptFlowGraph loadGraph(ScriptGraphDataSource dataSource) throws IOException {
 		ScriptFlowGraph graph = new ScriptFlowGraph();
+		loadGraph(dataSource, graph);
+		return graph;
+	}
+
+	public void loadGraph(ScriptGraphDataSource dataSource, ScriptFlowGraph graph) throws IOException {
 		switch (dataSource.getType()) {
 			case RUN:
 				ScriptRunLoader runLoader = new ScriptRunLoader();
@@ -24,7 +29,6 @@ public class ScriptGraphLoader {
 				loadDataset((ScriptDatasetFile) dataSource, graph);
 				break;
 		}
-		return graph;
 	}
 
 	private void loadDataset(ScriptDatasetFile dataset, ScriptFlowGraph graph) throws IOException {

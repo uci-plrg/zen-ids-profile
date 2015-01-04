@@ -16,8 +16,8 @@ public class ScriptFlowGraph {
 
 	public void addRoutine(ScriptRoutineGraph routine) {
 		if (ScriptRoutineGraph.isEval(routine.id)) {
-			if (ScriptRoutineGraph.getEvalId(routine.id) != (evalProxies.size() + 1))
-				throw new MergeException("Expected eval id %d, but found id %d", evalProxies.size() + 1, routine.id);
+			if (ScriptRoutineGraph.getEvalId(routine.id) != evalProxies.size())
+				throw new MergeException("Expected eval id %d, but found id %d", evalProxies.size(), routine.id);
 
 			evalProxies.add(new ScriptRoutineGraphProxy(routine));
 		} else {
@@ -27,7 +27,7 @@ public class ScriptFlowGraph {
 
 	public void appendEvalRoutine(ScriptRoutineGraphProxy evalProxy) {
 		ScriptRoutineGraph append = evalProxy.getTarget()
-				.rename(evalProxy.getTarget().unitHash, evalProxies.size() + 1);
+				.rename(evalProxy.getTarget().unitHash, evalProxies.size());
 		evalProxy.getTarget().setRedundant(true);
 		evalProxy.setTarget(append);
 		evalProxies.add(evalProxy);
@@ -36,8 +36,8 @@ public class ScriptFlowGraph {
 	public ScriptRoutineGraph getRoutine(Long id) {
 		if (ScriptRoutineGraph.isEval(id)) {
 			int evalId = ScriptRoutineGraph.getEvalId(id);
-			if ((evalId - 1) < evalProxies.size())
-				return evalProxies.get(evalId - 1).getTarget();
+			if (evalId < evalProxies.size())
+				return evalProxies.get(evalId).getTarget();
 			else
 				return null;
 		} else {
@@ -54,7 +54,7 @@ public class ScriptFlowGraph {
 	}
 
 	public ScriptRoutineGraphProxy getEvalProxy(int id) {
-		return evalProxies.get(id - 1);
+		return evalProxies.get(id);
 	}
 
 	public int getEvalProxyCount() {
@@ -87,7 +87,7 @@ public class ScriptFlowGraph {
 	}
 
 	public void checkIntegrity() {
-		int i = 1;
+		int i = 0;
 		for (ScriptRoutineGraphProxy target : getEvalProxies()) {
 			if (target.getTarget().isRedundant())
 				throw new MergeException("Redundant eval proxy in flow graph");

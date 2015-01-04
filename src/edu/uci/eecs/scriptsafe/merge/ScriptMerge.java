@@ -10,6 +10,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptGraphCloner;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraphProxy;
 
@@ -91,8 +92,8 @@ public class ScriptMerge {
 
 		for (int i = 0; i < evalProxies.size(); i++) {
 			ScriptRoutineGraphProxy keep = evalProxies.get(i);
-			if (keep.getEvalId() != (i + 1)) {
-				ScriptRoutineGraph renamed = keep.getTarget().rename(ScriptRoutineGraph.EVAL_UNIT_HASH, i + 1);
+			if (keep.getEvalId() != i) {
+				ScriptRoutineGraph renamed = keep.getTarget().rename(ScriptRoutineGraph.EVAL_UNIT_HASH, i);
 				keep.setTarget(renamed);
 			}
 			for (int j = i + 1; j < evalProxies.size();) {

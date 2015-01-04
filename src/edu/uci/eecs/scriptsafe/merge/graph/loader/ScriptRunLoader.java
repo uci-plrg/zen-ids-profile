@@ -76,28 +76,18 @@ class ScriptRunLoader {
 	ScriptRunLoader() {
 	}
 
-	private ScriptNode createNode(int opcode, int index, long routineId) {
-		RawRoutineGraph graph = getRawGraph(routineId);
-		if (graph != null) {
-			Set<RawOpcodeEdge> opcodeEdges = graph.opcodeEdges.get(index);
-
-			if (opcodeEdges != null)
-				Log.log("Found %d opcode edges for node with index %d", opcodeEdges.size(), index);
-
-			Set<RawRoutineEdge> routineEdges = graph.routineEdges.get(index);
-			if (opcodeEdges != null && opcodeEdges.size() > 1 && routineEdges != null)
-				throw new IllegalStateException(String.format(
-						"Node %d in routine %x has both opcode edges and routine edges!", index, routineId));
-			if (opcodeEdges != null && (opcodeEdges.size() > 1 || opcode == 42))
+	private ScriptNode createNode(int opcode, ScriptNode.Type type, int index, long routineId) {
+		switch (type) {
+			case NORMAL:
+				return new ScriptNode(opcode, index);
+			case BRANCH:
 				return new ScriptBranchNode(opcode, index);
-			if (routineEdges != null) {
-				if (ScriptRoutineGraph.isEval(routineEdges.iterator().next().toRoutineId))
-					return new ScriptEvalNode(opcode, index);
-				else
-					return new ScriptCallNode(opcode, index);
-			}
+			case CALL:
+				return new ScriptCallNode(opcode, index);
+			case EVAL:
+				return new ScriptEvalNode(opcode, index);
 		}
-		return new ScriptNode(opcode, index);
+		return null; // unreachable
 	}
 
 	private RawRoutineGraph getRawGraph(Long id) {
@@ -110,6 +100,8 @@ class ScriptRunLoader {
 	}
 
 	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
+		rawGraphs.clear();
+		
 		loadOpcodeEdges(run);
 		loadRoutineEdges(run, graph);
 		loadNodes(run, graph);
@@ -138,6 +130,12 @@ class ScriptRunLoader {
 			graph = getRawGraph(routineId);
 			graph.addRawEdge(new RawOpcodeEdge(routineId, fromIndex, toIndex));
 		}
+
+		if (input.ready()) {
+			throw new IllegalArgumentException("Input file " + run.opcodeEdgeFile.getAbsolutePath()
+					+ " has trailing data!");
+		}
+		input.close();
 	}
 
 	private void linkNodes(ScriptFlowGraph graph) {
@@ -210,20 +208,20 @@ class ScriptRunLoader {
 			fromRoutineId = ScriptRoutineGraph.constructId(fromUnitHash, fromRoutineHash);
 			toRoutineId = ScriptRoutineGraph.constructId(toUnitHash, toRoutineHash);
 
-			/*
-			 * if (graph.getRoutine(fromRoutineId) == null) throw new
-			 * IllegalArgumentException(String.format("Found a routine edge from an unknown routine 0x%x",
-			 * fromRoutineId)); if (graph.getRoutine(toRoutineId) == null) throw new
-			 * IllegalArgumentException(String.format("Found a routine edge to an unknown routine 0x%x", toRoutineId));
-			 */
-
 			routine = getRawGraph(fromRoutineId);
 			routine.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId));
 		}
+
+		if (input.ready()) {
+			throw new IllegalArgumentException("Input file " + run.routineEdgeFile.getAbsolutePath()
+					+ " has trailing data!");
+		}
+		input.close();
 	}
 
 	private void loadNodes(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
-		int unitHash, routineHash, opcode, nodeIndex = 0;
+		int unitHash, routineHash, opcodeField, opcode, extendedValue, nodeIndex = 0;
+		ScriptNode.Type type;
 		long routineId;
 		ScriptNode node, lastNode = null;
 		ScriptRoutineGraph routine = null;
@@ -240,9 +238,14 @@ class ScriptRunLoader {
 				graph.addRoutine(routine);
 			}
 
-			opcode = input.readInt();
+			opcodeField = input.readInt();
+			opcode = opcodeField & 0xff;
+			extendedValue = (opcodeField >> 8) & 0xff;
+			type = ScriptNode.identifyType(opcode, extendedValue);
+
+			// parse out extended value for include/eval nodes
 			nodeIndex = input.readInt();
-			node = createNode(opcode, nodeIndex, routineId);
+			node = createNode(opcode, type, nodeIndex, routineId);
 			if (lastNode != null)
 				lastNode.setNext(node);
 			lastNode = node;
@@ -254,5 +257,6 @@ class ScriptRunLoader {
 
 		if (input.ready())
 			throw new IllegalArgumentException("Input file " + run.nodeFile.getAbsolutePath() + " has trailing data!");
+		input.close();
 	}
 }

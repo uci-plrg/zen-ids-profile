@@ -21,6 +21,36 @@ public class ScriptGraphCloner {
 		return flowCopy;
 	}
 
+	public ScriptFlowGraph copyRoutines(ScriptFlowGraph original) {
+		branchNodeCopies.clear();
+		callNodeCopies.clear();
+		evalNodeCopies.clear();
+		
+		ScriptFlowGraph flowCopy = new ScriptFlowGraph();
+		for (ScriptRoutineGraph routine : original.getRoutines()) {
+			ScriptRoutineGraph routineCopy = routine.copy();
+			shallowCopy(routine, routineCopy);
+			flowCopy.addRoutine(routineCopy);
+		}
+		Log.log("Copying %d eval proxies", original.getEvalProxyCount());
+		for (ScriptRoutineGraphProxy proxy : original.getEvalProxies()) {
+			ScriptRoutineGraph copyProxyTarget = proxy.getTarget();
+			ScriptRoutineGraph routineCopy = copyProxyTarget.copy();
+			shallowCopy(copyProxyTarget, routineCopy);
+			flowCopy.addRoutine(routineCopy);
+		}
+		Log.log("Copy now has %d eval proxies", flowCopy.getEvalProxyCount());
+		return flowCopy;
+	}
+
+	private void shallowCopy(ScriptRoutineGraph routineOriginal, ScriptRoutineGraph routineCopy) {
+		for (int i = 0; i < routineOriginal.getNodeCount(); i++) {
+			ScriptNode nodeOriginal = routineOriginal.getNode(i);
+			ScriptNode nodeCopy = nodeOriginal.copy();
+			routineCopy.addNode(nodeCopy);
+		}
+	}
+	
 	private void deepCopy(ScriptRoutineGraph routineOriginal, ScriptRoutineGraph routineCopy) {
 		branchNodeCopies.clear();
 

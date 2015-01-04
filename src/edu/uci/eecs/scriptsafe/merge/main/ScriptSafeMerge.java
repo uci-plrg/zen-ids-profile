@@ -8,7 +8,9 @@ import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.scriptsafe.merge.ScriptDatasetGenerator;
 import edu.uci.eecs.scriptsafe.merge.ScriptMerge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptGraphCloner;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphLoader;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptRunFileSet;
 
@@ -49,8 +51,14 @@ public class ScriptSafeMerge {
 			leftDataSource = ScriptGraphDataSource.Factory.construct(leftPath);
 			rightDataSource = ScriptGraphDataSource.Factory.construct(rightPath);
 
-			leftGraph = loader.loadGraph(leftDataSource);
 			rightGraph = loader.loadGraph(rightDataSource);
+			if (rightDataSource.getType() == Type.DATASET) {
+				ScriptGraphCloner cloner = new ScriptGraphCloner();
+				ScriptFlowGraph leftGraph = cloner.copyRoutines(rightGraph);
+				loader.loadGraph(leftDataSource, leftGraph);
+			} else {
+				leftGraph = loader.loadGraph(leftDataSource);
+			}
 
 			Log.log("Left graph is a %s from %s with %d routines", leftDataSource.getClass().getSimpleName(),
 					leftPath.getAbsolutePath(), leftGraph.getRoutineCount());

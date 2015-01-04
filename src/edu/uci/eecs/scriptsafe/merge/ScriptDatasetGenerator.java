@@ -106,7 +106,8 @@ public class ScriptDatasetGenerator {
 	public void generateDataset() throws IOException {
 		out.writeInt(0); // placeholder for hashtableStart
 		out.writeInt(graph.getRoutineCount());
-		filePtr += 2;
+		out.writeInt(graph.getEvalProxyCount());
+		filePtr += 3;
 
 		writeRoutines();
 		writeRoutineHashtableChains();
@@ -171,7 +172,8 @@ public class ScriptDatasetGenerator {
 
 		for (int i = 0; i < routine.getNodeCount(); i++) {
 			ScriptNode node = routine.getNode(i);
-			out.writeInt(node.opcode);
+			int nodeId = (node.type.ordinal() << 8) | node.opcode;
+			out.writeInt(nodeId);
 
 			switch (node.type) {
 				case NORMAL:
@@ -211,10 +213,10 @@ public class ScriptDatasetGenerator {
 					break;
 				case EVAL: {
 					ScriptEvalNode eval = (ScriptEvalNode) callNode;
-					for (ScriptRoutineGraphProxy target : eval.getTargets()) {
+					out.writeInt(eval.getTargetCount());
+					for (ScriptRoutineGraphProxy target : eval.getTargets())
 						out.writeInt(target.getEvalId());
-					}
-					out.writeInt(0); // null terminator
+					
 					filePtr += (1 + eval.getTargetCount());
 				}
 			}

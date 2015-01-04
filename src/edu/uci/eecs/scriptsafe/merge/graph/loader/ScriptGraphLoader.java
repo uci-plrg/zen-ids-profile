@@ -26,12 +26,9 @@ public class ScriptGraphLoader {
 				runLoader.loadRun((ScriptRunFileSet) dataSource, graph);
 				break;
 			case DATASET:
-				loadDataset((ScriptDatasetFile) dataSource, graph);
+				ScriptDatasetLoader datasetLoader = new ScriptDatasetLoader();
+				datasetLoader.loadDataset((ScriptDatasetFile) dataSource, graph);
 				break;
 		}
-	}
-
-	private void loadDataset(ScriptDatasetFile dataset, ScriptFlowGraph graph) throws IOException {
-
 	}
 }

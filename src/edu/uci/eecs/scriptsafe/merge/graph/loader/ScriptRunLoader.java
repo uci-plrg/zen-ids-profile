@@ -76,7 +76,7 @@ class ScriptRunLoader {
 	ScriptRunLoader() {
 	}
 
-	private ScriptNode createNode(int opcode, ScriptNode.Type type, int index, long routineId) {
+	private ScriptNode createNode(int opcode, ScriptNode.Type type, int index) {
 		switch (type) {
 			case NORMAL:
 				return new ScriptNode(opcode, index);
@@ -245,7 +245,7 @@ class ScriptRunLoader {
 
 			// parse out extended value for include/eval nodes
 			nodeIndex = input.readInt();
-			node = createNode(opcode, type, nodeIndex, routineId);
+			node = createNode(opcode, type, nodeIndex);
 			if (lastNode != null)
 				lastNode.setNext(node);
 			lastNode = node;

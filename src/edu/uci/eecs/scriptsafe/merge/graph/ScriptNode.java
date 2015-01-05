@@ -33,7 +33,7 @@ public class ScriptNode {
 		}
 	}
 
-	private enum Opcode {
+	public enum Opcode {
 		ZEND_JMP(42),
 		ZEND_JMPZ(43),
 		ZEND_JMPNZ(44),
@@ -42,9 +42,10 @@ public class ScriptNode {
 		ZEND_JMPNZ_EX(47),
 		ZEND_DO_FCALL(60),
 		ZEND_INCLUDE_OR_EVAL(73),
-		ZEND_FAST_CALL(162);
+		ZEND_FAST_CALL(162),
+		ZEND_ASSIGN_DIM(0X93);
 
-		final int code;
+		public final int code;
 
 		private Opcode(int code) {
 			this.code = code;

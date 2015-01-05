@@ -101,7 +101,7 @@ class ScriptRunLoader {
 
 	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
 		rawGraphs.clear();
-		
+
 		loadOpcodeEdges(run);
 		loadRoutineEdges(run, graph);
 		loadNodes(run, graph);
@@ -152,8 +152,13 @@ class ScriptRunLoader {
 					fromNode = routine.getNode(edge.fromIndex);
 
 					if (!(fromNode instanceof ScriptBranchNode)) {
+						if (fromNode.opcode == ScriptNode.Opcode.ZEND_ASSIGN_DIM.code
+								&& edge.toIndex == (edge.fromIndex + 2)) {
+							continue; // always followed by data-bearing op
+						}
+
 						throw new MergeException(
-								"Branch from non-branch node with opcode %d at index %d in routine 0x%x!",
+								"Branch from non-branch node with opcode 0x%x at index %d in routine 0x%x!",
 								fromNode.opcode, edge.fromIndex, edge.routineId);
 					}
 

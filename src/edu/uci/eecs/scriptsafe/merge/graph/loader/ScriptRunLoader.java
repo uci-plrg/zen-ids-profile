@@ -180,16 +180,17 @@ class ScriptRunLoader {
 								"Found a routine edge from an unknown routine 0x%x", edge.fromRoutineId));
 					}
 
-					if (ScriptRoutineGraph.isEval(edge.toRoutineId)) {
-						toRoutineProxy = graph.getEvalProxy(ScriptRoutineGraph.getEvalId(edge.toRoutineId));
+					if (ScriptRoutineGraph.isDynamicRoutine(edge.toRoutineId)) {
+						toRoutineProxy = graph.getDynamicRoutineProxy(ScriptRoutineGraph.getDynamicRoutineId(edge.toRoutineId));
 
+						//  TODO: if from node is a call, add to its dynamic targets, else:
 						evalSite = (ScriptEvalNode) fromRoutine.getNode(edge.fromIndex);
 						evalSite.addTarget(toRoutineProxy);
 					} else {
 						toRoutine = graph.getRoutine(edge.toRoutineId);
 
 						callSite = (ScriptCallNode) fromRoutine.getNode(edge.fromIndex);
-						callSite.addTarget(toRoutine);
+						callSite.addStaticTarget(toRoutine);
 					}
 				}
 			}

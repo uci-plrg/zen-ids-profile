@@ -10,7 +10,6 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptGraphCloner;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraphProxy;
 
@@ -21,8 +20,6 @@ public class ScriptMerge {
 	final ScriptFlowGraph left;
 	final ScriptFlowGraph target;
 
-	private int evalId = 0;
-
 	public ScriptMerge(ScriptFlowGraph left, ScriptFlowGraph right) {
 		ScriptGraphCloner cloner = new ScriptGraphCloner();
 		this.left = cloner.deepCopy(left);
@@ -30,11 +27,12 @@ public class ScriptMerge {
 	}
 
 	public ScriptFlowGraph merge() {
-		for (ScriptRoutineGraphProxy leftEvalProxy : left.getEvalProxies()) {
-			target.appendEvalRoutine(leftEvalProxy);
+		for (ScriptRoutineGraphProxy leftDynamicRoutineProxy : left.getDynamicRoutineProxies()) {
+			target.appendDynamicRoutine(leftDynamicRoutineProxy);
 		}
-		Log.log("After appending left evals, target has %d eval routines", target.getEvalProxyCount());
-		mergeEvalRoutines();
+		Log.log("After appending left dynamic routines, target has %d dynamic routines",
+				target.getDynamicRoutineProxyCount());
+		mergeDynamicRoutines();
 
 		for (ScriptRoutineGraph leftRoutine : left.getRoutines()) {
 			ScriptRoutineGraph rightRoutine = target.getRoutine(leftRoutine.id);
@@ -64,10 +62,10 @@ public class ScriptMerge {
 				case CALL: {
 					ScriptCallNode leftCall = (ScriptCallNode) leftNode;
 					ScriptCallNode targetCall = (ScriptCallNode) targetNode;
-					for (ScriptRoutineGraph leftTarget : leftCall.getTargets()) {
-						if (targetCall.getTarget(leftTarget.id) == null) {
+					for (ScriptRoutineGraph leftTarget : leftCall.getStaticTargets()) {
+						if (targetCall.getStaticTarget(leftTarget.id) == null) {
 							ScriptRoutineGraph targetCallTarget = target.getRoutine(leftTarget.id);
-							targetCall.addTarget(targetCallTarget);
+							targetCall.addStaticTarget(targetCallTarget);
 						}
 					}
 
@@ -77,7 +75,7 @@ public class ScriptMerge {
 					ScriptEvalNode leftEvalNode = (ScriptEvalNode) leftNode;
 					ScriptEvalNode targetEvalNode = (ScriptEvalNode) targetNode;
 					for (ScriptRoutineGraphProxy leftEval : leftEvalNode.getTargets()) {
-						if (!targetEvalNode.hasTarget(leftEval.getEvalId()))
+						if (!targetEvalNode.hasTarget(leftEval.getDynamicRoutineId()))
 							targetEvalNode.addTarget(leftEval);
 					}
 				}
@@ -86,20 +84,20 @@ public class ScriptMerge {
 		}
 	}
 
-	private void mergeEvalRoutines() {
-		List<ScriptRoutineGraphProxy> evalProxies = target.getEvalProxies();
-		int evalProxyCount = evalProxies.size();
+	private void mergeDynamicRoutines() {
+		List<ScriptRoutineGraphProxy> dynamicRoutineProxies = target.getDynamicRoutineProxies();
+		int evalProxyCount = dynamicRoutineProxies.size();
 
-		for (int i = 0; i < evalProxies.size(); i++) {
-			ScriptRoutineGraphProxy keep = evalProxies.get(i);
-			if (keep.getEvalId() != i) {
-				ScriptRoutineGraph renamed = keep.getTarget().rename(ScriptRoutineGraph.EVAL_UNIT_HASH, i);
+		for (int i = 0; i < dynamicRoutineProxies.size(); i++) {
+			ScriptRoutineGraphProxy keep = dynamicRoutineProxies.get(i);
+			if (keep.getDynamicRoutineId() != i) {
+				ScriptRoutineGraph renamed = keep.getTarget().rename(ScriptRoutineGraph.DYNAMIC_UNIT_HASH, i);
 				keep.setTarget(renamed);
 			}
-			for (int j = i + 1; j < evalProxies.size();) {
-				ScriptRoutineGraphProxy compare = evalProxies.get(j);
+			for (int j = i + 1; j < dynamicRoutineProxies.size();) {
+				ScriptRoutineGraphProxy compare = dynamicRoutineProxies.get(j);
 				if (keep.getTarget().isSameRoutine(compare.getTarget())) {
-					evalProxies.remove(j); //
+					dynamicRoutineProxies.remove(j); //
 
 					compare.setTarget(keep.getTarget());
 				} else {
@@ -107,7 +105,7 @@ public class ScriptMerge {
 				}
 			}
 		}
-		Log.log("Merged %d eval routines into %d eval routines", evalProxyCount, evalProxies.size());
+		Log.log("Merged %d dynamic routines into %d dynamic routines", evalProxyCount, dynamicRoutineProxies.size());
 	}
 
 	public static void main(String[] args) {

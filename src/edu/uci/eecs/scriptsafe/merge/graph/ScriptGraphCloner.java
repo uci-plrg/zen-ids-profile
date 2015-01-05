@@ -32,14 +32,14 @@ public class ScriptGraphCloner {
 			shallowCopy(routine, routineCopy);
 			flowCopy.addRoutine(routineCopy);
 		}
-		Log.log("Copying %d eval proxies", original.getEvalProxyCount());
-		for (ScriptRoutineGraphProxy proxy : original.getEvalProxies()) {
+		Log.log("Copying %d dynamic routine proxies", original.getDynamicRoutineProxyCount());
+		for (ScriptRoutineGraphProxy proxy : original.getDynamicRoutineProxies()) {
 			ScriptRoutineGraph copyProxyTarget = proxy.getTarget();
 			ScriptRoutineGraph routineCopy = copyProxyTarget.copy();
 			shallowCopy(copyProxyTarget, routineCopy);
 			flowCopy.addRoutine(routineCopy);
 		}
-		Log.log("Copy now has %d eval proxies", flowCopy.getEvalProxyCount());
+		Log.log("Copy now has %d dynamic routine proxies", flowCopy.getDynamicRoutineProxyCount());
 		return flowCopy;
 	}
 
@@ -90,28 +90,28 @@ public class ScriptGraphCloner {
 			deepCopy(routine, routineCopy);
 			flowCopy.addRoutine(routineCopy);
 		}
-		Log.log("Copying %d eval proxies", original.getEvalProxyCount());
-		for (ScriptRoutineGraphProxy proxy : original.getEvalProxies()) {
+		Log.log("Copying %d eval proxies", original.getDynamicRoutineProxyCount());
+		for (ScriptRoutineGraphProxy proxy : original.getDynamicRoutineProxies()) {
 			ScriptRoutineGraph copyProxyTarget = proxy.getTarget();
 			ScriptRoutineGraph routineCopy = copyProxyTarget.copy();
 			deepCopy(copyProxyTarget, routineCopy);
 			flowCopy.addRoutine(routineCopy);
 		}
-		Log.log("Copy now has %d eval proxies", flowCopy.getEvalProxyCount());
+		Log.log("Copy now has %d eval proxies", flowCopy.getDynamicRoutineProxyCount());
 
 		// Third: link call and eval targets in copy
 		for (Map.Entry<ScriptCallNode, ScriptCallNode> entry : callNodeCopies.entrySet()) {
 			ScriptCallNode callCopy = entry.getKey();
 			ScriptCallNode callOriginal = entry.getValue();
-			for (ScriptRoutineGraph targetOriginal : callOriginal.targets.values()) {
-				callCopy.addTarget(flowCopy.getRoutine(targetOriginal.id));
+			for (ScriptRoutineGraph targetOriginal : callOriginal.staticTargets.values()) {
+				callCopy.addStaticTarget(flowCopy.getRoutine(targetOriginal.id));
 			}
 		}
 		for (Map.Entry<ScriptEvalNode, ScriptEvalNode> entry : evalNodeCopies.entrySet()) {
 			ScriptEvalNode evalCopy = entry.getKey();
 			ScriptEvalNode evalOriginal = entry.getValue();
 			for (ScriptRoutineGraphProxy targetOriginal : evalOriginal.getTargets()) {
-				evalCopy.addTarget(flowCopy.getEvalProxy(targetOriginal.getEvalId()));
+				evalCopy.addTarget(flowCopy.getDynamicRoutineProxy(targetOriginal.getDynamicRoutineId()));
 			}
 		}
 	}

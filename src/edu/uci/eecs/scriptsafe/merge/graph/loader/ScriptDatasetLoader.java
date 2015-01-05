@@ -38,12 +38,12 @@ public class ScriptDatasetLoader {
 
 		in.readInt(); // skip hashtable pointer
 		int routineCount = in.readInt();
-		int evalCount = in.readInt();
+		int dynamicRoutineCount = in.readInt();
 
 		for (int i = 0; i < routineCount; i++)
 			graph.addRoutine(loadNextRoutine());
-		for (int i = 0; i < evalCount; i++)
-			graph.appendEvalRoutine(new ScriptRoutineGraphProxy(loadNextRoutine()));
+		for (int i = 0; i < dynamicRoutineCount; i++)
+			graph.appendDynamicRoutine(new ScriptRoutineGraphProxy(loadNextRoutine()));
 
 		for (PendingEdges<ScriptCallNode, List<Long>> pendingCall : pendingCalls) {
 			for (Long targetId : pendingCall.target) {
@@ -51,14 +51,14 @@ public class ScriptDatasetLoader {
 				if (target == null)
 					throw new MergeException("Call to unknown routine 0x%x", targetId);
 
-				pendingCall.fromNode.addTarget(target);
+				pendingCall.fromNode.addStaticTarget(target);
 			}
 		}
 		for (PendingEdges<ScriptEvalNode, List<Integer>> pendingEval : pendingEvals) {
 			for (Integer targetId : pendingEval.target) {
-				ScriptRoutineGraphProxy target = graph.getEvalProxy(targetId);
+				ScriptRoutineGraphProxy target = graph.getDynamicRoutineProxy(targetId);
 				if (target == null)
-					throw new MergeException("Call to unknown eval %d", targetId);
+					throw new MergeException("Call to unknown dynamic routine %d", targetId);
 
 				pendingEval.fromNode.addTarget(target);
 			}
@@ -70,7 +70,7 @@ public class ScriptDatasetLoader {
 	private ScriptRoutineGraph loadNextRoutine() throws IOException {
 		int unitHash = in.readInt();
 		int routineHash = in.readInt();
-		int evalId;
+		int dynamicRoutineId, dynamicRoutineCount;
 		ScriptRoutineGraph routine = new ScriptRoutineGraph(unitHash, routineHash);
 
 		int nodeCount = in.readInt();
@@ -121,12 +121,12 @@ public class ScriptDatasetLoader {
 				}
 					break;
 				case EVAL: {
-					int evalCount = in.readInt();
+					dynamicRoutineCount = in.readInt();
 					PendingEdges<ScriptEvalNode, List<Integer>> pendingEval = new PendingEdges<ScriptEvalNode, List<Integer>>(
 							(ScriptEvalNode) call, new ArrayList<Integer>());
-					for (int i = 0; i < evalCount; i++) {
-						evalId = in.readInt();
-						pendingEval.target.add(evalId);
+					for (int i = 0; i < dynamicRoutineCount; i++) {
+						dynamicRoutineId = in.readInt();
+						pendingEval.target.add(dynamicRoutineId);
 					}
 					pendingEvals.add(pendingEval);
 

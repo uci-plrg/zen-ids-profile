@@ -5,14 +5,14 @@ import java.util.List;
 
 public class ScriptRoutineGraph {
 
-	public static final int EVAL_UNIT_HASH = 0;
+	public static final int DYNAMIC_UNIT_HASH = 0;
 
-	public static boolean isEval(long routineId) {
+	public static boolean isDynamicRoutine(long routineId) {
 		return (int) (routineId >> 16) == 0;
 	}
 
-	public static int getEvalId(long routineId) {
-		if (!isEval(routineId))
+	public static int getDynamicRoutineId(long routineId) {
+		if (!isDynamicRoutine(routineId))
 			return -1;
 
 		return (int) (routineId & 0xffffffffL);

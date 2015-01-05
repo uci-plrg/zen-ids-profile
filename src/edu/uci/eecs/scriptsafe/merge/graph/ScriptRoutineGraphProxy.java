@@ -8,8 +8,8 @@ public class ScriptRoutineGraphProxy {
 		this.target = target;
 	}
 
-	public int getEvalId() {
-		return ScriptRoutineGraph.getEvalId(target.id);
+	public int getDynamicRoutineId() {
+		return ScriptRoutineGraph.getDynamicRoutineId(target.id);
 	}
 
 	public ScriptRoutineGraph getTarget() {

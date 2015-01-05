@@ -87,7 +87,7 @@ public class ScriptDatasetGenerator {
 
 	private final HashtableConfiguration hashtableConfiguration;
 	private final Hashtable hashtable;
-	private final List<Integer> evalOffsets = new ArrayList<Integer>();
+	private final List<Integer> dynamicRoutineOffsets = new ArrayList<Integer>();
 
 	private int filePtr = 0;
 	private int callTargetPtr;
@@ -106,13 +106,13 @@ public class ScriptDatasetGenerator {
 	public void generateDataset() throws IOException {
 		out.writeInt(0); // placeholder for hashtableStart
 		out.writeInt(graph.getRoutineCount());
-		out.writeInt(graph.getEvalProxyCount());
+		out.writeInt(graph.getDynamicRoutineProxyCount());
 		filePtr += 3;
 
 		writeRoutines();
 		writeRoutineHashtableChains();
 		writeRoutineHashtable();
-		writeEvalList();
+		writeDynamicRoutineList();
 
 		out.flush();
 		out.close();
@@ -128,12 +128,12 @@ public class ScriptDatasetGenerator {
 		insertOut.close();
 	}
 
-	private void writeEvalList() throws IOException {
-		out.writeInt(evalOffsets.size());
-		for (Integer evalOffset : evalOffsets) {
-			out.writeInt(evalOffset);
+	private void writeDynamicRoutineList() throws IOException {
+		out.writeInt(dynamicRoutineOffsets.size());
+		for (Integer dynamicRoutineOffset : dynamicRoutineOffsets) {
+			out.writeInt(dynamicRoutineOffset);
 		}
-		filePtr += (1 + evalOffsets.size());
+		filePtr += (1 + dynamicRoutineOffsets.size());
 	}
 
 	private void writeRoutineHashtable() throws IOException {
@@ -186,14 +186,13 @@ public class ScriptDatasetGenerator {
 					ScriptCallNode call = (ScriptCallNode) node;
 					calls.add(call);
 					out.writeInt(callTargetPtr);
-					callTargetPtr += (1 + (2 * call.getTargetCount()));
+					callTargetPtr += (1 + (2 * call.getStaticTargetCount()));
 					break;
 				case EVAL:
 					ScriptEvalNode eval = (ScriptEvalNode) node;
 					calls.add(eval);
 					out.writeInt(callTargetPtr);
 					callTargetPtr += (1 + eval.getTargetCount());
-
 					break;
 			}
 		}
@@ -203,19 +202,20 @@ public class ScriptDatasetGenerator {
 			switch (callNode.type) {
 				case CALL: {
 					ScriptCallNode call = (ScriptCallNode) callNode;
-					out.writeInt(call.getTargetCount());
-					for (ScriptRoutineGraph target : call.getTargets()) {
+					out.writeInt(call.getStaticTargetCount());
+					for (ScriptRoutineGraph target : call.getStaticTargets()) {
 						out.writeInt(target.unitHash);
 						out.writeInt(target.routineHash);
 					}
-					filePtr += (1 + (2 * call.getTargetCount()));
+					// TODO: dynamic targets
+					filePtr += (1 + (2 * call.getStaticTargetCount()));
 				}
 					break;
 				case EVAL: {
 					ScriptEvalNode eval = (ScriptEvalNode) callNode;
 					out.writeInt(eval.getTargetCount());
 					for (ScriptRoutineGraphProxy target : eval.getTargets())
-						out.writeInt(target.getEvalId());
+						out.writeInt(target.getDynamicRoutineId());
 					
 					filePtr += (1 + eval.getTargetCount());
 				}
@@ -225,13 +225,13 @@ public class ScriptDatasetGenerator {
 
 	private void writeRoutines() throws IOException {
 		callTargetPtr = 0;
-		evalOffsets.clear();
+		dynamicRoutineOffsets.clear();
 		for (ScriptRoutineGraph routine : graph.getRoutines()) {
 			hashtable.putEntry(routine.id, filePtr);
 			writeRoutineData(routine);
 		}
-		for (ScriptRoutineGraphProxy evalProxy : graph.getEvalProxies()) {
-			evalOffsets.add(filePtr);
+		for (ScriptRoutineGraphProxy evalProxy : graph.getDynamicRoutineProxies()) {
+			dynamicRoutineOffsets.add(filePtr);
 			writeRoutineData(evalProxy.getTarget());
 		}
 	}

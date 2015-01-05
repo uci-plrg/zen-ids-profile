@@ -15,10 +15,6 @@ public class ScriptEvalNode extends ScriptNode {
 		targets.add(target);
 	}
 
-	public ScriptRoutineGraphProxy getTarget(int id) {
-		return targets.get(id);
-	}
-
 	public Iterable<ScriptRoutineGraphProxy> getTargets() {
 		return targets;
 	}
@@ -29,7 +25,7 @@ public class ScriptEvalNode extends ScriptNode {
 
 	public boolean hasTarget(int id) {
 		for (ScriptRoutineGraphProxy target : targets) {
-			if (target.getEvalId() == id)
+			if (target.getDynamicRoutineId() == id)
 				return true;
 		}
 		return false;

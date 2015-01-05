@@ -12,32 +12,33 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 public class ScriptFlowGraph {
 
 	private final Map<Long, ScriptRoutineGraph> routines = new HashMap<Long, ScriptRoutineGraph>();
-	private final List<ScriptRoutineGraphProxy> evalProxies = new ArrayList<ScriptRoutineGraphProxy>();
+	private final List<ScriptRoutineGraphProxy> dynamicRoutineProxies = new ArrayList<ScriptRoutineGraphProxy>();
 
 	public void addRoutine(ScriptRoutineGraph routine) {
-		if (ScriptRoutineGraph.isEval(routine.id)) {
-			if (ScriptRoutineGraph.getEvalId(routine.id) != evalProxies.size())
-				throw new MergeException("Expected eval id %d, but found id %d", evalProxies.size(), routine.id);
+		if (ScriptRoutineGraph.isDynamicRoutine(routine.id)) {
+			// if (ScriptRoutineGraph.getDynamicRoutineId(routine.id) != dynamicRoutineProxies.size())
+			// throw new MergeException("Expected dynamic routine id %d, but found id %d", dynamicRoutineProxies.size(),
+			// routine.id);
 
-			evalProxies.add(new ScriptRoutineGraphProxy(routine));
+			dynamicRoutineProxies.add(new ScriptRoutineGraphProxy(routine));
 		} else {
 			routines.put(routine.id, routine);
 		}
 	}
 
-	public void appendEvalRoutine(ScriptRoutineGraphProxy evalProxy) {
-		ScriptRoutineGraph append = evalProxy.getTarget()
-				.rename(evalProxy.getTarget().unitHash, evalProxies.size());
-		evalProxy.getTarget().setRedundant(true);
-		evalProxy.setTarget(append);
-		evalProxies.add(evalProxy);
+	public void appendDynamicRoutine(ScriptRoutineGraphProxy dynamicRoutineProxy) {
+		ScriptRoutineGraph append = dynamicRoutineProxy.getTarget().rename(dynamicRoutineProxy.getTarget().unitHash,
+				dynamicRoutineProxies.size());
+		dynamicRoutineProxy.getTarget().setRedundant(true);
+		dynamicRoutineProxy.setTarget(append);
+		dynamicRoutineProxies.add(dynamicRoutineProxy);
 	}
 
 	public ScriptRoutineGraph getRoutine(Long id) {
-		if (ScriptRoutineGraph.isEval(id)) {
-			int evalId = ScriptRoutineGraph.getEvalId(id);
-			if (evalId < evalProxies.size())
-				return evalProxies.get(evalId).getTarget();
+		if (ScriptRoutineGraph.isDynamicRoutine(id)) {
+			int dynamicRoutineId = ScriptRoutineGraph.getDynamicRoutineId(id);
+			if (dynamicRoutineId < dynamicRoutineProxies.size())
+				return dynamicRoutineProxies.get(dynamicRoutineId).getTarget();
 			else
 				return null;
 		} else {
@@ -53,47 +54,48 @@ public class ScriptFlowGraph {
 		return routines.values();
 	}
 
-	public ScriptRoutineGraphProxy getEvalProxy(int id) {
-		return evalProxies.get(id);
+	public ScriptRoutineGraphProxy getDynamicRoutineProxy(int id) {
+		return dynamicRoutineProxies.get(id);
 	}
 
-	public int getEvalProxyCount() {
-		return evalProxies.size();
+	public int getDynamicRoutineProxyCount() {
+		return dynamicRoutineProxies.size();
 	}
 
 	// dislike letting this out whole
-	public List<ScriptRoutineGraphProxy> getEvalProxies() {
-		return evalProxies;
+	public List<ScriptRoutineGraphProxy> getDynamicRoutineProxies() {
+		return dynamicRoutineProxies;
 	}
 
-	protected void clearEvalProxies() {
-		evalProxies.clear();
+	protected void clearDynamicRoutineProxies() {
+		dynamicRoutineProxies.clear();
 	}
 
-	protected boolean hasEvalProxyFor(ScriptRoutineGraph eval) {
-		for (ScriptRoutineGraphProxy evalProxy : evalProxies) {
-			if (evalProxy.getTarget() == eval)
+	protected boolean hasDynamicRoutineProxyFor(ScriptRoutineGraph eval) {
+		for (ScriptRoutineGraphProxy dynamicRoutineProxy : dynamicRoutineProxies) {
+			if (dynamicRoutineProxy.getTarget() == eval)
 				return true;
 		}
 		return false;
 	}
 
 	public void redirectProxies(ScriptRoutineGraph discard, ScriptRoutineGraph keep) {
-		for (ScriptRoutineGraphProxy evalProxy : evalProxies) {
-			if (evalProxy.getTarget() == discard)
-				evalProxy.setTarget(keep);
+		for (ScriptRoutineGraphProxy dynamicRoutineProxy : dynamicRoutineProxies) {
+			if (dynamicRoutineProxy.getTarget() == discard)
+				dynamicRoutineProxy.setTarget(keep);
 		}
 		discard.setRedundant(true);
 	}
 
 	public void checkIntegrity() {
 		int i = 0;
-		for (ScriptRoutineGraphProxy target : getEvalProxies()) {
+		for (ScriptRoutineGraphProxy target : getDynamicRoutineProxies()) {
 			if (target.getTarget().isRedundant())
-				throw new MergeException("Redundant eval proxy in flow graph");
-			if (target.getEvalId() != i) {
-				throw new MergeException("Found eval proxy with an inconsistent id: expected %d but found %d", i,
-						target.getEvalId());
+				throw new MergeException("Redundant dynamic routine proxy in flow graph");
+			if (target.getDynamicRoutineId() != i) {
+				throw new MergeException(
+						"Found dynamic routine proxy with an inconsistent id: expected %d but found %d", i,
+						target.getDynamicRoutineId());
 			}
 			i++;
 		}
@@ -102,10 +104,10 @@ public class ScriptFlowGraph {
 				if (node.type == Type.EVAL) {
 					ScriptEvalNode eval = (ScriptEvalNode) node;
 					for (ScriptRoutineGraphProxy target : eval.getTargets()) {
-						if (!hasEvalProxyFor(target.getTarget()))
-							throw new MergeException("Missing cached instance of eval proxy");
+						if (!hasDynamicRoutineProxyFor(target.getTarget()))
+							throw new MergeException("Missing cached instance of dynamic routine proxy");
 						if (target.getTarget().isRedundant())
-							throw new MergeException("Redundant target of eval node");
+							throw new MergeException("Redundant target of dynamic routine node");
 					}
 				}
 			}

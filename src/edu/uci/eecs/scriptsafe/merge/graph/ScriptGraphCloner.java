@@ -15,7 +15,7 @@ public class ScriptGraphCloner {
 		branchNodeCopies.clear();
 		callNodeCopies.clear();
 		evalNodeCopies.clear();
-		
+
 		ScriptFlowGraph flowCopy = new ScriptFlowGraph();
 		deepCopy(original, flowCopy);
 		return flowCopy;
@@ -25,7 +25,7 @@ public class ScriptGraphCloner {
 		branchNodeCopies.clear();
 		callNodeCopies.clear();
 		evalNodeCopies.clear();
-		
+
 		ScriptFlowGraph flowCopy = new ScriptFlowGraph();
 		for (ScriptRoutineGraph routine : original.getRoutines()) {
 			ScriptRoutineGraph routineCopy = routine.copy();
@@ -50,7 +50,7 @@ public class ScriptGraphCloner {
 			routineCopy.addNode(nodeCopy);
 		}
 	}
-	
+
 	private void deepCopy(ScriptRoutineGraph routineOriginal, ScriptRoutineGraph routineCopy) {
 		branchNodeCopies.clear();
 
@@ -105,6 +105,9 @@ public class ScriptGraphCloner {
 			ScriptCallNode callOriginal = entry.getValue();
 			for (ScriptRoutineGraph targetOriginal : callOriginal.staticTargets.values()) {
 				callCopy.addStaticTarget(flowCopy.getRoutine(targetOriginal.id));
+			}
+			for (ScriptRoutineGraphProxy targetOriginal : callOriginal.getDynamicTargets()) {
+				callCopy.addDynamicTarget(flowCopy.getDynamicRoutineProxy(targetOriginal.getDynamicRoutineId()));
 			}
 		}
 		for (Map.Entry<ScriptEvalNode, ScriptEvalNode> entry : evalNodeCopies.entrySet()) {

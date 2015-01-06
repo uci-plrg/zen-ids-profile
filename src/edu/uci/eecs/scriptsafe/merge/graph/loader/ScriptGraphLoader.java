@@ -2,11 +2,7 @@ package edu.uci.eecs.scriptsafe.merge.graph.loader;
 
 import java.io.IOException;
 
-import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
-import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
 public class ScriptGraphLoader {
 

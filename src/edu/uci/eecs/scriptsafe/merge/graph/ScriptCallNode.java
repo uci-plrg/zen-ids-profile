@@ -29,6 +29,14 @@ public class ScriptCallNode extends ScriptNode {
 	public int getStaticTargetCount() {
 		return staticTargets.size();
 	}
+	
+	public boolean hasDynamicTarget(int id) {
+		for (ScriptRoutineGraphProxy target : dynamicTargets) {
+			if (target.getDynamicRoutineId() == id)
+				return true;
+		}
+		return false;
+	}
 
 	public void addDynamicTarget(ScriptRoutineGraphProxy target) {
 		dynamicTargets.add(target);

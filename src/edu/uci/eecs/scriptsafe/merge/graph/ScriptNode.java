@@ -34,16 +34,17 @@ public class ScriptNode {
 	}
 
 	public enum Opcode {
-		ZEND_JMP(42),
-		ZEND_JMPZ(43),
-		ZEND_JMPNZ(44),
-		ZEND_JMPZNZ(45),
-		ZEND_JMPZ_EX(46),
-		ZEND_JMPNZ_EX(47),
-		ZEND_DO_FCALL(60),
-		ZEND_INCLUDE_OR_EVAL(73),
-		ZEND_FAST_CALL(162),
-		ZEND_ASSIGN_DIM(0X93);
+		ZEND_JMP(0x2a),
+		ZEND_JMPZ(0x2b),
+		ZEND_JMPNZ(0x2c),
+		ZEND_JMPZNZ(0x2d),
+		ZEND_JMPZ_EX(0x2e),
+		ZEND_JMPNZ_EX(0x2f),
+		ZEND_DO_FCALL(0x3c),
+		ZEND_NEW(0x44),
+		ZEND_INCLUDE_OR_EVAL(0x49),
+		ZEND_ASSIGN_DIM(0x93),
+		ZEND_FAST_CALL(0xa2);
 
 		public final int code;
 
@@ -51,7 +52,7 @@ public class ScriptNode {
 			this.code = code;
 		}
 
-		static Opcode forCode(int code) {
+		public static Opcode forCode(int code) {
 			for (Opcode opcode : Opcode.values()) {
 				if (opcode.code == code)
 					return opcode;

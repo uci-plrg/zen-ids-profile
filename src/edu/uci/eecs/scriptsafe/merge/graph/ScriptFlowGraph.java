@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
@@ -20,7 +19,11 @@ public class ScriptFlowGraph {
 			// throw new MergeException("Expected dynamic routine id %d, but found id %d", dynamicRoutineProxies.size(),
 			// routine.id);
 
-			dynamicRoutineProxies.add(new ScriptRoutineGraphProxy(routine));
+			while (ScriptRoutineGraph.getDynamicRoutineId(routine.id) >= dynamicRoutineProxies.size())
+				dynamicRoutineProxies.add(null);
+
+			dynamicRoutineProxies.set(ScriptRoutineGraph.getDynamicRoutineId(routine.id), new ScriptRoutineGraphProxy(
+					routine));
 		} else {
 			routines.put(routine.id, routine);
 		}

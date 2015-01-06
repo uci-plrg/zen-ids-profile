@@ -12,7 +12,6 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptGraphCloner;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphLoader;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptRunFileSet;
 
 public class ScriptSafeMerge {
 

@@ -68,7 +68,11 @@ public class ScriptMerge {
 							targetCall.addStaticTarget(targetCallTarget);
 						}
 					}
-
+					for (ScriptRoutineGraphProxy leftTarget : leftCall.getDynamicTargets()) {
+						if (!targetCall.hasDynamicTarget(ScriptRoutineGraph.getDynamicRoutineId(leftTarget
+								.getDynamicRoutineId())))
+							targetCall.addDynamicTarget(leftTarget);
+					}
 				}
 					break;
 				case EVAL: {

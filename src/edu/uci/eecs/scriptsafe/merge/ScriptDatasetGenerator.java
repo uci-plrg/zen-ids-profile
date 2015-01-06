@@ -186,7 +186,7 @@ public class ScriptDatasetGenerator {
 					ScriptCallNode call = (ScriptCallNode) node;
 					calls.add(call);
 					out.writeInt(callTargetPtr);
-					callTargetPtr += (1 + (2 * call.getStaticTargetCount()));
+					callTargetPtr += (1 + (2 * call.getTargetCount()));
 					break;
 				case EVAL:
 					ScriptEvalNode eval = (ScriptEvalNode) node;
@@ -202,13 +202,16 @@ public class ScriptDatasetGenerator {
 			switch (callNode.type) {
 				case CALL: {
 					ScriptCallNode call = (ScriptCallNode) callNode;
-					out.writeInt(call.getStaticTargetCount());
+					out.writeInt(call.getTargetCount());
 					for (ScriptRoutineGraph target : call.getStaticTargets()) {
 						out.writeInt(target.unitHash);
 						out.writeInt(target.routineHash);
 					}
-					// TODO: dynamic targets
-					filePtr += (1 + (2 * call.getStaticTargetCount()));
+					for (ScriptRoutineGraphProxy target : call.getDynamicTargets()) {
+						out.writeInt(ScriptRoutineGraph.DYNAMIC_UNIT_HASH);
+						out.writeInt(target.getDynamicRoutineId());
+					}
+					filePtr += (1 + (2 * call.getTargetCount()));
 				}
 					break;
 				case EVAL: {

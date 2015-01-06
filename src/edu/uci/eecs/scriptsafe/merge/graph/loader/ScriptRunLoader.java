@@ -138,13 +138,21 @@ class ScriptRunLoader {
 		input.close();
 	}
 
+	private boolean isFallThrough(ScriptNode fromNode, RawOpcodeEdge edge) {
+		switch (ScriptNode.Opcode.forCode(fromNode.opcode)) {
+			case ZEND_ASSIGN_DIM:
+			case ZEND_NEW:
+				return edge.toIndex == (edge.fromIndex + 2);
+			default:
+				return false;
+		}
+	}
+
 	private void linkNodes(ScriptFlowGraph graph) {
 		ScriptRoutineGraph routine, fromRoutine, toRoutine;
 		ScriptRoutineGraphProxy toRoutineProxy;
 		ScriptNode fromNode;
 		ScriptBranchNode branchNode;
-		ScriptCallNode callSite;
-		ScriptEvalNode evalSite;
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
 				for (RawOpcodeEdge edge : edges) {
@@ -152,10 +160,8 @@ class ScriptRunLoader {
 					fromNode = routine.getNode(edge.fromIndex);
 
 					if (!(fromNode instanceof ScriptBranchNode)) {
-						if (fromNode.opcode == ScriptNode.Opcode.ZEND_ASSIGN_DIM.code
-								&& edge.toIndex == (edge.fromIndex + 2)) {
-							continue; // always followed by data-bearing op
-						}
+						if (isFallThrough(fromNode, edge))
+							continue;
 
 						throw new MergeException(
 								"Branch from non-branch node with opcode 0x%x at index %d in routine 0x%x!",
@@ -179,18 +185,26 @@ class ScriptRunLoader {
 						throw new IllegalArgumentException(String.format(
 								"Found a routine edge from an unknown routine 0x%x", edge.fromRoutineId));
 					}
+					fromNode = fromRoutine.getNode(edge.fromIndex);
 
-					if (ScriptRoutineGraph.isDynamicRoutine(edge.toRoutineId)) {
-						toRoutineProxy = graph.getDynamicRoutineProxy(ScriptRoutineGraph.getDynamicRoutineId(edge.toRoutineId));
-
-						//  TODO: if from node is a call, add to its dynamic targets, else:
-						evalSite = (ScriptEvalNode) fromRoutine.getNode(edge.fromIndex);
-						evalSite.addTarget(toRoutineProxy);
-					} else {
-						toRoutine = graph.getRoutine(edge.toRoutineId);
-
-						callSite = (ScriptCallNode) fromRoutine.getNode(edge.fromIndex);
-						callSite.addStaticTarget(toRoutine);
+					switch (fromNode.type) {
+						case CALL: {
+							if (ScriptRoutineGraph.isDynamicRoutine(edge.toRoutineId)) {
+								toRoutineProxy = graph.getDynamicRoutineProxy(ScriptRoutineGraph
+										.getDynamicRoutineId(edge.toRoutineId));
+								((ScriptCallNode) fromNode).addDynamicTarget(toRoutineProxy);
+							} else {
+								toRoutine = graph.getRoutine(edge.toRoutineId);
+								((ScriptCallNode) fromNode).addStaticTarget(toRoutine);
+							}
+						}
+							break;
+						case EVAL: {
+							toRoutineProxy = graph.getDynamicRoutineProxy(ScriptRoutineGraph
+									.getDynamicRoutineId(edge.toRoutineId));
+							((ScriptEvalNode) fromNode).addTarget(toRoutineProxy);
+						}
+							break;
 					}
 				}
 			}
@@ -230,7 +244,8 @@ class ScriptRunLoader {
 		ScriptNode.Type type;
 		long routineId;
 		ScriptNode node, lastNode = null;
-		ScriptRoutineGraph routine = null;
+		ScriptRoutineGraph routine;
+		ScriptRoutineGraphProxy dynamicRoutine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.nodeFile);
 
 		while (input.ready(16)) {
@@ -238,8 +253,19 @@ class ScriptRunLoader {
 			routineHash = input.readInt();
 			routineId = ScriptRoutineGraph.constructId(unitHash, routineHash);
 
-			routine = graph.getRoutine(routineId);
+			routine = null;
+			if (ScriptRoutineGraph.isDynamicRoutine(routineId)) {
+				dynamicRoutine = null;
+				if (routineHash < graph.getDynamicRoutineProxyCount())
+					dynamicRoutine = graph.getDynamicRoutineProxy(routineHash);
+				if (dynamicRoutine != null)
+					routine = dynamicRoutine.getTarget();
+			} else {
+				routine = graph.getRoutine(routineId);
+			}
+
 			if (routine == null) {
+				Log.log("Create routine %x|%x", unitHash, routineHash);
 				routine = new ScriptRoutineGraph(unitHash, routineHash);
 				graph.addRoutine(routine);
 			}

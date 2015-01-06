@@ -47,11 +47,20 @@ public class ScriptDatasetLoader {
 
 		for (PendingEdges<ScriptCallNode, List<Long>> pendingCall : pendingCalls) {
 			for (Long targetId : pendingCall.target) {
-				ScriptRoutineGraph target = graph.getRoutine(targetId);
-				if (target == null)
-					throw new MergeException("Call to unknown routine 0x%x", targetId);
+				if (ScriptRoutineGraph.isDynamicRoutine(targetId)) {
+					ScriptRoutineGraphProxy target = graph.getDynamicRoutineProxy(ScriptRoutineGraph
+							.getDynamicRoutineId(targetId));
+					if (target == null)
+						throw new MergeException("Call to unknown dynamic routine %d", targetId);
 
-				pendingCall.fromNode.addStaticTarget(target);
+					pendingCall.fromNode.addDynamicTarget(target);
+				} else {
+					ScriptRoutineGraph target = graph.getRoutine(targetId);
+					if (target == null)
+						throw new MergeException("Call to unknown routine 0x%x", targetId);
+
+					pendingCall.fromNode.addStaticTarget(target);
+				}
 			}
 		}
 		for (PendingEdges<ScriptEvalNode, List<Integer>> pendingEval : pendingEvals) {
@@ -117,7 +126,6 @@ public class ScriptDatasetLoader {
 						pendingCall.target.add(ScriptRoutineGraph.constructId(unitHash, routineHash));
 					}
 					pendingCalls.add(pendingCall);
-
 				}
 					break;
 				case EVAL: {
@@ -129,7 +137,6 @@ public class ScriptDatasetLoader {
 						pendingEval.target.add(dynamicRoutineId);
 					}
 					pendingEvals.add(pendingEval);
-
 				}
 					break;
 			}

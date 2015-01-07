@@ -71,6 +71,7 @@ class ScriptRunLoader {
 		}
 	}
 
+	private final Set<Long> preloadedRoutines = new HashSet<Long>();
 	private final Map<Long, RawRoutineGraph> rawGraphs = new HashMap<Long, RawRoutineGraph>();
 
 	ScriptRunLoader() {
@@ -100,6 +101,9 @@ class ScriptRunLoader {
 	}
 
 	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
+		preloadedRoutines.clear();
+		for (ScriptRoutineGraph preloadedRoutine : graph.getRoutines())
+			preloadedRoutines.add(preloadedRoutine.id);
 		rawGraphs.clear();
 
 		loadOpcodeEdges(run);
@@ -114,7 +118,7 @@ class ScriptRunLoader {
 		RawRoutineGraph graph;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.opcodeEdgeFile);
 
-		while (input.ready(16)) {
+		while (input.ready(0x10)) {
 			unitHash = input.readInt();
 			routineHash = input.readInt();
 			routineId = ScriptRoutineGraph.constructId(unitHash, routineHash);
@@ -139,7 +143,11 @@ class ScriptRunLoader {
 	}
 
 	private boolean isFallThrough(ScriptNode fromNode, RawOpcodeEdge edge) {
-		switch (ScriptNode.Opcode.forCode(fromNode.opcode)) {
+		ScriptNode.Opcode opcode = ScriptNode.Opcode.forCode(fromNode.opcode);
+		if (opcode == null)
+			return false;
+		
+		switch (opcode) {
 			case ZEND_ASSIGN_DIM:
 			case ZEND_NEW:
 				return edge.toIndex == (edge.fromIndex + 2);
@@ -244,30 +252,36 @@ class ScriptRunLoader {
 		ScriptNode.Type type;
 		long routineId;
 		ScriptNode node, lastNode = null;
-		ScriptRoutineGraph routine;
+		ScriptRoutineGraph routine = null;
 		ScriptRoutineGraphProxy dynamicRoutine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.nodeFile);
 
-		while (input.ready(16)) {
+		while (input.ready(0x10)) {
 			unitHash = input.readInt();
 			routineHash = input.readInt();
 			routineId = ScriptRoutineGraph.constructId(unitHash, routineHash);
 
-			routine = null;
-			if (ScriptRoutineGraph.isDynamicRoutine(routineId)) {
-				dynamicRoutine = null;
-				if (routineHash < graph.getDynamicRoutineProxyCount())
-					dynamicRoutine = graph.getDynamicRoutineProxy(routineHash);
-				if (dynamicRoutine != null)
-					routine = dynamicRoutine.getTarget();
-			} else {
-				routine = graph.getRoutine(routineId);
+			if (routine == null || routine.id != routineId) {
+				lastNode = null;
+				routine = null;
+				if (ScriptRoutineGraph.isDynamicRoutine(routineId)) {
+					dynamicRoutine = null;
+					if (routineHash < graph.getDynamicRoutineProxyCount())
+						dynamicRoutine = graph.getDynamicRoutineProxy(routineHash);
+					if (dynamicRoutine != null)
+						routine = dynamicRoutine.getTarget();
+				} else {
+					routine = graph.getRoutine(routineId);
+				}
 			}
 
 			if (routine == null) {
 				Log.log("Create routine %x|%x", unitHash, routineHash);
 				routine = new ScriptRoutineGraph(unitHash, routineHash);
 				graph.addRoutine(routine);
+			} else if (preloadedRoutines.contains(routine.id)) { // were nodes copied from the right?
+				routine.clearNodes(); // have a copy on the left, so remove copied nodes
+				preloadedRoutines.remove(routine.id);
 			}
 
 			opcodeField = input.readInt();

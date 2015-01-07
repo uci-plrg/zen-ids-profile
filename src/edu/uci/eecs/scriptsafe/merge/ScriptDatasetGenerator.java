@@ -51,7 +51,7 @@ public class ScriptDatasetGenerator {
 		}
 
 		private int getKey(long routineId) {
-			return (((int) (routineId >> 16)) ^ ((int) (routineId & 0xffffffffL))) & configuration.mask;
+			return (((int) (routineId >> 0x20)) ^ ((int) (routineId & 0xffffffffL))) & configuration.mask;
 		}
 	}
 

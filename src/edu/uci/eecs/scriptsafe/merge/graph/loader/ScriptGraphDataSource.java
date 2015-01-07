@@ -4,6 +4,8 @@ import java.io.File;
 
 public interface ScriptGraphDataSource {
 
+	String getDescription();
+	
 	Type getType();
 	
 	public enum Type {

@@ -10,7 +10,7 @@ public class ScriptGraphLoader {
 	}
 
 	public ScriptFlowGraph loadGraph(ScriptGraphDataSource dataSource) throws IOException {
-		ScriptFlowGraph graph = new ScriptFlowGraph();
+		ScriptFlowGraph graph = new ScriptFlowGraph(dataSource.getDescription());
 		loadGraph(dataSource, graph);
 		return graph;
 	}

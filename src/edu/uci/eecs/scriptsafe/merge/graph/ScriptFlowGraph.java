@@ -10,8 +10,13 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
 public class ScriptFlowGraph {
 
+	public final String description;
 	private final Map<Long, ScriptRoutineGraph> routines = new HashMap<Long, ScriptRoutineGraph>();
 	private final List<ScriptRoutineGraphProxy> dynamicRoutineProxies = new ArrayList<ScriptRoutineGraphProxy>();
+
+	public ScriptFlowGraph(String description) {
+		this.description = description;
+	}
 
 	public void addRoutine(ScriptRoutineGraph routine) {
 		if (ScriptRoutineGraph.isDynamicRoutine(routine.id)) {

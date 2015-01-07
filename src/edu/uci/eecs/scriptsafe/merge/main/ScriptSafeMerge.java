@@ -53,7 +53,7 @@ public class ScriptSafeMerge {
 			rightGraph = loader.loadGraph(rightDataSource);
 			if (rightDataSource.getType() == Type.DATASET) {
 				ScriptGraphCloner cloner = new ScriptGraphCloner();
-				leftGraph = cloner.copyRoutines(rightGraph);
+				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getDescription()));
 				loader.loadGraph(leftDataSource, leftGraph);
 			} else {
 				leftGraph = loader.loadGraph(leftDataSource);

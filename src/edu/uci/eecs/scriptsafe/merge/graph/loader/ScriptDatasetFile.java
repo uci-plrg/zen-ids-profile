@@ -18,7 +18,12 @@ public class ScriptDatasetFile implements ScriptGraphDataSource {
 			throw new IllegalArgumentException("Invalid script graph path: " + file.getAbsolutePath()
 					+ " must have file extension .set");
 	}
-	
+
+	@Override
+	public String getDescription() {
+		return "Script dataset from file " + file.getName();
+	}
+
 	@Override
 	public Type getType() {
 		return Type.DATASET;

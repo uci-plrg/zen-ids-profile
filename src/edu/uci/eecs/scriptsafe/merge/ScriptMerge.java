@@ -65,13 +65,19 @@ public class ScriptMerge {
 					for (ScriptRoutineGraph leftTarget : leftCall.getStaticTargets()) {
 						if (targetCall.getStaticTarget(leftTarget.id) == null) {
 							ScriptRoutineGraph targetCallTarget = target.getRoutine(leftTarget.id);
+							Log.log("Merging new static routine entry 0x%x|0x%x I%d -> 0x%x|0x%x",
+									leftRoutine.unitHash, leftRoutine.routineHash, i, targetCallTarget.unitHash,
+									targetCallTarget.routineHash);
 							targetCall.addStaticTarget(targetCallTarget);
 						}
 					}
 					for (ScriptRoutineGraphProxy leftTarget : leftCall.getDynamicTargets()) {
 						if (!targetCall.hasDynamicTarget(ScriptRoutineGraph.getDynamicRoutineId(leftTarget
-								.getDynamicRoutineId())))
+								.getDynamicRoutineId()))) {
+							Log.log("Merging new dynamic routine entry 0x%x|0x%x I%d -> 0x%x", leftRoutine.unitHash,
+									leftRoutine.routineHash, i, leftTarget.getDynamicRoutineId());
 							targetCall.addDynamicTarget(leftTarget);
+						}
 					}
 				}
 					break;
@@ -79,8 +85,11 @@ public class ScriptMerge {
 					ScriptEvalNode leftEvalNode = (ScriptEvalNode) leftNode;
 					ScriptEvalNode targetEvalNode = (ScriptEvalNode) targetNode;
 					for (ScriptRoutineGraphProxy leftEval : leftEvalNode.getTargets()) {
-						if (!targetEvalNode.hasTarget(leftEval.getDynamicRoutineId()))
+						if (!targetEvalNode.hasTarget(leftEval.getDynamicRoutineId())) {
+							Log.log("Merging new eval routine entry 0x%x|0x%x I%d -> 0x%x", leftRoutine.unitHash,
+									leftRoutine.routineHash, i, leftEval.getDynamicRoutineId());
 							targetEvalNode.addTarget(leftEval);
+						}
 					}
 				}
 					break;

@@ -16,30 +16,28 @@ public class ScriptGraphCloner {
 		callNodeCopies.clear();
 		evalNodeCopies.clear();
 
-		ScriptFlowGraph flowCopy = new ScriptFlowGraph();
+		ScriptFlowGraph flowCopy = new ScriptFlowGraph("Deep copy [" + original.description + "]");
 		deepCopy(original, flowCopy);
 		return flowCopy;
 	}
 
-	public ScriptFlowGraph copyRoutines(ScriptFlowGraph original) {
+	public ScriptFlowGraph copyRoutines(ScriptFlowGraph original, ScriptFlowGraph flowCopy) {
 		branchNodeCopies.clear();
 		callNodeCopies.clear();
 		evalNodeCopies.clear();
 
-		ScriptFlowGraph flowCopy = new ScriptFlowGraph();
 		for (ScriptRoutineGraph routine : original.getRoutines()) {
 			ScriptRoutineGraph routineCopy = routine.copy();
 			shallowCopy(routine, routineCopy);
 			flowCopy.addRoutine(routineCopy);
 		}
-		Log.log("Copying %d dynamic routine proxies", original.getDynamicRoutineProxyCount());
-		for (ScriptRoutineGraphProxy proxy : original.getDynamicRoutineProxies()) {
-			ScriptRoutineGraph copyProxyTarget = proxy.getTarget();
-			ScriptRoutineGraph routineCopy = copyProxyTarget.copy();
-			shallowCopy(copyProxyTarget, routineCopy);
-			flowCopy.addRoutine(routineCopy);
-		}
-		Log.log("Copy now has %d dynamic routine proxies", flowCopy.getDynamicRoutineProxyCount());
+		/*
+		 * Log.log("Copying %d dynamic routine proxies", original.getDynamicRoutineProxyCount()); for
+		 * (ScriptRoutineGraphProxy proxy : original.getDynamicRoutineProxies()) { ScriptRoutineGraph copyProxyTarget =
+		 * proxy.getTarget(); ScriptRoutineGraph routineCopy = copyProxyTarget.copy(); shallowCopy(copyProxyTarget,
+		 * routineCopy); flowCopy.addRoutine(routineCopy); } Log.log("Copy now has %d dynamic routine proxies",
+		 * flowCopy.getDynamicRoutineProxyCount());
+		 */
 		return flowCopy;
 	}
 
@@ -90,7 +88,8 @@ public class ScriptGraphCloner {
 			deepCopy(routine, routineCopy);
 			flowCopy.addRoutine(routineCopy);
 		}
-		Log.log("Copying %d eval proxies", original.getDynamicRoutineProxyCount());
+		Log.log("Copying %d eval proxies from %s to %s", original.getDynamicRoutineProxyCount(), original.description,
+				flowCopy.description);
 		for (ScriptRoutineGraphProxy proxy : original.getDynamicRoutineProxies()) {
 			ScriptRoutineGraph copyProxyTarget = proxy.getTarget();
 			ScriptRoutineGraph routineCopy = copyProxyTarget.copy();

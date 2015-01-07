@@ -8,7 +8,7 @@ public class ScriptRoutineGraph {
 	public static final int DYNAMIC_UNIT_HASH = 0;
 
 	public static boolean isDynamicRoutine(long routineId) {
-		return (int) (routineId >> 16) == 0;
+		return (int) (routineId >> 0x20) == 0;
 	}
 
 	public static int getDynamicRoutineId(long routineId) {
@@ -19,7 +19,7 @@ public class ScriptRoutineGraph {
 	}
 
 	public static long constructId(int unitHash, int routineHash) {
-		return ((long) unitHash << 16) | routineHash;
+		return ((long) unitHash << 0x20) | routineHash;
 	}
 
 	public final int unitHash;
@@ -68,6 +68,10 @@ public class ScriptRoutineGraph {
 
 	public Iterable<ScriptNode> getNodes() {
 		return nodes;
+	}
+
+	public void clearNodes() {
+		nodes.clear();
 	}
 
 	public boolean isSameRoutine(ScriptRoutineGraph other) {

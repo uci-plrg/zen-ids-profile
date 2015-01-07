@@ -17,7 +17,12 @@ public class ScriptRunFileSet implements ScriptGraphDataSource {
 			throw new IllegalArgumentException("Invalid script run directory: node file " + nodeFile.getAbsolutePath()
 					+ " does not exist");
 	}
-	
+
+	@Override
+	public String getDescription() {
+		return "Script run from directory " + nodeFile.getParentFile().getName();
+	}
+
 	@Override
 	public Type getType() {
 		return Type.RUN;

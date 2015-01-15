@@ -6,34 +6,38 @@ public class RoutineEdge {
 		CALL,
 		THROW;
 	}
-	
-	private long routineId;
 
-	public RoutineEdge(long targetRoutineId) {
-		this.routineId = targetRoutineId;
+	private long fromRoutineId;
+	private int fromIndex;
+	private long toRoutineId;
+
+	public RoutineEdge(long fromRoutineId, int fromIndex, long toRoutineId) {
+		this.fromRoutineId = fromRoutineId;
+		this.fromIndex = fromIndex;
+		this.toRoutineId = toRoutineId;
 	}
 
 	public boolean isSameEntryType(RoutineEdge other) {
 		return other.getEntryType() == Type.CALL;
 	}
-	
+
 	public Type getEntryType() {
 		return Type.CALL;
 	}
 	
-	public boolean hasDynamicTarget() {
-		return ScriptRoutineGraph.isDynamicRoutine(routineId);
-	}
-
-	public int getDynamicRoutineId() {
-		return ScriptRoutineGraph.getDynamicRoutineId(routineId);
+	public long getFromRoutineId() {
+		return fromRoutineId;
 	}
 	
-	public long getRoutineId() {
-		return routineId;
+	public int getFromRoutineIndex() {
+		return fromIndex;
 	}
 
-	public void setTargetRoutine(ScriptRoutineGraph routine) {
-		this.routineId = routine.id;
+	public long getToRoutineId() {
+		return toRoutineId;
+	}
+
+	public void setToRoutineId(long toRoutineId) {
+		this.toRoutineId = toRoutineId;
 	}
 }

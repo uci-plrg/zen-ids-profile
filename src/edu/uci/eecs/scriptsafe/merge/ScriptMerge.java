@@ -1,11 +1,14 @@
 package edu.uci.eecs.scriptsafe.merge;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.graph.GraphEdgeSet;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge.Type;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineExceptionEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
@@ -57,8 +60,33 @@ public class ScriptMerge {
 
 		// patch the dynamic edges
 		// merge the routine edges
+
+		for (List<RoutineEdge> leftEdges : left.graphEdgeSet.getOutgoingEdges()) {
+			for (RoutineEdge leftEdge : leftEdges) {
+				if (leftEdge.getEntryType() == Type.THROW) {
+					RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) leftEdge;
+					leftEdge.setToRoutineId(dynamicRoutineMerge.getNewLeftDynamicRoutineId(ScriptRoutineGraph
+							.getDynamicRoutineId(throwEdge.getToRoutineId())));
+					graphEdgeSet.addExceptionEdge(
+							getNode(throwEdge.getFromRoutineId(), throwEdge.getFromRoutineIndex()),
+							dynamicRoutineMerge.getMergedGraph(ScriptRoutineGraph.getDynamicRoutineId(throwEdge
+									.getToRoutineId())), throwEdge.getToRoutineIndex());
+				} else {
+					graphEdgeSet.addCallEdge(getNode(leftEdge.getFromRoutineId(), leftEdge.getFromRoutineIndex()),
+							mergedStaticRoutines.get(leftEdge.getToRoutineId()));
+				}
+			}
+		}
+
 		// dataset generator writes from here (interface so it can also write plain graphs?)
 		// nix cloner (hopefully)
+	}
+
+	private ScriptNode getNode(long routineId, int index) {
+		if (ScriptRoutineGraph.isDynamicRoutine(routineId))
+			return dynamicRoutineMerge.getMergedGraph(ScriptRoutineGraph.getDynamicRoutineId(routineId)).getNode(index);
+		else
+			return mergedStaticRoutines.get(routineId).getNode(index);
 	}
 
 	private void mergeRoutines(ScriptRoutineGraph leftRoutine, ScriptRoutineGraph targetRoutine) {

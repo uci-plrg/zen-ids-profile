@@ -15,6 +15,10 @@ public class GraphEdgeSet {
 		return outgoingEdges.get(fromNode);
 	}
 
+	public Iterable<List<RoutineEdge>> getOutgoingEdges() {
+		return outgoingEdges.values();
+	}
+
 	public void addCallEdge(ScriptNode fromNode, ScriptRoutineGraph target) {
 		List<RoutineEdge> edges = outgoingEdges.get(fromNode);
 		if (edges == null) {
@@ -23,7 +27,7 @@ public class GraphEdgeSet {
 		} else {
 			for (RoutineEdge edge : edges) {
 				if (edge.getEntryType() == RoutineEdge.Type.CALL && edge.getRoutineId() == target.id) {
-					Log.log("Warning: skipping duplicate call edge from %s to %s", fromNode, target);
+					Log.log("Merging duplicate call edge from %s to %s", fromNode, target);
 					return;
 				}
 			}
@@ -39,8 +43,8 @@ public class GraphEdgeSet {
 		} else {
 			for (RoutineEdge edge : edges) {
 				if (edge.getEntryType() == RoutineEdge.Type.THROW && edge.getRoutineId() == targetRoutine.id
-						&& ((RoutineExceptionEdge) edge).getTargetIndex() == targetIndex) {
-					Log.log("Warning: skipping duplicate throw edge from %s to %d in %s", fromNode, targetIndex,
+						&& ((RoutineExceptionEdge) edge).getToRoutineIndex() == targetIndex) {
+					Log.log("Merging duplicate throw edge from %s to %d in %s", fromNode, targetIndex,
 							targetRoutine);
 					return;
 				}

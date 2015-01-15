@@ -2,18 +2,18 @@ package edu.uci.eecs.scriptsafe.merge.graph;
 
 public class RoutineExceptionEdge extends RoutineEdge {
 
-	private int targetIndex;
+	private int toRoutineIndex;
 
-	public RoutineExceptionEdge(long targetRoutineId, int targetIndex) {
-		super(targetRoutineId);
+	public RoutineExceptionEdge(long fromRoutineId, int fromIndex, long toRoutineId, int toRoutineIndex) {
+		super(toRoutineId);
 
-		this.targetIndex = targetIndex;
+		this.toRoutineIndex = toRoutineIndex;
 	}
 
 	@Override
 	public boolean isSameEntryType(RoutineEdge other) {
 		return other.getEntryType() == RoutineEdge.Type.THROW
-				&& targetIndex == ((RoutineExceptionEdge) other).getTargetIndex();
+				&& targetIndex == ((RoutineExceptionEdge) other).getToRoutineIndex();
 	}
 
 	@Override
@@ -21,12 +21,12 @@ public class RoutineExceptionEdge extends RoutineEdge {
 		return Type.THROW;
 	}
 
-	public int getTargetIndex() {
-		return targetIndex;
+	public int getToRoutineIndex() {
+		return toRoutineIndex;
 	}
 
-	public void setTargetIndex(int targetIndex) {
-		this.targetIndex = targetIndex;
+	public void setToRoutineIndex(int toRoutineIndex) {
+		this.toRoutineIndex = toRoutineIndex;
 	}
 
 }

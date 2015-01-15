@@ -109,7 +109,7 @@ public class ScriptGraphCloner {
 			ScriptNode nodeOriginal = entry.getValue();
 			for (RoutineExceptionEdge throwEdge : nodeOriginal.getThrownExceptions()) {
 				nodeCopy.addThrownException(new RoutineExceptionEdge(
-						flowCopy.getRoutine(throwEdge.getTargetRoutine().id), throwEdge.getTargetIndex()));
+						flowCopy.getRoutine(throwEdge.getTargetRoutine().id), throwEdge.getToRoutineIndex()));
 			}
 		}
 

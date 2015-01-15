@@ -27,8 +27,12 @@ public abstract class DynamicRoutineMerge {
 		}
 	}
 
-	public List<ScriptRoutineGraph> getMergedGraphs() {
+	public Iterable<ScriptRoutineGraph> getMergedGraphs() {
 		return mergedGraphs;
+	}
+	
+	public ScriptRoutineGraph getMergedGraph(int dynamicRoutineId) {
+		return mergedGraphs.get(dynamicRoutineId);
 	}
 
 	public int getNewLeftDynamicRoutineId(int originalId) {

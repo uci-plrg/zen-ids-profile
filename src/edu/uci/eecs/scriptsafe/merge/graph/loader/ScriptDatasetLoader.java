@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
@@ -12,7 +13,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraphProxy;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 
 public class ScriptDatasetLoader {
 
@@ -43,12 +44,12 @@ public class ScriptDatasetLoader {
 		for (int i = 0; i < routineCount; i++)
 			graph.addRoutine(loadNextRoutine());
 		for (int i = 0; i < dynamicRoutineCount; i++)
-			graph.appendDynamicRoutine(new ScriptRoutineGraphProxy(loadNextRoutine()));
+			graph.appendDynamicRoutine(new RoutineEdge(loadNextRoutine()));
 
 		for (PendingEdges<ScriptCallNode, List<Long>> pendingCall : pendingCalls) {
 			for (Long targetId : pendingCall.target) {
 				if (ScriptRoutineGraph.isDynamicRoutine(targetId)) {
-					ScriptRoutineGraphProxy target = graph.getDynamicRoutineProxy(ScriptRoutineGraph
+					RoutineEdge target = graph.getDynamicRoutineProxy(ScriptRoutineGraph
 							.getDynamicRoutineId(targetId));
 					if (target == null)
 						throw new MergeException("Call to unknown dynamic routine %d", targetId);
@@ -65,7 +66,7 @@ public class ScriptDatasetLoader {
 		}
 		for (PendingEdges<ScriptEvalNode, List<Integer>> pendingEval : pendingEvals) {
 			for (Integer targetId : pendingEval.target) {
-				ScriptRoutineGraphProxy target = graph.getDynamicRoutineProxy(targetId);
+				RoutineEdge target = graph.getDynamicRoutineProxy(targetId);
 				if (target == null)
 					throw new MergeException("Call to unknown dynamic routine %d", targetId);
 
@@ -79,7 +80,7 @@ public class ScriptDatasetLoader {
 	private ScriptRoutineGraph loadNextRoutine() throws IOException {
 		int unitHash = in.readInt();
 		int routineHash = in.readInt();
-		int dynamicRoutineId, dynamicRoutineCount;
+		int dynamicRoutineId, dynamicRoutineCount, targetNodeIndex;
 		ScriptRoutineGraph routine = new ScriptRoutineGraph(unitHash, routineHash);
 
 		int nodeCount = in.readInt();
@@ -90,9 +91,6 @@ public class ScriptDatasetLoader {
 			ScriptNode.Type type = ScriptNode.Type.values()[typeOrdinal];
 			int target = in.readInt();
 			switch (type) {
-				case NORMAL:
-					routine.addNode(new ScriptNode(opcode, i));
-					break;
 				case BRANCH:
 					ScriptBranchNode branch = new ScriptBranchNode(opcode, i);
 					pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(branch, target));
@@ -111,8 +109,12 @@ public class ScriptDatasetLoader {
 			}
 		}
 
-		for (PendingEdges<ScriptBranchNode, Integer> pendingBranch : pendingBranches)
-			pendingBranch.fromNode.setTarget(routine.getNode(pendingBranch.target));
+		for (PendingEdges<ScriptBranchNode, Integer> pendingBranch : pendingBranches) {
+			if (ScriptNode.Opcode.forCode(pendingBranch.fromNode.opcode).isDynamic)
+				pendingBranch.fromNode.setTarget(null);
+			else
+				pendingBranch.fromNode.setTarget(routine.getNode(pendingBranch.target));
+		}
 
 		for (ScriptNode call : calls) {
 			switch (call.type) {
@@ -123,7 +125,11 @@ public class ScriptDatasetLoader {
 					for (int i = 0; i < callCount; i++) {
 						unitHash = in.readInt();
 						routineHash = in.readInt();
-						pendingCall.target.add(ScriptRoutineGraph.constructId(unitHash, routineHash));
+						targetNodeIndex = in.readInt();
+						if (targetNodeIndex == 0)
+							pendingCall.target.add(ScriptRoutineGraph.constructId(unitHash, routineHash));
+						else
+							Log.log("Warning: exception edges not supported yet!");
 					}
 					pendingCalls.add(pendingCall);
 				}
@@ -134,7 +140,11 @@ public class ScriptDatasetLoader {
 							(ScriptEvalNode) call, new ArrayList<Integer>());
 					for (int i = 0; i < dynamicRoutineCount; i++) {
 						dynamicRoutineId = in.readInt();
-						pendingEval.target.add(dynamicRoutineId);
+						targetNodeIndex = in.readInt();
+						if (targetNodeIndex == 0)
+							pendingEval.target.add(dynamicRoutineId);
+						else
+							Log.log("Warning: exception edges not supported yet!");
 					}
 					pendingEvals.add(pendingEval);
 				}

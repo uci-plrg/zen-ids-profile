@@ -1,5 +1,8 @@
 package edu.uci.eecs.scriptsafe.merge.graph;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 
 public class ScriptNode {
@@ -40,16 +43,24 @@ public class ScriptNode {
 		ZEND_JMPZNZ(0x2d),
 		ZEND_JMPZ_EX(0x2e),
 		ZEND_JMPNZ_EX(0x2f),
+		ZEND_BRK(0x32, true),
+		ZEND_CONT(0x33, true),
 		ZEND_DO_FCALL(0x3c),
 		ZEND_NEW(0x44),
 		ZEND_INCLUDE_OR_EVAL(0x49),
 		ZEND_ASSIGN_DIM(0x93),
-		ZEND_FAST_CALL(0xa2);
+		OTHER(-1);
 
+		public final boolean isDynamic;
 		public final int code;
 
 		private Opcode(int code) {
+			this(code, false);
+		}
+
+		private Opcode(int code, boolean isDynamic) {
 			this.code = code;
+			this.isDynamic = isDynamic;
 		}
 
 		public static Opcode forCode(int code) {
@@ -57,7 +68,7 @@ public class ScriptNode {
 				if (opcode.code == code)
 					return opcode;
 			}
-			return null;
+			return OTHER;
 		}
 	}
 
@@ -71,14 +82,15 @@ public class ScriptNode {
 					else
 						return Type.CALL;
 				case ZEND_DO_FCALL:
-				case ZEND_FAST_CALL:
-					return Type.CALL;
+					return Type.NORMAL;
 				case ZEND_JMP:
 				case ZEND_JMPZ:
 				case ZEND_JMPNZ:
 				case ZEND_JMPNZ_EX:
 				case ZEND_JMPZ_EX:
 				case ZEND_JMPZNZ:
+				case ZEND_BRK:
+				case ZEND_CONT:
 					return Type.BRANCH;
 			}
 		}
@@ -91,18 +103,16 @@ public class ScriptNode {
 
 	private ScriptNode next;
 
-	ScriptNode(Type type, int opcode, int index) {
+	private List<RoutineExceptionEdge> thrownExceptions = new ArrayList<RoutineExceptionEdge>();
+
+	protected ScriptNode(Type type, int opcode, int index) {
 		this.type = type;
 		this.opcode = opcode;
 		this.index = index;
 	}
 
-	public ScriptNode(int opcode, int index) {
-		this(Type.NORMAL, opcode, index);
-	}
-
 	public ScriptNode copy() {
-		return new ScriptNode(opcode, index);
+		return new ScriptNode(type, opcode, index);
 	}
 
 	public ScriptNode getNext() {
@@ -128,5 +138,13 @@ public class ScriptNode {
 
 	public boolean isEqual(ScriptNode other) {
 		return (type == other.type && index == other.index && opcode == other.opcode);
+	}
+	
+	public void addThrownException(RoutineExceptionEdge throwEdge) {
+		thrownExceptions.add(throwEdge);
+	}
+	
+	public Iterable<RoutineExceptionEdge> getThrownExceptions() {
+		return thrownExceptions;
 	}
 }

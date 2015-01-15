@@ -15,7 +15,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraphProxy;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 
 class ScriptRunLoader {
 
@@ -79,8 +79,6 @@ class ScriptRunLoader {
 
 	private ScriptNode createNode(int opcode, ScriptNode.Type type, int index) {
 		switch (type) {
-			case NORMAL:
-				return new ScriptNode(opcode, index);
 			case BRANCH:
 				return new ScriptBranchNode(opcode, index);
 			case CALL:
@@ -146,7 +144,7 @@ class ScriptRunLoader {
 		ScriptNode.Opcode opcode = ScriptNode.Opcode.forCode(fromNode.opcode);
 		if (opcode == null)
 			return false;
-		
+
 		switch (opcode) {
 			case ZEND_ASSIGN_DIM:
 			case ZEND_NEW:
@@ -158,7 +156,7 @@ class ScriptRunLoader {
 
 	private void linkNodes(ScriptFlowGraph graph) {
 		ScriptRoutineGraph routine, fromRoutine, toRoutine;
-		ScriptRoutineGraphProxy toRoutineProxy;
+		RoutineEdge toRoutineProxy;
 		ScriptNode fromNode;
 		ScriptBranchNode branchNode;
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
@@ -220,7 +218,7 @@ class ScriptRunLoader {
 	}
 
 	private void loadRoutineEdges(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
-		int fromUnitHash, fromRoutineHash, fromIndex, toUnitHash, toRoutineHash;
+		int fromUnitHash, fromRoutineHash, fromIndex, toUnitHash, toRoutineHash, toIndex;
 		long fromRoutineId, toRoutineId;
 		RawRoutineGraph routine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.routineEdgeFile);
@@ -231,7 +229,10 @@ class ScriptRunLoader {
 			fromIndex = input.readInt();
 			toUnitHash = input.readInt();
 			toRoutineHash = input.readInt();
-			input.readInt(); // toIndex is always 0
+			toIndex = input.readInt();
+			
+			if (toIndex != 0)
+				Log.log("Warning: exception edges not supported yet");
 
 			fromRoutineId = ScriptRoutineGraph.constructId(fromUnitHash, fromRoutineHash);
 			toRoutineId = ScriptRoutineGraph.constructId(toUnitHash, toRoutineHash);
@@ -253,7 +254,7 @@ class ScriptRunLoader {
 		long routineId;
 		ScriptNode node, lastNode = null;
 		ScriptRoutineGraph routine = null;
-		ScriptRoutineGraphProxy dynamicRoutine;
+		RoutineEdge dynamicRoutine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.nodeFile);
 
 		while (input.ready(0x10)) {
@@ -269,7 +270,7 @@ class ScriptRunLoader {
 					if (routineHash < graph.getDynamicRoutineProxyCount())
 						dynamicRoutine = graph.getDynamicRoutineProxy(routineHash);
 					if (dynamicRoutine != null)
-						routine = dynamicRoutine.getTarget();
+						routine = dynamicRoutine.getTargetRoutine();
 				} else {
 					routine = graph.getRoutine(routineId);
 				}

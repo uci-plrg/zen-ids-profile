@@ -7,17 +7,19 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 
 public class ScriptGraphCloner {
 
+	private final Map<ScriptNode, ScriptNode> nodeCopies = new HashMap<ScriptNode, ScriptNode>();
 	private final Map<ScriptBranchNode, ScriptBranchNode> branchNodeCopies = new HashMap<ScriptBranchNode, ScriptBranchNode>();
 	private final Map<ScriptCallNode, ScriptCallNode> callNodeCopies = new HashMap<ScriptCallNode, ScriptCallNode>();
 	private final Map<ScriptEvalNode, ScriptEvalNode> evalNodeCopies = new HashMap<ScriptEvalNode, ScriptEvalNode>();
+	private ScriptFlowGraph flowCopy;
 
 	public ScriptFlowGraph deepCopy(ScriptFlowGraph original) {
 		branchNodeCopies.clear();
 		callNodeCopies.clear();
 		evalNodeCopies.clear();
 
-		ScriptFlowGraph flowCopy = new ScriptFlowGraph("Deep copy [" + original.description + "]");
-		deepCopy(original, flowCopy);
+		flowCopy = new ScriptFlowGraph("Deep copy [" + original.description + "]");
+		deepCopy(original);
 		return flowCopy;
 	}
 
@@ -31,13 +33,16 @@ public class ScriptGraphCloner {
 			shallowCopy(routine, routineCopy);
 			flowCopy.addRoutine(routineCopy);
 		}
-		/*
-		 * Log.log("Copying %d dynamic routine proxies", original.getDynamicRoutineProxyCount()); for
-		 * (ScriptRoutineGraphProxy proxy : original.getDynamicRoutineProxies()) { ScriptRoutineGraph copyProxyTarget =
-		 * proxy.getTarget(); ScriptRoutineGraph routineCopy = copyProxyTarget.copy(); shallowCopy(copyProxyTarget,
-		 * routineCopy); flowCopy.addRoutine(routineCopy); } Log.log("Copy now has %d dynamic routine proxies",
-		 * flowCopy.getDynamicRoutineProxyCount());
-		 */
+
+		Log.log("Copying %d dynamic routine proxies", original.getDynamicRoutineProxyCount());
+		for (RoutineEdge proxy : original.getDynamicRoutineProxies()) {
+			ScriptRoutineGraph copyProxyTarget = proxy.getTargetRoutine();
+			ScriptRoutineGraph routineCopy = copyProxyTarget.copy();
+			shallowCopy(copyProxyTarget, routineCopy);
+			flowCopy.addRoutine(routineCopy);
+		}
+		Log.log("Copy now has %d dynamic routine proxies", flowCopy.getDynamicRoutineProxyCount());
+
 		return flowCopy;
 	}
 
@@ -57,6 +62,7 @@ public class ScriptGraphCloner {
 			ScriptNode nodeOriginal = routineOriginal.getNode(i);
 			ScriptNode nodeCopy = nodeOriginal.copy();
 			routineCopy.addNode(nodeCopy);
+			nodeCopies.put(nodeCopy, nodeOriginal);
 			switch (nodeCopy.type) {
 				case BRANCH:
 					branchNodeCopies.put((ScriptBranchNode) nodeCopy, (ScriptBranchNode) nodeOriginal);
@@ -81,7 +87,7 @@ public class ScriptGraphCloner {
 		}
 	}
 
-	private void deepCopy(ScriptFlowGraph original, ScriptFlowGraph flowCopy) {
+	private void deepCopy(ScriptFlowGraph original) {
 
 		for (ScriptRoutineGraph routine : original.getRoutines()) {
 			ScriptRoutineGraph routineCopy = routine.copy();
@@ -90,13 +96,22 @@ public class ScriptGraphCloner {
 		}
 		Log.log("Copying %d eval proxies from %s to %s", original.getDynamicRoutineProxyCount(), original.description,
 				flowCopy.description);
-		for (ScriptRoutineGraphProxy proxy : original.getDynamicRoutineProxies()) {
-			ScriptRoutineGraph copyProxyTarget = proxy.getTarget();
+		for (RoutineEdge proxy : original.getDynamicRoutineProxies()) {
+			ScriptRoutineGraph copyProxyTarget = proxy.getTargetRoutine();
 			ScriptRoutineGraph routineCopy = copyProxyTarget.copy();
 			deepCopy(copyProxyTarget, routineCopy);
 			flowCopy.addRoutine(routineCopy);
 		}
 		Log.log("Copy now has %d eval proxies", flowCopy.getDynamicRoutineProxyCount());
+
+		for (Map.Entry<ScriptNode, ScriptNode> entry : nodeCopies.entrySet()) {
+			ScriptNode nodeCopy = entry.getKey();
+			ScriptNode nodeOriginal = entry.getValue();
+			for (RoutineExceptionEdge throwEdge : nodeOriginal.getThrownExceptions()) {
+				nodeCopy.addThrownException(new RoutineExceptionEdge(
+						flowCopy.getRoutine(throwEdge.getTargetRoutine().id), throwEdge.getTargetIndex()));
+			}
+		}
 
 		// Third: link call and eval targets in copy
 		for (Map.Entry<ScriptCallNode, ScriptCallNode> entry : callNodeCopies.entrySet()) {
@@ -105,14 +120,14 @@ public class ScriptGraphCloner {
 			for (ScriptRoutineGraph targetOriginal : callOriginal.staticTargets.values()) {
 				callCopy.addStaticTarget(flowCopy.getRoutine(targetOriginal.id));
 			}
-			for (ScriptRoutineGraphProxy targetOriginal : callOriginal.getDynamicTargets()) {
+			for (RoutineEdge targetOriginal : callOriginal.getDynamicTargets()) {
 				callCopy.addDynamicTarget(flowCopy.getDynamicRoutineProxy(targetOriginal.getDynamicRoutineId()));
 			}
 		}
 		for (Map.Entry<ScriptEvalNode, ScriptEvalNode> entry : evalNodeCopies.entrySet()) {
 			ScriptEvalNode evalCopy = entry.getKey();
 			ScriptEvalNode evalOriginal = entry.getValue();
-			for (ScriptRoutineGraphProxy targetOriginal : evalOriginal.getTargets()) {
+			for (RoutineEdge targetOriginal : evalOriginal.getTargets()) {
 				evalCopy.addTarget(flowCopy.getDynamicRoutineProxy(targetOriginal.getDynamicRoutineId()));
 			}
 		}

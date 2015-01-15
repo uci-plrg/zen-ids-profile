@@ -5,17 +5,17 @@ import java.util.List;
 
 public class ScriptEvalNode extends ScriptNode {
 
-	private final List<ScriptRoutineGraphProxy> targets = new ArrayList<ScriptRoutineGraphProxy>();
+	private final List<RoutineEdge> targets = new ArrayList<RoutineEdge>();
 
 	public ScriptEvalNode(int opcode, int index) {
 		super(Type.EVAL, opcode, index);
 	}
 
-	public void addTarget(ScriptRoutineGraphProxy target) {
+	public void addTarget(RoutineEdge target) {
 		targets.add(target);
 	}
 
-	public Iterable<ScriptRoutineGraphProxy> getTargets() {
+	public Iterable<RoutineEdge> getTargets() {
 		return targets;
 	}
 
@@ -24,7 +24,7 @@ public class ScriptEvalNode extends ScriptNode {
 	}
 
 	public boolean hasTarget(int id) {
-		for (ScriptRoutineGraphProxy target : targets) {
+		for (RoutineEdge target : targets) {
 			if (target.getDynamicRoutineId() == id)
 				return true;
 		}

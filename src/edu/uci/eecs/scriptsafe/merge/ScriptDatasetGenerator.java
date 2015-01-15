@@ -13,7 +13,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraphProxy;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 
 public class ScriptDatasetGenerator {
 
@@ -176,11 +176,8 @@ public class ScriptDatasetGenerator {
 			out.writeInt(nodeId);
 
 			switch (node.type) {
-				case NORMAL:
-					out.writeInt(0);
-					break;
 				case BRANCH:
-					out.writeInt(((ScriptBranchNode) node).getTarget().index);
+					out.writeInt(((ScriptBranchNode) node).getTargetIndex());
 					break;
 				case CALL:
 					ScriptCallNode call = (ScriptCallNode) node;
@@ -206,10 +203,12 @@ public class ScriptDatasetGenerator {
 					for (ScriptRoutineGraph target : call.getStaticTargets()) {
 						out.writeInt(target.unitHash);
 						out.writeInt(target.routineHash);
+						out.writeInt(0); // routine entry point
 					}
-					for (ScriptRoutineGraphProxy target : call.getDynamicTargets()) {
-						out.writeInt(ScriptRoutineGraph.DYNAMIC_UNIT_HASH);
+					for (RoutineEdge target : call.getDynamicTargets()) {
+						out.writeInt(ScriptRoutineGraph.DYNAMIC_UNIT_HASH); // redundant, but call always requires it
 						out.writeInt(target.getDynamicRoutineId());
+						out.writeInt(0); // routine entry point
 					}
 					filePtr += (1 + (2 * call.getTargetCount()));
 				}
@@ -217,9 +216,11 @@ public class ScriptDatasetGenerator {
 				case EVAL: {
 					ScriptEvalNode eval = (ScriptEvalNode) callNode;
 					out.writeInt(eval.getTargetCount());
-					for (ScriptRoutineGraphProxy target : eval.getTargets())
+					for (RoutineEdge target : eval.getTargets()) {
 						out.writeInt(target.getDynamicRoutineId());
-					
+						out.writeInt(0); // routine entry point
+					}
+
 					filePtr += (1 + eval.getTargetCount());
 				}
 			}
@@ -233,9 +234,9 @@ public class ScriptDatasetGenerator {
 			hashtable.putEntry(routine.id, filePtr);
 			writeRoutineData(routine);
 		}
-		for (ScriptRoutineGraphProxy evalProxy : graph.getDynamicRoutineProxies()) {
+		for (RoutineEdge evalProxy : graph.getDynamicRoutineProxies()) {
 			dynamicRoutineOffsets.add(filePtr);
-			writeRoutineData(evalProxy.getTarget());
+			writeRoutineData(evalProxy.getTargetRoutine());
 		}
 	}
 }

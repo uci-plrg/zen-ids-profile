@@ -3,6 +3,8 @@ package edu.uci.eecs.scriptsafe.merge.graph;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.uci.eecs.scriptsafe.merge.MergeException;
+
 public class ScriptRoutineGraph {
 
 	public static final int DYNAMIC_UNIT_HASH = 0;
@@ -83,5 +85,13 @@ public class ScriptRoutineGraph {
 				return false;
 		}
 		return true;
+	}
+
+	public void verifySameRoutine(ScriptRoutineGraph other) {
+		if (nodes.size() != other.nodes.size())
+			throw new MergeException("Node counts differ at the same routine id 0x%x!", id);
+
+		for (int i = 0; i < nodes.size(); i++)
+			nodes.get(i).verifyEqual(other.nodes.get(i));
 	}
 }

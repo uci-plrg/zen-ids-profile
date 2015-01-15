@@ -8,7 +8,7 @@ import java.util.Map;
 public class ScriptCallNode extends ScriptNode {
 
 	final Map<Long, ScriptRoutineGraph> staticTargets = new HashMap<Long, ScriptRoutineGraph>();
-	private final List<ScriptRoutineGraphProxy> dynamicTargets = new ArrayList<ScriptRoutineGraphProxy>();
+	private final List<RoutineEdge> dynamicTargets = new ArrayList<RoutineEdge>();
 
 	public ScriptCallNode(int opcode, int index) {
 		super(Type.CALL, opcode, index);
@@ -31,18 +31,18 @@ public class ScriptCallNode extends ScriptNode {
 	}
 	
 	public boolean hasDynamicTarget(int id) {
-		for (ScriptRoutineGraphProxy target : dynamicTargets) {
+		for (RoutineEdge target : dynamicTargets) {
 			if (target.getDynamicRoutineId() == id)
 				return true;
 		}
 		return false;
 	}
 
-	public void addDynamicTarget(ScriptRoutineGraphProxy target) {
+	public void addDynamicTarget(RoutineEdge target) {
 		dynamicTargets.add(target);
 	}
 
-	public Iterable<ScriptRoutineGraphProxy> getDynamicTargets() {
+	public Iterable<RoutineEdge> getDynamicTargets() {
 		return dynamicTargets;
 	}
 

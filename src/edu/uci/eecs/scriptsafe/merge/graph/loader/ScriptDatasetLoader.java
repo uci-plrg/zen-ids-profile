@@ -6,29 +6,26 @@ import java.util.List;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
 public class ScriptDatasetLoader {
 
 	private static class PendingEdges<NodeType extends ScriptNode, TargetType> {
+		final long fromRoutineId;
 		final NodeType fromNode;
 		final TargetType target;
 
-		PendingEdges(NodeType fromNode, TargetType target) {
+		PendingEdges(long fromRoutineId, NodeType fromNode, TargetType target) {
+			this.fromRoutineId = fromRoutineId;
 			this.fromNode = fromNode;
 			this.target = target;
 		}
 	}
 
-	private final List<PendingEdges<ScriptCallNode, List<Long>>> pendingCalls = new ArrayList<PendingEdges<ScriptCallNode, List<Long>>>();
-	private final List<PendingEdges<ScriptEvalNode, List<Integer>>> pendingEvals = new ArrayList<PendingEdges<ScriptEvalNode, List<Integer>>>();
 	private final List<PendingEdges<ScriptBranchNode, Integer>> pendingBranches = new ArrayList<PendingEdges<ScriptBranchNode, Integer>>();
 	private final List<ScriptNode> calls = new ArrayList<ScriptNode>();
 
@@ -42,33 +39,14 @@ public class ScriptDatasetLoader {
 		int dynamicRoutineCount = in.readInt();
 
 		for (int i = 0; i < routineCount; i++)
-			graph.addRoutine(loadNextRoutine());
+			graph.addRoutine(loadNextRoutine(graph));
 		for (int i = 0; i < dynamicRoutineCount; i++)
-			graph.appendDynamicRoutine(loadNextRoutine());
-
-		for (PendingEdges<ScriptCallNode, List<Long>> pendingCall : pendingCalls) {
-			for (Long targetId : pendingCall.target) {
-				ScriptRoutineGraph target = graph.getRoutine(targetId);
-				if (target == null)
-					throw new MergeException("Call to unknown routine 0x%x", targetId);
-
-				pendingCall.fromNode.addTarget(target);
-			}
-		}
-		for (PendingEdges<ScriptEvalNode, List<Integer>> pendingEval : pendingEvals) {
-			for (Integer targetId : pendingEval.target) {
-				ScriptRoutineGraph target = graph.getRoutine(ScriptRoutineGraph.constructDynamicId(targetId));
-				if (target == null)
-					throw new MergeException("Call to unknown dynamic routine %d", targetId);
-
-				pendingEval.fromNode.addTarget(target);
-			}
-		}
+			graph.appendDynamicRoutine(loadNextRoutine(graph));
 
 		in.close();
 	}
 
-	private ScriptRoutineGraph loadNextRoutine() throws IOException {
+	private ScriptRoutineGraph loadNextRoutine(ScriptFlowGraph graph) throws IOException {
 		int unitHash = in.readInt();
 		int routineHash = in.readInt();
 		int dynamicRoutineId, dynamicRoutineCount, targetNodeIndex;
@@ -81,22 +59,14 @@ public class ScriptDatasetLoader {
 			int typeOrdinal = (nodeId >> 8);
 			ScriptNode.Type type = ScriptNode.Type.values()[typeOrdinal];
 			int target = in.readInt();
-			switch (type) {
-				case BRANCH:
-					ScriptBranchNode branch = new ScriptBranchNode(opcode, i);
-					pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(branch, target));
-					routine.addNode(branch);
-					break;
-				case CALL:
-					ScriptCallNode call = new ScriptCallNode(opcode, i);
-					calls.add(call); // use list seequence instead of `target` pointer
-					routine.addNode(call);
-					break;
-				case EVAL:
-					ScriptEvalNode eval = new ScriptEvalNode(opcode, i);
-					calls.add(eval);// use list seequence instead of `target` pointer
-					routine.addNode(eval);
-					break;
+			if (type == Type.BRANCH) {
+				ScriptBranchNode branch = new ScriptBranchNode(opcode, i);
+				pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(routineHash, branch, target));
+				routine.addNode(branch);
+			} else {
+				ScriptNode call = new ScriptNode(type, opcode, i);
+				calls.add(call); // use list seequence instead of `target` pointer
+				routine.addNode(call);
 			}
 		}
 
@@ -111,33 +81,24 @@ public class ScriptDatasetLoader {
 			switch (call.type) {
 				case CALL: {
 					int callCount = in.readInt();
-					PendingEdges<ScriptCallNode, List<Long>> pendingCall = new PendingEdges<ScriptCallNode, List<Long>>(
-							(ScriptCallNode) call, new ArrayList<Long>());
 					for (int i = 0; i < callCount; i++) {
 						unitHash = in.readInt();
 						routineHash = in.readInt();
 						targetNodeIndex = in.readInt();
-						if (targetNodeIndex == 0)
-							pendingCall.target.add(ScriptRoutineGraph.constructId(unitHash, routineHash));
-						else
-							Log.log("Warning: exception edges not supported yet!");
+						graph.graphEdgeSet.addCallEdge(routine.id, call,
+								ScriptRoutineGraph.constructId(unitHash, routineHash));
 					}
-					pendingCalls.add(pendingCall);
 				}
 					break;
 				case EVAL: {
 					dynamicRoutineCount = in.readInt();
-					PendingEdges<ScriptEvalNode, List<Integer>> pendingEval = new PendingEdges<ScriptEvalNode, List<Integer>>(
-							(ScriptEvalNode) call, new ArrayList<Integer>());
 					for (int i = 0; i < dynamicRoutineCount; i++) {
 						dynamicRoutineId = in.readInt();
 						targetNodeIndex = in.readInt();
-						if (targetNodeIndex == 0)
-							pendingEval.target.add(dynamicRoutineId);
-						else
-							Log.log("Warning: exception edges not supported yet!");
+						graph.graphEdgeSet.addExceptionEdge(routine.id, call,
+								ScriptRoutineGraph.constructId(ScriptRoutineGraph.DYNAMIC_UNIT_HASH, dynamicRoutineId),
+								targetNodeIndex);
 					}
-					pendingEvals.add(pendingEval);
 				}
 					break;
 			}

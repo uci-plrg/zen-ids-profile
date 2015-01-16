@@ -8,6 +8,7 @@ import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.scriptsafe.merge.ScriptDatasetGenerator;
 import edu.uci.eecs.scriptsafe.merge.ScriptMerge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptGraphCloner;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphLoader;
@@ -51,6 +52,7 @@ public class ScriptSafeMerge {
 
 			rightGraph = loader.loadGraph(rightDataSource);
 			if (rightDataSource.getType() == Type.DATASET) {
+				ScriptGraphCloner cloner = new ScriptGraphCloner();
 				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getDescription()));
 				loader.loadGraph(leftDataSource, leftGraph);
 			} else {

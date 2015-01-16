@@ -5,7 +5,7 @@ public class RoutineExceptionEdge extends RoutineEdge {
 	private int toRoutineIndex;
 
 	public RoutineExceptionEdge(long fromRoutineId, int fromIndex, long toRoutineId, int toRoutineIndex) {
-		super(toRoutineId);
+		super(fromRoutineId, fromIndex, toRoutineId);
 
 		this.toRoutineIndex = toRoutineIndex;
 	}
@@ -13,7 +13,7 @@ public class RoutineExceptionEdge extends RoutineEdge {
 	@Override
 	public boolean isSameEntryType(RoutineEdge other) {
 		return other.getEntryType() == RoutineEdge.Type.THROW
-				&& targetIndex == ((RoutineExceptionEdge) other).getToRoutineIndex();
+				&& toRoutineIndex == ((RoutineExceptionEdge) other).getToRoutineIndex();
 	}
 
 	@Override

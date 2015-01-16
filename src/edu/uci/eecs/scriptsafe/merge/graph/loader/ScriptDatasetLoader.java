@@ -44,29 +44,20 @@ public class ScriptDatasetLoader {
 		for (int i = 0; i < routineCount; i++)
 			graph.addRoutine(loadNextRoutine());
 		for (int i = 0; i < dynamicRoutineCount; i++)
-			graph.appendDynamicRoutine(new RoutineEdge(loadNextRoutine()));
+			graph.appendDynamicRoutine(loadNextRoutine());
 
 		for (PendingEdges<ScriptCallNode, List<Long>> pendingCall : pendingCalls) {
 			for (Long targetId : pendingCall.target) {
-				if (ScriptRoutineGraph.isDynamicRoutine(targetId)) {
-					RoutineEdge target = graph.getDynamicRoutineProxy(ScriptRoutineGraph
-							.getDynamicRoutineId(targetId));
-					if (target == null)
-						throw new MergeException("Call to unknown dynamic routine %d", targetId);
+				ScriptRoutineGraph target = graph.getRoutine(targetId);
+				if (target == null)
+					throw new MergeException("Call to unknown routine 0x%x", targetId);
 
-					pendingCall.fromNode.addDynamicTarget(target);
-				} else {
-					ScriptRoutineGraph target = graph.getRoutine(targetId);
-					if (target == null)
-						throw new MergeException("Call to unknown routine 0x%x", targetId);
-
-					pendingCall.fromNode.addStaticTarget(target);
-				}
+				pendingCall.fromNode.addTarget(target);
 			}
 		}
 		for (PendingEdges<ScriptEvalNode, List<Integer>> pendingEval : pendingEvals) {
 			for (Integer targetId : pendingEval.target) {
-				RoutineEdge target = graph.getDynamicRoutineProxy(targetId);
+				ScriptRoutineGraph target = graph.getRoutine(ScriptRoutineGraph.constructDynamicId(targetId));
 				if (target == null)
 					throw new MergeException("Call to unknown dynamic routine %d", targetId);
 

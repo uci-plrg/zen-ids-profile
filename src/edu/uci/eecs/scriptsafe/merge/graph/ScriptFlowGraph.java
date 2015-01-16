@@ -35,6 +35,10 @@ public class ScriptFlowGraph {
 		return routines.get(id);
 	}
 
+	public ScriptRoutineGraph getDynamicRoutine(int id) {
+		return routines.get(ScriptRoutineGraph.constructDynamicId(id));
+	}
+
 	public int getRoutineCount() {
 		return routines.size();
 	}
@@ -42,7 +46,7 @@ public class ScriptFlowGraph {
 	public Iterable<ScriptRoutineGraph> getRoutines() {
 		return routines.values();
 	}
-	
+
 	public int getMaxDynamicRoutineId() {
 		return maxDynamicRoutineId;
 	}

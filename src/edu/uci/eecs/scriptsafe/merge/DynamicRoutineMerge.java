@@ -8,14 +8,14 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
 public abstract class DynamicRoutineMerge {
 
-	protected final List<ScriptRoutineGraph> mergedGraphs = new ArrayList<ScriptRoutineGraph>();
-	protected final int leftRemapping[];
+	final List<ScriptRoutineGraph> mergedGraphs = new ArrayList<ScriptRoutineGraph>();
+	final int leftRemapping[];
 
 	public DynamicRoutineMerge(ScriptFlowGraph left) {
 		leftRemapping = new int[left.getMaxDynamicRoutineId()];
 	}
 
-	protected abstract void remapRoutine(ScriptRoutineGraph routine, long toId, ScriptMerge.Side fromSide);
+	abstract void remapRoutine(ScriptRoutineGraph routine, long toId, ScriptMerge.Side fromSide);
 
 	public void addDynamicRoutine(ScriptRoutineGraph routine, ScriptMerge.Side fromSide) {
 		for (ScriptRoutineGraph merged : mergedGraphs) {
@@ -30,9 +30,12 @@ public abstract class DynamicRoutineMerge {
 	public Iterable<ScriptRoutineGraph> getMergedGraphs() {
 		return mergedGraphs;
 	}
-	
-	public ScriptRoutineGraph getMergedGraph(int dynamicRoutineId) {
-		return mergedGraphs.get(dynamicRoutineId);
+
+	public ScriptRoutineGraph getMergedGraph(int dynamicRoutineId, ScriptMerge.Side fromSide) {
+		if (fromSide == ScriptMerge.Side.LEFT)
+			return mergedGraphs.get(getNewLeftDynamicRoutineId(dynamicRoutineId));
+		else
+			return mergedGraphs.get(getNewRightDynamicRoutineId(dynamicRoutineId));
 	}
 
 	public int getNewLeftDynamicRoutineId(int originalId) {

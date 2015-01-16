@@ -105,7 +105,7 @@ public class ScriptNode {
 
 	private List<RoutineExceptionEdge> thrownExceptions = new ArrayList<RoutineExceptionEdge>();
 
-	protected ScriptNode(Type type, int opcode, int index) {
+	public ScriptNode(Type type, int opcode, int index) {
 		this.type = type;
 		this.opcode = opcode;
 		this.index = index;
@@ -139,11 +139,11 @@ public class ScriptNode {
 	public boolean isEqual(ScriptNode other) {
 		return (type == other.type && index == other.index && opcode == other.opcode);
 	}
-	
+
 	public void addThrownException(RoutineExceptionEdge throwEdge) {
 		thrownExceptions.add(throwEdge);
 	}
-	
+
 	public Iterable<RoutineExceptionEdge> getThrownExceptions() {
 		return thrownExceptions;
 	}

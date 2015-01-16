@@ -8,7 +8,6 @@ import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.scriptsafe.merge.ScriptDatasetGenerator;
 import edu.uci.eecs.scriptsafe.merge.ScriptMerge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptGraphCloner;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphLoader;
@@ -52,7 +51,6 @@ public class ScriptSafeMerge {
 
 			rightGraph = loader.loadGraph(rightDataSource);
 			if (rightDataSource.getType() == Type.DATASET) {
-				ScriptGraphCloner cloner = new ScriptGraphCloner();
 				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getDescription()));
 				loader.loadGraph(leftDataSource, leftGraph);
 			} else {
@@ -64,14 +62,14 @@ public class ScriptSafeMerge {
 			Log.log("Right graph is a %s from %s with %d routines", rightDataSource.getClass().getSimpleName(),
 					rightPath.getAbsolutePath(), rightGraph.getRoutineCount());
 
-			ScriptMerge merge = new ScriptMerge(leftGraph, rightGraph);
-			ScriptFlowGraph merged = merge.merge();
+			ScriptMerge merge = new ScriptMerge(leftGraph, rightGraph, rightDataSource.getType() == Type.DATASET);
+			merge.merge();
 
-			Log.log("Merged graph is a %s with %d routines and %d eval routines", merged.getClass().getSimpleName(),
-					merged.getRoutineCount(), merged.getDynamicRoutineProxyCount());
+			Log.log("Merged graph is a %s with %d routines and %d eval routines", merge.getClass().getSimpleName(),
+					merge.getRoutineCount(), merge.getDynamicRoutineCount());
 
 			File outputFile = new File(outputDir.getValue());
-			ScriptDatasetGenerator output = new ScriptDatasetGenerator(merged, outputFile);
+			ScriptDatasetGenerator output = new ScriptDatasetGenerator(merge, outputFile);
 			output.generateDataset();
 		} catch (Throwable t) {
 			t.printStackTrace();

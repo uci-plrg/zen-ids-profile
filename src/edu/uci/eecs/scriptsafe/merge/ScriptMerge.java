@@ -4,18 +4,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.graph.GraphEdgeSet;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineExceptionEdge;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
-public class ScriptMerge {
+public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 
 	public enum Side {
 		LEFT,
@@ -58,83 +55,84 @@ public class ScriptMerge {
 			}
 		}
 
-		// patch the dynamic edges
-		// merge the routine edges
-
-		for (List<RoutineEdge> leftEdges : left.graphEdgeSet.getOutgoingEdges()) {
-			for (RoutineEdge leftEdge : leftEdges) {
-				if (leftEdge.getEntryType() == Type.THROW) {
-					RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) leftEdge;
-					leftEdge.setToRoutineId(dynamicRoutineMerge.getNewLeftDynamicRoutineId(ScriptRoutineGraph
-							.getDynamicRoutineId(throwEdge.getToRoutineId())));
-					graphEdgeSet.addExceptionEdge(
-							getNode(throwEdge.getFromRoutineId(), throwEdge.getFromRoutineIndex()),
-							dynamicRoutineMerge.getMergedGraph(ScriptRoutineGraph.getDynamicRoutineId(throwEdge
-									.getToRoutineId())), throwEdge.getToRoutineIndex());
-				} else {
-					graphEdgeSet.addCallEdge(getNode(leftEdge.getFromRoutineId(), leftEdge.getFromRoutineIndex()),
-							mergedStaticRoutines.get(leftEdge.getToRoutineId()));
-				}
-			}
-		}
+		addRoutineEdges(left, Side.LEFT);
+		addRoutineEdges(right, Side.RIGHT);
 
 		// dataset generator writes from here (interface so it can also write plain graphs?)
 		// nix cloner (hopefully)
 	}
 
-	private ScriptNode getNode(long routineId, int index) {
-		if (ScriptRoutineGraph.isDynamicRoutine(routineId))
-			return dynamicRoutineMerge.getMergedGraph(ScriptRoutineGraph.getDynamicRoutineId(routineId)).getNode(index);
-		else
-			return mergedStaticRoutines.get(routineId).getNode(index);
-	}
-
-	private void mergeRoutines(ScriptRoutineGraph leftRoutine, ScriptRoutineGraph targetRoutine) {
-		int nodeCount = leftRoutine.getNodeCount();
-		if (nodeCount != targetRoutine.getNodeCount())
-			throw new MergeException("Node counts differ for routine 0x%x: %d vs. %d", leftRoutine.id, nodeCount,
-					targetRoutine.getNodeCount());
-		for (int i = 0; i < nodeCount; i++) {
-			ScriptNode leftNode = leftRoutine.getNode(i);
-			ScriptNode targetNode = targetRoutine.getNode(i);
-			leftNode.verifyEqual(targetNode);
-
-			switch (leftNode.type) {
-				case CALL: {
-					ScriptCallNode leftCall = (ScriptCallNode) leftNode;
-					ScriptCallNode targetCall = (ScriptCallNode) targetNode;
-					for (ScriptRoutineGraph leftTarget : leftCall.getStaticTargets()) {
-						if (targetCall.getStaticTarget(leftTarget.id) == null) {
-							ScriptRoutineGraph targetCallTarget = right.getRoutine(leftTarget.id);
-							Log.log("Merging new static routine entry 0x%x|0x%x I%d -> 0x%x|0x%x",
-									leftRoutine.unitHash, leftRoutine.routineHash, i, targetCallTarget.unitHash,
-									targetCallTarget.routineHash);
-							targetCall.addStaticTarget(targetCallTarget);
-						}
-					}
-					for (RoutineEdge leftTarget : leftCall.getDynamicTargets()) {
-						if (!targetCall.hasDynamicTarget(ScriptRoutineGraph.getDynamicRoutineId(leftTarget
-								.getDynamicRoutineId()))) {
-							Log.log("Merging new dynamic routine entry 0x%x|0x%x I%d -> 0x%x", leftRoutine.unitHash,
-									leftRoutine.routineHash, i, leftTarget.getDynamicRoutineId());
-							targetCall.addDynamicTarget(leftTarget);
-						}
-					}
+	private void addRoutineEdges(ScriptFlowGraph graph, Side fromSide) {
+		for (List<RoutineEdge> edges : graph.graphEdgeSet.getOutgoingEdges()) {
+			for (RoutineEdge edge : edges) {
+				if (edge.getEntryType() == Type.THROW) {
+					RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) edge;
+					graphEdgeSet.addExceptionEdge(resolveRoutineId(throwEdge.getFromRoutineId(), fromSide),
+							getNode(throwEdge.getFromRoutineId(), fromSide, throwEdge.getFromRoutineIndex()),
+							resolveRoutineId(throwEdge.getToRoutineId(), fromSide), throwEdge.getToRoutineIndex());
+				} else {
+					graphEdgeSet.addCallEdge(resolveRoutineId(edge.getFromRoutineId(), fromSide),
+							getNode(edge.getFromRoutineId(), fromSide, edge.getFromRoutineIndex()),
+							resolveRoutineId(edge.getToRoutineId(), fromSide));
 				}
-					break;
-				case EVAL: {
-					ScriptEvalNode leftEvalNode = (ScriptEvalNode) leftNode;
-					ScriptEvalNode targetEvalNode = (ScriptEvalNode) targetNode;
-					for (RoutineEdge leftEval : leftEvalNode.getTargets()) {
-						if (!targetEvalNode.hasTarget(leftEval.getDynamicRoutineId())) {
-							Log.log("Merging new eval routine entry 0x%x|0x%x I%d -> 0x%x", leftRoutine.unitHash,
-									leftRoutine.routineHash, i, leftEval.getDynamicRoutineId());
-							targetEvalNode.addTarget(leftEval);
-						}
-					}
-				}
-					break;
 			}
 		}
+	}
+
+	private long resolveRoutineId(long routineId, Side fromSide) {
+		if (ScriptRoutineGraph.isDynamicRoutine(routineId)) {
+			if (fromSide == Side.LEFT)
+				return dynamicRoutineMerge
+						.getNewLeftDynamicRoutineId(ScriptRoutineGraph.getDynamicRoutineId(routineId));
+			else
+				return dynamicRoutineMerge.getNewRightDynamicRoutineId(ScriptRoutineGraph
+						.getDynamicRoutineId(routineId));
+		} else {
+			return routineId;
+		}
+	}
+
+	private ScriptRoutineGraph getRoutineGraph(long routineId, Side fromSide) {
+		if (ScriptRoutineGraph.isDynamicRoutine(routineId))
+			return dynamicRoutineMerge.getMergedGraph(ScriptRoutineGraph.getDynamicRoutineId(routineId), fromSide);
+		else
+			return mergedStaticRoutines.get(routineId);
+	}
+
+	private ScriptNode getNode(long routineId, Side side, int index) {
+		return getRoutineGraph(routineId, side).getNode(index);
+	}
+
+	public int getRoutineCount() {
+		return mergedStaticRoutines.size() + dynamicRoutineMerge.mergedGraphs.size();
+	}
+
+	public int getDynamicRoutineCount() {
+		return dynamicRoutineMerge.mergedGraphs.size();
+	}
+
+	@Override
+	public Iterable<ScriptRoutineGraph> getDynamicRoutines() {
+		return null;
+	}
+
+	@Override
+	public int getOutgoingEdgeCount(ScriptNode node) {
+		return 0;
+	}
+
+	@Override
+	public Iterable<RoutineEdge> getOutgoingEdges(ScriptNode node) {
+		return null;
+	}
+
+	@Override
+	public int getStaticRoutineCount() {
+		return 0;
+	}
+
+	@Override
+	public Iterable<ScriptRoutineGraph> getStaticRoutines() {
+		return null;
 	}
 }

@@ -7,15 +7,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 
 public class ScriptDatasetGenerator {
+
+	public interface DataSource {
+		int getDynamicRoutineCount();
+
+		int getStaticRoutineCount();
+
+		Iterable<ScriptRoutineGraph> getDynamicRoutines();
+
+		Iterable<ScriptRoutineGraph> getStaticRoutines();
+
+		int getOutgoingEdgeCount(ScriptNode node);
+
+		Iterable<RoutineEdge> getOutgoingEdges(ScriptNode node);
+	}
 
 	private static class Hashtable {
 		HashtableConfiguration configuration;
@@ -81,7 +92,7 @@ public class ScriptDatasetGenerator {
 
 	private static final int HASHTABLE_ENTRY_SIZE = 4;
 
-	private final ScriptFlowGraph graph;
+	private final DataSource dataSource;
 	private final File outputFile;
 	private final LittleEndianOutputStream out;
 
@@ -93,20 +104,20 @@ public class ScriptDatasetGenerator {
 	private int callTargetPtr;
 	private int hashtableStart;
 
-	public ScriptDatasetGenerator(ScriptFlowGraph graph, File outputFile) throws IOException {
-		this.graph = graph;
+	public ScriptDatasetGenerator(DataSource dataSource, File outputFile) throws IOException {
+		this.dataSource = dataSource;
 		this.outputFile = outputFile;
 		out = new LittleEndianOutputStream(outputFile);
 
 		hashtableConfiguration = new HashtableConfiguration();
-		hashtableConfiguration.configure(graph.getRoutineCount());
+		hashtableConfiguration.configure(dataSource.getStaticRoutineCount());
 		hashtable = new Hashtable(hashtableConfiguration);
 	}
 
 	public void generateDataset() throws IOException {
 		out.writeInt(0); // placeholder for hashtableStart
-		out.writeInt(graph.getRoutineCount());
-		out.writeInt(graph.getDynamicRoutineProxyCount());
+		out.writeInt(dataSource.getStaticRoutineCount());
+		out.writeInt(dataSource.getDynamicRoutineCount());
 		filePtr += 3;
 
 		writeRoutines();
@@ -180,48 +191,38 @@ public class ScriptDatasetGenerator {
 					out.writeInt(((ScriptBranchNode) node).getTargetIndex());
 					break;
 				case CALL:
-					ScriptCallNode call = (ScriptCallNode) node;
-					calls.add(call);
+					calls.add(node);
 					out.writeInt(callTargetPtr);
-					callTargetPtr += (1 + (2 * call.getTargetCount()));
+					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
 					break;
 				case EVAL:
-					ScriptEvalNode eval = (ScriptEvalNode) node;
-					calls.add(eval);
+					calls.add(node);
 					out.writeInt(callTargetPtr);
-					callTargetPtr += (1 + eval.getTargetCount());
+					callTargetPtr += (1 + dataSource.getOutgoingEdgeCount(node));
 					break;
 			}
 		}
 		filePtr += (3 + (routine.getNodeCount() * 2));
 
-		for (ScriptNode callNode : calls) {
-			switch (callNode.type) {
+		for (ScriptNode call : calls) {
+			switch (call.type) {
 				case CALL: {
-					ScriptCallNode call = (ScriptCallNode) callNode;
-					out.writeInt(call.getTargetCount());
-					for (ScriptRoutineGraph target : call.getStaticTargets()) {
-						out.writeInt(target.unitHash);
-						out.writeInt(target.routineHash);
+					out.writeInt(dataSource.getOutgoingEdgeCount(call));
+					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
+						out.writeLong(target.getToRoutineId());
 						out.writeInt(0); // routine entry point
 					}
-					for (RoutineEdge target : call.getDynamicTargets()) {
-						out.writeInt(ScriptRoutineGraph.DYNAMIC_UNIT_HASH); // redundant, but call always requires it
-						out.writeInt(target.getDynamicRoutineId());
-						out.writeInt(0); // routine entry point
-					}
-					filePtr += (1 + (2 * call.getTargetCount()));
+					filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
 				}
 					break;
 				case EVAL: {
-					ScriptEvalNode eval = (ScriptEvalNode) callNode;
-					out.writeInt(eval.getTargetCount());
-					for (RoutineEdge target : eval.getTargets()) {
-						out.writeInt(target.getDynamicRoutineId());
+					out.writeInt(dataSource.getOutgoingEdgeCount(call));
+					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
+						out.writeInt(ScriptRoutineGraph.getDynamicRoutineId(target.getToRoutineId()));
 						out.writeInt(0); // routine entry point
 					}
 
-					filePtr += (1 + eval.getTargetCount());
+					filePtr += (1 + dataSource.getOutgoingEdgeCount(call));
 				}
 			}
 		}
@@ -230,13 +231,13 @@ public class ScriptDatasetGenerator {
 	private void writeRoutines() throws IOException {
 		callTargetPtr = 0;
 		dynamicRoutineOffsets.clear();
-		for (ScriptRoutineGraph routine : graph.getRoutines()) {
+		for (ScriptRoutineGraph routine : dataSource.getStaticRoutines()) {
 			hashtable.putEntry(routine.id, filePtr);
 			writeRoutineData(routine);
 		}
-		for (RoutineEdge evalProxy : graph.getDynamicRoutineProxies()) {
+		for (ScriptRoutineGraph routine : dataSource.getDynamicRoutines()) {
 			dynamicRoutineOffsets.add(filePtr);
-			writeRoutineData(evalProxy.getTargetRoutine());
+			writeRoutineData(routine);
 		}
 	}
 }

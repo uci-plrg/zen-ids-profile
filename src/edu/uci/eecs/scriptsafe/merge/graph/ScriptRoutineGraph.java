@@ -24,6 +24,10 @@ public class ScriptRoutineGraph {
 		return ((long) unitHash << 0x20) | routineHash;
 	}
 
+	public static long constructDynamicId(int id) {
+		return constructId(DYNAMIC_UNIT_HASH, id);
+	}
+
 	public final int unitHash;
 	public final int routineHash;
 	public final Long id;
@@ -36,14 +40,6 @@ public class ScriptRoutineGraph {
 		this.routineHash = routineHash;
 
 		this.id = constructId(unitHash, routineHash);
-	}
-
-	public boolean isRedundant() {
-		return redundant;
-	}
-
-	public void setRedundant(boolean redundant) {
-		this.redundant = redundant;
 	}
 
 	public ScriptRoutineGraph copy() {

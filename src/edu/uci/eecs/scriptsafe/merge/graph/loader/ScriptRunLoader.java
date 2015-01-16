@@ -10,12 +10,10 @@ import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptCallNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptEvalNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 
 class ScriptRunLoader {
 
@@ -35,11 +33,13 @@ class ScriptRunLoader {
 		final long fromRoutineId;
 		final int fromIndex;
 		final long toRoutineId;
+		final int toIndex;
 
-		public RawRoutineEdge(long fromRoutineId, int fromIndex, long toRoutineId) {
+		public RawRoutineEdge(long fromRoutineId, int fromIndex, long toRoutineId, int toIndex) {
 			this.fromRoutineId = fromRoutineId;
 			this.fromIndex = fromIndex;
 			this.toRoutineId = toRoutineId;
+			this.toIndex = toIndex;
 		}
 	}
 
@@ -78,15 +78,10 @@ class ScriptRunLoader {
 	}
 
 	private ScriptNode createNode(int opcode, ScriptNode.Type type, int index) {
-		switch (type) {
-			case BRANCH:
-				return new ScriptBranchNode(opcode, index);
-			case CALL:
-				return new ScriptCallNode(opcode, index);
-			case EVAL:
-				return new ScriptEvalNode(opcode, index);
-		}
-		return null; // unreachable
+		if (type == Type.BRANCH)
+			return new ScriptBranchNode(opcode, index);
+		else
+			return new ScriptNode(type, opcode, index);
 	}
 
 	private RawRoutineGraph getRawGraph(Long id) {
@@ -156,7 +151,6 @@ class ScriptRunLoader {
 
 	private void linkNodes(ScriptFlowGraph graph) {
 		ScriptRoutineGraph routine, fromRoutine, toRoutine;
-		RoutineEdge toRoutineProxy;
 		ScriptNode fromNode;
 		ScriptBranchNode branchNode;
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
@@ -192,24 +186,14 @@ class ScriptRunLoader {
 								"Found a routine edge from an unknown routine 0x%x", edge.fromRoutineId));
 					}
 					fromNode = fromRoutine.getNode(edge.fromIndex);
+					toRoutine = graph.getRoutine(edge.toRoutineId);
 
 					switch (fromNode.type) {
-						case CALL: {
-							if (ScriptRoutineGraph.isDynamicRoutine(edge.toRoutineId)) {
-								toRoutineProxy = graph.getDynamicRoutineProxy(ScriptRoutineGraph
-										.getDynamicRoutineId(edge.toRoutineId));
-								((ScriptCallNode) fromNode).addDynamicTarget(toRoutineProxy);
-							} else {
-								toRoutine = graph.getRoutine(edge.toRoutineId);
-								((ScriptCallNode) fromNode).addStaticTarget(toRoutine);
-							}
-						}
+						case CALL:
+							graph.graphEdgeSet.addCallEdge(fromRoutine.id, fromNode, toRoutine.id);
 							break;
-						case EVAL: {
-							toRoutineProxy = graph.getDynamicRoutineProxy(ScriptRoutineGraph
-									.getDynamicRoutineId(edge.toRoutineId));
-							((ScriptEvalNode) fromNode).addTarget(toRoutineProxy);
-						}
+						case EVAL:
+							graph.graphEdgeSet.addExceptionEdge(fromRoutine.id, fromNode, toRoutine.id, edge.toIndex);
 							break;
 					}
 				}
@@ -230,15 +214,12 @@ class ScriptRunLoader {
 			toUnitHash = input.readInt();
 			toRoutineHash = input.readInt();
 			toIndex = input.readInt();
-			
-			if (toIndex != 0)
-				Log.log("Warning: exception edges not supported yet");
 
 			fromRoutineId = ScriptRoutineGraph.constructId(fromUnitHash, fromRoutineHash);
 			toRoutineId = ScriptRoutineGraph.constructId(toUnitHash, toRoutineHash);
 
 			routine = getRawGraph(fromRoutineId);
-			routine.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId));
+			routine.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId, toIndex));
 		}
 
 		if (input.ready()) {
@@ -254,7 +235,6 @@ class ScriptRunLoader {
 		long routineId;
 		ScriptNode node, lastNode = null;
 		ScriptRoutineGraph routine = null;
-		RoutineEdge dynamicRoutine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.nodeFile);
 
 		while (input.ready(0x10)) {
@@ -265,15 +245,7 @@ class ScriptRunLoader {
 			if (routine == null || routine.id != routineId) {
 				lastNode = null;
 				routine = null;
-				if (ScriptRoutineGraph.isDynamicRoutine(routineId)) {
-					dynamicRoutine = null;
-					if (routineHash < graph.getDynamicRoutineProxyCount())
-						dynamicRoutine = graph.getDynamicRoutineProxy(routineHash);
-					if (dynamicRoutine != null)
-						routine = dynamicRoutine.getTargetRoutine();
-				} else {
-					routine = graph.getRoutine(routineId);
-				}
+				routine = graph.getRoutine(routineId);
 			}
 
 			if (routine == null) {

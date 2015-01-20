@@ -68,6 +68,8 @@ public class ScriptDatasetLoader {
 				calls.add(call); // use list seequence instead of `target` pointer
 				routine.addNode(call);
 			}
+			Log.log("%s: @%d Opcode 0x%x (%x|%x) [%s]", getClass().getSimpleName(), i, opcode, unitHash, routineHash,
+					type);
 		}
 
 		for (PendingEdges<ScriptBranchNode, Integer> pendingBranch : pendingBranches) {
@@ -85,8 +87,13 @@ public class ScriptDatasetLoader {
 						unitHash = in.readInt();
 						routineHash = in.readInt();
 						targetNodeIndex = in.readInt();
-						graph.graphEdgeSet.addCallEdge(routine.id, call,
-								ScriptRoutineGraph.constructId(unitHash, routineHash));
+						if (targetNodeIndex == 0) {
+							graph.edges.addCallEdge(routine.id, call,
+									ScriptRoutineGraph.constructId(unitHash, routineHash));
+						} else {
+							graph.edges.addExceptionEdge(routine.id, call,
+									ScriptRoutineGraph.constructId(unitHash, routineHash), targetNodeIndex);
+						}
 					}
 				}
 					break;
@@ -95,9 +102,13 @@ public class ScriptDatasetLoader {
 					for (int i = 0; i < dynamicRoutineCount; i++) {
 						dynamicRoutineId = in.readInt();
 						targetNodeIndex = in.readInt();
-						graph.graphEdgeSet.addExceptionEdge(routine.id, call,
-								ScriptRoutineGraph.constructId(ScriptRoutineGraph.DYNAMIC_UNIT_HASH, dynamicRoutineId),
-								targetNodeIndex);
+						if (targetNodeIndex == 0) {
+							graph.edges.addCallEdge(routine.id, call, ScriptRoutineGraph.constructId(
+									ScriptRoutineGraph.DYNAMIC_UNIT_HASH, dynamicRoutineId));
+						} else {
+							graph.edges.addExceptionEdge(routine.id, call, ScriptRoutineGraph.constructId(
+									ScriptRoutineGraph.DYNAMIC_UNIT_HASH, dynamicRoutineId), targetNodeIndex);
+						}
 					}
 				}
 					break;

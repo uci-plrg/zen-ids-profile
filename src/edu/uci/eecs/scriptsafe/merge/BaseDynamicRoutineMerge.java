@@ -1,8 +1,5 @@
 package edu.uci.eecs.scriptsafe.merge;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import edu.uci.eecs.scriptsafe.merge.ScriptMerge.Side;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
@@ -14,7 +11,7 @@ public class BaseDynamicRoutineMerge extends DynamicRoutineMerge {
 	public BaseDynamicRoutineMerge(ScriptFlowGraph left, ScriptFlowGraph right) {
 		super(left);
 
-		rightRemapping = new int[right.getMaxDynamicRoutineId()];
+		rightRemapping = new int[right.getMaxDynamicRoutineId() + 1];
 	}
 
 	@Override

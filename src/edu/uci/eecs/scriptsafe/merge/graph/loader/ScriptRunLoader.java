@@ -188,14 +188,10 @@ class ScriptRunLoader {
 					fromNode = fromRoutine.getNode(edge.fromIndex);
 					toRoutine = graph.getRoutine(edge.toRoutineId);
 
-					switch (fromNode.type) {
-						case CALL:
-							graph.graphEdgeSet.addCallEdge(fromRoutine.id, fromNode, toRoutine.id);
-							break;
-						case EVAL:
-							graph.graphEdgeSet.addExceptionEdge(fromRoutine.id, fromNode, toRoutine.id, edge.toIndex);
-							break;
-					}
+					if (edge.toIndex == 0)
+						graph.edges.addCallEdge(fromRoutine.id, fromNode, toRoutine.id);
+					else
+						graph.edges.addExceptionEdge(fromRoutine.id, fromNode, toRoutine.id, edge.toIndex);
 				}
 			}
 		}
@@ -269,7 +265,8 @@ class ScriptRunLoader {
 				lastNode.setNext(node);
 			lastNode = node;
 
-			Log.log("Opcode %x (%x|%x): %s", opcode, unitHash, routineHash, node.getClass().getSimpleName());
+			Log.log("%s: @%d Opcode 0x%x (%x|%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, unitHash,
+					routineHash, node.type);
 
 			routine.addNode(node);
 		}

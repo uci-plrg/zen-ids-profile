@@ -67,7 +67,7 @@ public class ScriptSafeMerge {
 			ScriptMerge merge = new ScriptMerge(leftGraph, rightGraph, rightDataSource.getType() == Type.DATASET);
 			merge.merge();
 
-			Log.log("Merged graph is a %s with %d routines and %d eval routines", merge.getClass().getSimpleName(),
+			Log.log("Merged graph is a %s with %d routines (%d eval routines)", merge.getClass().getSimpleName(),
 					merge.getRoutineCount(), merge.getDynamicRoutineCount());
 
 			File outputFile = new File(outputDir.getValue());

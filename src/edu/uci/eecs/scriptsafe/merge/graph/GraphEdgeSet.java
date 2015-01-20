@@ -1,6 +1,7 @@
 package edu.uci.eecs.scriptsafe.merge.graph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,13 +11,30 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 public class GraphEdgeSet {
 
 	private final Map<ScriptNode, List<RoutineEdge>> outgoingEdges = new HashMap<ScriptNode, List<RoutineEdge>>();
+	private int edgeCount = 0;
 
 	public Iterable<RoutineEdge> getOutgoingEdges(ScriptNode fromNode) {
-		return outgoingEdges.get(fromNode);
+		Iterable<RoutineEdge> edges = outgoingEdges.get(fromNode);
+		if (edges == null)
+			return Collections.emptyList();
+		else
+			return edges;
 	}
 
 	public Iterable<List<RoutineEdge>> getOutgoingEdges() {
 		return outgoingEdges.values();
+	}
+
+	public int getOutgoingEdgeCount() {
+		return edgeCount;
+	}
+
+	public int getOutgoingEdgeCount(ScriptNode fromNode) {
+		List<RoutineEdge> edges = outgoingEdges.get(fromNode);
+		if (edges == null)
+			return 0;
+		else
+			return edges.size();
 	}
 
 	public void addCallEdge(long fromRoutineId, ScriptNode fromNode, long toRoutineId) {
@@ -32,6 +50,8 @@ public class GraphEdgeSet {
 				}
 			}
 		}
+
+		edgeCount++;
 		edges.add(new RoutineEdge(fromRoutineId, fromNode.index, toRoutineId));
 	}
 
@@ -50,6 +70,8 @@ public class GraphEdgeSet {
 				}
 			}
 		}
+
+		edgeCount++;
 		edges.add(new RoutineExceptionEdge(fromRoutineId, fromNode.index, toRoutineId, toRoutineIndex));
 	}
 }

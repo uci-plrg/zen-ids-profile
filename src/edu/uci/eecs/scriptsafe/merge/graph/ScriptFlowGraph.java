@@ -9,7 +9,7 @@ public class ScriptFlowGraph {
 
 	public final String description;
 	private final Map<Long, ScriptRoutineGraph> routines = new HashMap<Long, ScriptRoutineGraph>();
-	public final GraphEdgeSet graphEdgeSet = new GraphEdgeSet();
+	public final GraphEdgeSet edges = new GraphEdgeSet();
 	private int maxDynamicRoutineId;
 
 	public ScriptFlowGraph(String description) {

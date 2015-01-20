@@ -12,7 +12,7 @@ public abstract class DynamicRoutineMerge {
 	final int leftRemapping[];
 
 	public DynamicRoutineMerge(ScriptFlowGraph left) {
-		leftRemapping = new int[left.getMaxDynamicRoutineId()];
+		leftRemapping = new int[left.getMaxDynamicRoutineId() + 1];
 	}
 
 	abstract void remapRoutine(ScriptRoutineGraph routine, long toId, ScriptMerge.Side fromSide);
@@ -21,10 +21,10 @@ public abstract class DynamicRoutineMerge {
 		for (ScriptRoutineGraph merged : mergedGraphs) {
 			if (routine.isSameRoutine(merged)) {
 				remapRoutine(routine, merged.id, fromSide);
-			} else {
-				mergedGraphs.add(routine.rename(ScriptRoutineGraph.DYNAMIC_UNIT_HASH, mergedGraphs.size()));
+				return;
 			}
 		}
+		mergedGraphs.add(routine.rename(ScriptRoutineGraph.DYNAMIC_UNIT_HASH, mergedGraphs.size()));
 	}
 
 	public Iterable<ScriptRoutineGraph> getMergedGraphs() {

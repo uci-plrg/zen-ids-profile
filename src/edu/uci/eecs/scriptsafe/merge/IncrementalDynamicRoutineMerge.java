@@ -13,7 +13,7 @@ public class IncrementalDynamicRoutineMerge extends DynamicRoutineMerge {
 	@Override
 	protected void remapRoutine(ScriptRoutineGraph routine, long toId, Side fromSide) {
 		if (fromSide == Side.RIGHT)
-			throw new MergeException("Dynamic routines should only be appended to the merge from the left!");
+			throw new MergeException("Attempt to append a dynamic routine from the right!");
 
 		leftRemapping[ScriptRoutineGraph.getDynamicRoutineId(routine.id)] = ScriptRoutineGraph
 				.getDynamicRoutineId(toId);

@@ -23,7 +23,7 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 	final ScriptFlowGraph right;
 
 	private final Map<Long, ScriptRoutineGraph> mergedStaticRoutines = new HashMap<Long, ScriptRoutineGraph>();
-	private final GraphEdgeSet graphEdgeSet = new GraphEdgeSet();
+	private final GraphEdgeSet mergedEdges = new GraphEdgeSet();
 	private final DynamicRoutineMerge dynamicRoutineMerge;
 
 	public ScriptMerge(ScriptFlowGraph left, ScriptFlowGraph right, boolean isIncremental) {
@@ -31,9 +31,9 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 		this.right = right;
 
 		if (isIncremental)
-			dynamicRoutineMerge = new BaseDynamicRoutineMerge(left, right);
-		else
 			dynamicRoutineMerge = new IncrementalDynamicRoutineMerge(left);
+		else
+			dynamicRoutineMerge = new BaseDynamicRoutineMerge(left, right);
 	}
 
 	public void merge() {
@@ -63,15 +63,15 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 	}
 
 	private void addRoutineEdges(ScriptFlowGraph graph, Side fromSide) {
-		for (List<RoutineEdge> edges : graph.graphEdgeSet.getOutgoingEdges()) {
+		for (List<RoutineEdge> edges : graph.edges.getOutgoingEdges()) {
 			for (RoutineEdge edge : edges) {
 				if (edge.getEntryType() == Type.THROW) {
 					RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) edge;
-					graphEdgeSet.addExceptionEdge(resolveRoutineId(throwEdge.getFromRoutineId(), fromSide),
+					mergedEdges.addExceptionEdge(resolveRoutineId(throwEdge.getFromRoutineId(), fromSide),
 							getNode(throwEdge.getFromRoutineId(), fromSide, throwEdge.getFromRoutineIndex()),
 							resolveRoutineId(throwEdge.getToRoutineId(), fromSide), throwEdge.getToRoutineIndex());
 				} else {
-					graphEdgeSet.addCallEdge(resolveRoutineId(edge.getFromRoutineId(), fromSide),
+					mergedEdges.addCallEdge(resolveRoutineId(edge.getFromRoutineId(), fromSide),
 							getNode(edge.getFromRoutineId(), fromSide, edge.getFromRoutineIndex()),
 							resolveRoutineId(edge.getToRoutineId(), fromSide));
 				}
@@ -113,26 +113,26 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 
 	@Override
 	public Iterable<ScriptRoutineGraph> getDynamicRoutines() {
-		return null;
+		return dynamicRoutineMerge.mergedGraphs;
 	}
 
 	@Override
 	public int getOutgoingEdgeCount(ScriptNode node) {
-		return 0;
+		return mergedEdges.getOutgoingEdgeCount(node);
 	}
 
 	@Override
 	public Iterable<RoutineEdge> getOutgoingEdges(ScriptNode node) {
-		return null;
+		return mergedEdges.getOutgoingEdges(node);
 	}
 
 	@Override
 	public int getStaticRoutineCount() {
-		return 0;
+		return mergedStaticRoutines.size();
 	}
 
 	@Override
 	public Iterable<ScriptRoutineGraph> getStaticRoutines() {
-		return null;
+		return mergedStaticRoutines.values();
 	}
 }

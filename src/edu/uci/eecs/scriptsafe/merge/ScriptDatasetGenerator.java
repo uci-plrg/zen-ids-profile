@@ -8,6 +8,8 @@ import java.util.List;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge.Type;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineExceptionEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
@@ -187,18 +189,17 @@ public class ScriptDatasetGenerator {
 			out.writeInt(nodeId);
 
 			switch (node.type) {
+				case NORMAL:
+					out.writeInt(0);
+					break;
 				case BRANCH:
 					out.writeInt(((ScriptBranchNode) node).getTargetIndex());
 					break;
 				case CALL:
-					calls.add(node);
-					out.writeInt(callTargetPtr);
-					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
-					break;
 				case EVAL:
 					calls.add(node);
 					out.writeInt(callTargetPtr);
-					callTargetPtr += (1 + dataSource.getOutgoingEdgeCount(node));
+					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
 					break;
 			}
 		}
@@ -210,7 +211,10 @@ public class ScriptDatasetGenerator {
 					out.writeInt(dataSource.getOutgoingEdgeCount(call));
 					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
 						out.writeLong(target.getToRoutineId());
-						out.writeInt(0); // routine entry point
+						if (target.getEntryType() == Type.CALL)
+							out.writeInt(0); // routine entry point
+						else
+							out.writeInt(((RoutineExceptionEdge) target).getToRoutineIndex());
 					}
 					filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
 				}
@@ -219,10 +223,12 @@ public class ScriptDatasetGenerator {
 					out.writeInt(dataSource.getOutgoingEdgeCount(call));
 					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
 						out.writeInt(ScriptRoutineGraph.getDynamicRoutineId(target.getToRoutineId()));
-						out.writeInt(0); // routine entry point
+						if (target.getEntryType() == Type.CALL)
+							out.writeInt(0); // routine entry point
+						else
+							out.writeInt(((RoutineExceptionEdge) target).getToRoutineIndex());
 					}
-
-					filePtr += (1 + dataSource.getOutgoingEdgeCount(call));
+					filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
 				}
 			}
 		}

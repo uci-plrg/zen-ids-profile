@@ -45,7 +45,7 @@ public class GraphEdgeSet {
 		} else {
 			for (RoutineEdge edge : edges) {
 				if (edge.getEntryType() == RoutineEdge.Type.CALL && edge.getToRoutineId() == toRoutineId) {
-					Log.log("Merging duplicate call edge from %s to routine 0x%x", fromNode, toRoutineId);
+					Log.message("Merging duplicate call edge from %s to routine 0x%x", fromNode, toRoutineId);
 					return;
 				}
 			}
@@ -64,7 +64,7 @@ public class GraphEdgeSet {
 			for (RoutineEdge edge : edges) {
 				if (edge.getEntryType() == RoutineEdge.Type.THROW && edge.getToRoutineId() == toRoutineId
 						&& ((RoutineExceptionEdge) edge).getToRoutineIndex() == toRoutineIndex) {
-					Log.log("Merging duplicate throw edge from %s to %d in routine 0x%x", fromNode, toRoutineIndex,
+					Log.message("Merging duplicate throw edge from %s to %d in routine 0x%x", fromNode, toRoutineIndex,
 							toRoutineId);
 					return;
 				}

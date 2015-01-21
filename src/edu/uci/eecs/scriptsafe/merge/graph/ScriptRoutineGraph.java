@@ -3,6 +3,7 @@ package edu.uci.eecs.scriptsafe.merge.graph;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 
 public class ScriptRoutineGraph {
@@ -21,7 +22,10 @@ public class ScriptRoutineGraph {
 	}
 
 	public static long constructId(int unitHash, int routineHash) {
-		return ((long) unitHash << 0x20) | routineHash;
+		if (routineHash < 0)
+			return (((long) unitHash << 0x20) | 0xffffffffL) & routineHash; // dislike!
+		else
+			return ((long) unitHash << 0x20) | routineHash;
 	}
 
 	public static long constructDynamicId(int id) {
@@ -40,6 +44,9 @@ public class ScriptRoutineGraph {
 		this.routineHash = routineHash;
 
 		this.id = constructId(unitHash, routineHash);
+
+		if (((int) (id >> 0x20)) == 0xffffffff)
+			Log.log("stop!");
 	}
 
 	public ScriptRoutineGraph copy() {
@@ -53,7 +60,14 @@ public class ScriptRoutineGraph {
 	}
 
 	public void addNode(ScriptNode node) {
-		nodes.add(node);
+		if (node.index < nodes.size()) {
+			nodes.set(node.index, node);
+		} else if (node.index == nodes.size()) {
+			nodes.add(node);
+		} else {
+			throw new MergeException("Unexpected node at index %d in a routine of (current) size %d!", node.index,
+					nodes.size());
+		}
 	}
 
 	public ScriptNode getNode(int index) {

@@ -68,8 +68,8 @@ public class ScriptDatasetLoader {
 				calls.add(call); // use list seequence instead of `target` pointer
 				routine.addNode(call);
 			}
-			Log.log("%s: @%d Opcode 0x%x (%x|%x) [%s]", getClass().getSimpleName(), i, opcode, unitHash, routineHash,
-					type);
+			Log.message("%s: @%d Opcode 0x%x (%x|%x) [%s]", getClass().getSimpleName(), i, opcode, unitHash,
+					routineHash, type);
 		}
 
 		for (PendingEdges<ScriptBranchNode, Integer> pendingBranch : pendingBranches) {

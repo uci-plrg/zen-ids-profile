@@ -48,6 +48,8 @@ public class ScriptNode {
 		ZEND_DO_FCALL(0x3c),
 		ZEND_NEW(0x44),
 		ZEND_INCLUDE_OR_EVAL(0x49),
+		ZEND_FE_RESET(0x4d),
+		ZEND_FE_FETCH(0x4e),
 		ZEND_ASSIGN_DIM(0x93),
 		OTHER(-1);
 
@@ -91,6 +93,8 @@ public class ScriptNode {
 				case ZEND_JMPZNZ:
 				case ZEND_BRK:
 				case ZEND_CONT:
+				case ZEND_FE_RESET:
+				case ZEND_FE_FETCH:
 					return Type.BRANCH;
 			}
 		}
@@ -146,5 +150,10 @@ public class ScriptNode {
 
 	public Iterable<RoutineExceptionEdge> getThrownExceptions() {
 		return thrownExceptions;
+	}
+
+	@Override
+	public String toString() {
+		return String.format("0x%x", opcode);
 	}
 }

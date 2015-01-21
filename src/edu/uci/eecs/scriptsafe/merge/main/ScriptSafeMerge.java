@@ -18,6 +18,8 @@ public class ScriptSafeMerge {
 	public static final OptionArgumentMap.StringOption leftGraphDir = OptionArgumentMap.createStringOption('l');
 	public static final OptionArgumentMap.StringOption rightGraphDir = OptionArgumentMap.createStringOption('r');
 	public static final OptionArgumentMap.StringOption outputDir = OptionArgumentMap.createStringOption('o');
+	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
+			Log.Level.ERROR.ordinal());
 
 	private final ArgumentStack args;
 	private final OptionArgumentMap argMap;
@@ -31,14 +33,16 @@ public class ScriptSafeMerge {
 
 	private ScriptSafeMerge(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir);
+		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, verbose);
 	}
 
 	private void run() {
 		try {
-			Log.addOutput(System.out);
-
 			argMap.parseOptions();
+
+			Log.addOutput(System.out);
+			Log.setLevel(Log.Level.values()[verbose.getValue()]);
+			System.out.println("Log level " + verbose.getValue());
 
 			if (!leftGraphDir.hasValue() || !rightGraphDir.hasValue() || !outputDir.hasValue()) {
 				printUsage();

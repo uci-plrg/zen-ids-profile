@@ -122,15 +122,14 @@ class ScriptRunLoader {
 			if (toIndex == (fromIndex + 1))
 				continue;
 
-			Log.log("Raw opcode edge from %d to %d", fromIndex, toIndex);
+			Log.message("Raw opcode edge from %d to %d", fromIndex, toIndex);
 
 			graph = getRawGraph(routineId);
 			graph.addRawEdge(new RawOpcodeEdge(routineId, fromIndex, toIndex));
 		}
 
 		if (input.ready()) {
-			throw new IllegalArgumentException("Input file " + run.opcodeEdgeFile.getAbsolutePath()
-					+ " has trailing data!");
+			Log.error("Input file " + run.opcodeEdgeFile.getAbsolutePath() + " has trailing data!");
 		}
 		input.close();
 	}
@@ -164,8 +163,8 @@ class ScriptRunLoader {
 							continue;
 
 						throw new MergeException(
-								"Branch from non-branch node with opcode 0x%x at index %d in routine 0x%x!",
-								fromNode.opcode, edge.fromIndex, edge.routineId);
+								"Branch %d -> %d from non-branch node with opcode 0x%x in routine 0x%x!",
+								edge.fromIndex, edge.toIndex, fromNode.opcode, edge.routineId);
 					}
 
 					branchNode = (ScriptBranchNode) routine.getNode(edge.fromIndex);
@@ -219,8 +218,7 @@ class ScriptRunLoader {
 		}
 
 		if (input.ready()) {
-			throw new IllegalArgumentException("Input file " + run.routineEdgeFile.getAbsolutePath()
-					+ " has trailing data!");
+			Log.error("Input file " + run.routineEdgeFile.getAbsolutePath() + " has trailing data!");
 		}
 		input.close();
 	}
@@ -245,9 +243,12 @@ class ScriptRunLoader {
 			}
 
 			if (routine == null) {
-				Log.log("Create routine %x|%x", unitHash, routineHash);
+				Log.message("Create routine %x|%x", unitHash, routineHash);
 				routine = new ScriptRoutineGraph(unitHash, routineHash);
 				graph.addRoutine(routine);
+
+				if (unitHash == 0xccd97170 && routineHash == 0xe70a7619)
+					Log.log("halt!");
 			} else if (preloadedRoutines.contains(routine.id)) { // were nodes copied from the right?
 				routine.clearNodes(); // have a copy on the left, so remove copied nodes
 				preloadedRoutines.remove(routine.id);
@@ -265,14 +266,14 @@ class ScriptRunLoader {
 				lastNode.setNext(node);
 			lastNode = node;
 
-			Log.log("%s: @%d Opcode 0x%x (%x|%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, unitHash,
+			Log.message("%s: @%d Opcode 0x%x (%x|%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, unitHash,
 					routineHash, node.type);
 
 			routine.addNode(node);
 		}
 
 		if (input.ready())
-			throw new IllegalArgumentException("Input file " + run.nodeFile.getAbsolutePath() + " has trailing data!");
+			Log.error("Input file " + run.nodeFile.getAbsolutePath() + " has trailing data!");
 		input.close();
 	}
 }

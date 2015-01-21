@@ -20,7 +20,7 @@ public class ScriptGraphCloner {
 			flowCopy.addRoutine(routineCopy);
 		}
 
-		Log.log("Copying %d dynamic routines", original.getMaxDynamicRoutineId());
+		Log.message("Copying %d dynamic routines", original.getMaxDynamicRoutineId());
 		for (List<RoutineEdge> edges : original.edges.getOutgoingEdges()) {
 			for (RoutineEdge edge : edges) {
 				fromNode = flowCopy.getRoutine(edge.getFromRoutineId()).getNode(edge.getFromRoutineIndex());
@@ -35,7 +35,7 @@ public class ScriptGraphCloner {
 				}
 			}
 		}
-		Log.log("Copy now has %d dynamic routines", flowCopy.getMaxDynamicRoutineId());
+		Log.message("Copy now has %d dynamic routines", flowCopy.getMaxDynamicRoutineId());
 
 		return flowCopy;
 	}

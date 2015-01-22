@@ -50,6 +50,7 @@ public class ScriptNode {
 		ZEND_INCLUDE_OR_EVAL(0x49),
 		ZEND_FE_RESET(0x4d),
 		ZEND_FE_FETCH(0x4e),
+		ZEND_CATCH(0x6b), // may branch to next catch
 		ZEND_ASSIGN_DIM(0x93),
 		OTHER(-1);
 
@@ -95,6 +96,7 @@ public class ScriptNode {
 				case ZEND_CONT:
 				case ZEND_FE_RESET:
 				case ZEND_FE_FETCH:
+				case ZEND_CATCH:
 					return Type.BRANCH;
 			}
 		}

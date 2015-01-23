@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineExceptionEdge;
@@ -158,6 +159,7 @@ public class ScriptDatasetGenerator {
 			else
 				out.writeInt(hashtable.table[i].chainOffset);
 		}
+		filePtr += (1 + hashtableConfiguration.size);
 	}
 
 	private void writeRoutineHashtableChains() throws IOException {
@@ -178,6 +180,7 @@ public class ScriptDatasetGenerator {
 
 	private void writeRoutineData(ScriptRoutineGraph routine) throws IOException {
 		List<ScriptNode> calls = new ArrayList<ScriptNode>();
+		int targetIndex;
 		out.writeInt(routine.unitHash);
 		out.writeInt(routine.routineHash);
 		out.writeInt(routine.getNodeCount());
@@ -193,7 +196,8 @@ public class ScriptDatasetGenerator {
 					out.writeInt(0);
 					break;
 				case BRANCH:
-					out.writeInt(((ScriptBranchNode) node).getTargetIndex());
+					targetIndex = ((ScriptBranchNode) node).getTargetIndex(routine.id);
+					out.writeInt(targetIndex);
 					break;
 				case CALL:
 				case EVAL:
@@ -216,7 +220,7 @@ public class ScriptDatasetGenerator {
 						else
 							out.writeInt(((RoutineExceptionEdge) target).getToRoutineIndex());
 					}
-					filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
+					filePtr += (1 + (3 * dataSource.getOutgoingEdgeCount(call)));
 				}
 					break;
 				case EVAL: {

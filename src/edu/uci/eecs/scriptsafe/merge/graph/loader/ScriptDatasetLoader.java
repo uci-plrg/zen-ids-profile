@@ -6,9 +6,11 @@ import java.util.List;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.OpcodeTargetType;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
@@ -73,10 +75,19 @@ public class ScriptDatasetLoader {
 		}
 
 		for (PendingEdges<ScriptBranchNode, Integer> pendingBranch : pendingBranches) {
-			if (ScriptNode.Opcode.forCode(pendingBranch.fromNode.opcode).isDynamic)
-				pendingBranch.fromNode.setTarget(null);
-			else
-				pendingBranch.fromNode.setTarget(routine.getNode(pendingBranch.target));
+			switch (ScriptNode.Opcode.forCode(pendingBranch.fromNode.opcode).targetType) {
+				case DYNAMIC:
+				case NULLABLE:
+					if (pendingBranch.target < 0) {
+						pendingBranch.fromNode.setTarget(null);
+						break;
+					}
+				case REQUIRED:
+					pendingBranch.fromNode.setTarget(routine.getNode(pendingBranch.target));
+					break;
+				default:
+					throw new MergeException("Illegal opcode for branch node 0x%x", pendingBranch.fromNode.opcode);
+			}
 		}
 
 		for (ScriptNode call : calls) {

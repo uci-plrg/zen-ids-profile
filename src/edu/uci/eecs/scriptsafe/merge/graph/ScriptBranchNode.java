@@ -1,5 +1,6 @@
 package edu.uci.eecs.scriptsafe.merge.graph;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 
 public class ScriptBranchNode extends ScriptNode {
@@ -20,14 +21,17 @@ public class ScriptBranchNode extends ScriptNode {
 		return target;
 	}
 
-	public int getTargetIndex() {
+	public int getTargetIndex(long routineId) {
 		if (target == null) {
 			switch (Opcode.forCode(opcode)) {
 				case ZEND_BRK:
 				case ZEND_CONT:
-					return -1;
+				case ZEND_CATCH:
+					break;
+				default:
+					Log.error("Target missing for branch at %d with opcode 0x%x in 0x%x", index, opcode, routineId);
 			}
-			throw new MergeException("Target missing for branch node with opcode 0x%x", opcode);
+			return -1;
 		}
 		return target.index;
 	}
@@ -39,12 +43,20 @@ public class ScriptBranchNode extends ScriptNode {
 		switch (Opcode.forCode(opcode)) {
 			case ZEND_BRK:
 			case ZEND_CONT:
+			case ZEND_CATCH:
 				if (target == null || ((ScriptBranchNode) other).target == null)
 					return;
 		}
 
-		if (target.index != ((ScriptBranchNode) other).target.index)
-			throw new MergeException("Target mismatch for branch node at index %d", index);
+		if ((target == null) != (((ScriptBranchNode) other).target == null)) {
+			Log.error("Target mismatch for branch node at index %d with opcode 0x%x: %s is null", index, opcode,
+					target == null ? "this.target" : "other.target");
+		}
+
+		if (target != null) {
+			if (target.index != ((ScriptBranchNode) other).target.index)
+				throw new MergeException("Target mismatch for branch node at index %d", index);
+		}
 	}
 
 	@Override

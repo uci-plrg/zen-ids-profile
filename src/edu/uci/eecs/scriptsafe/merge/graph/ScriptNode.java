@@ -36,6 +36,14 @@ public class ScriptNode {
 		}
 	}
 
+	public enum OpcodeTargetType {
+		NONE,
+		NULLABLE,
+		DYNAMIC,
+		EXTERNAL,
+		REQUIRED
+	}
+
 	public enum Opcode {
 		ZEND_JMP(0x2a),
 		ZEND_JMPZ(0x2b),
@@ -43,27 +51,28 @@ public class ScriptNode {
 		ZEND_JMPZNZ(0x2d),
 		ZEND_JMPZ_EX(0x2e),
 		ZEND_JMPNZ_EX(0x2f),
-		ZEND_BRK(0x32, true),
-		ZEND_CONT(0x33, true),
-		ZEND_DO_FCALL(0x3c),
-		ZEND_NEW(0x44),
-		ZEND_INCLUDE_OR_EVAL(0x49),
+		ZEND_BRK(0x32, OpcodeTargetType.DYNAMIC),
+		ZEND_CONT(0x33, OpcodeTargetType.DYNAMIC),
+		ZEND_DO_FCALL(0x3c, OpcodeTargetType.EXTERNAL),
+		ZEND_NEW(0x44, OpcodeTargetType.NONE),
+		ZEND_INCLUDE_OR_EVAL(0x49, OpcodeTargetType.EXTERNAL),
 		ZEND_FE_RESET(0x4d),
 		ZEND_FE_FETCH(0x4e),
-		ZEND_CATCH(0x6b), // may branch to next catch
-		ZEND_ASSIGN_DIM(0x93),
+		ZEND_CATCH(0x6b, OpcodeTargetType.NULLABLE), // may branch to next catch
+		ZEND_JMP_SET(0x98),
+		ZEND_ASSIGN_DIM(0x93, OpcodeTargetType.NONE),
 		OTHER(-1);
 
-		public final boolean isDynamic;
+		public final OpcodeTargetType targetType;
 		public final int code;
 
 		private Opcode(int code) {
-			this(code, false);
+			this(code, OpcodeTargetType.REQUIRED);
 		}
 
-		private Opcode(int code, boolean isDynamic) {
+		private Opcode(int code, OpcodeTargetType targetType) {
 			this.code = code;
-			this.isDynamic = isDynamic;
+			this.targetType = targetType;
 		}
 
 		public static Opcode forCode(int code) {

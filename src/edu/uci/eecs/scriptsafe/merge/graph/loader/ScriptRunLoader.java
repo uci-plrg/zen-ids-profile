@@ -119,14 +119,6 @@ class ScriptRunLoader {
 			fromIndex = input.readInt();
 			toIndex = input.readInt();
 
-			if (toIndex == (fromIndex + 1))
-				continue;
-
-			Log.message("Raw opcode edge from %d to %d", fromIndex, toIndex);
-
-			if (unitHash == 0xf54cb4f1 && routineHash == 0xfc6651c2)
-				Log.error("Load opcode edge %d -> %d in 0x%x|0x%x", fromIndex, toIndex, unitHash, routineHash);
-
 			graph = getRawGraph(routineId);
 			graph.addRawEdge(new RawOpcodeEdge(routineId, fromIndex, toIndex));
 		}
@@ -145,7 +137,8 @@ class ScriptRunLoader {
 		switch (opcode) {
 			case ZEND_ASSIGN_DIM:
 			case ZEND_NEW:
-				return edge.toIndex == (edge.fromIndex + 2);
+			case ZEND_JMP_SET:
+				return edge.toIndex <= (edge.fromIndex + 0x10);
 			default:
 				return false;
 		}
@@ -162,11 +155,12 @@ class ScriptRunLoader {
 					fromNode = routine.getNode(edge.fromIndex);
 
 					if (!(fromNode instanceof ScriptBranchNode)) {
-						if (isFallThrough(fromNode, edge))
-							continue;
-
-						Log.error("Branch %d -> %d from non-branch node with opcode 0x%x in routine 0x%x!",
-								edge.fromIndex, edge.toIndex, fromNode.opcode, edge.routineId);
+						if (!isFallThrough(fromNode, edge)) {
+							Log.warn(
+									"Exception caught within throwing routine: %d -> %d from opcode 0x%x in routine 0x%x!",
+									edge.fromIndex, edge.toIndex, fromNode.opcode, edge.routineId);
+							graph.edges.addExceptionEdge(edge.routineId, fromNode, edge.routineId, edge.toIndex);
+						}
 						continue;
 					}
 

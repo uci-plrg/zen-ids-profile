@@ -8,12 +8,14 @@ import edu.uci.eecs.scriptsafe.merge.MergeException;
 public class ScriptFlowGraph {
 
 	public final String description;
+	public final boolean isFragmentary;
 	private final Map<Long, ScriptRoutineGraph> routines = new HashMap<Long, ScriptRoutineGraph>();
 	public final GraphEdgeSet edges = new GraphEdgeSet();
 	private int maxDynamicRoutineId;
 
-	public ScriptFlowGraph(String description) {
+	public ScriptFlowGraph(String description, boolean isFragmentary) {
 		this.description = description;
+		this.isFragmentary = isFragmentary;
 	}
 
 	public void addRoutine(ScriptRoutineGraph routine) {
@@ -27,7 +29,7 @@ public class ScriptFlowGraph {
 	}
 
 	public void appendDynamicRoutine(ScriptRoutineGraph dynamicRoutine) {
-		ScriptRoutineGraph append = dynamicRoutine.rename(dynamicRoutine.unitHash, maxDynamicRoutineId++);
+		ScriptRoutineGraph append = dynamicRoutine.rename(dynamicRoutine.unitHash, maxDynamicRoutineId++, false);
 		routines.put(append.id, append);
 	}
 

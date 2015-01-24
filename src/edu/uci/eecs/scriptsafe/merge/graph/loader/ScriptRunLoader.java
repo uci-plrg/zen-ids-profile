@@ -241,7 +241,7 @@ class ScriptRunLoader {
 
 			if (routine == null) {
 				Log.message("Create routine %x|%x", unitHash, routineHash);
-				routine = new ScriptRoutineGraph(unitHash, routineHash);
+				routine = new ScriptRoutineGraph(unitHash, routineHash, graph.isFragmentary);
 				graph.addRoutine(routine);
 
 				if (unitHash == 0xccd97170 && routineHash == 0xe70a7619)

@@ -151,6 +151,10 @@ public class ScriptNode {
 		}
 	}
 
+	public void verifyCompatible(ScriptNode other) {
+		verifyEqual(other);
+	}
+
 	public boolean isEqual(ScriptNode other) {
 		return (type == other.type && index == other.index && opcode == other.opcode);
 	}

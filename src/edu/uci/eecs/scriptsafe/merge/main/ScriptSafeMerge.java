@@ -54,13 +54,15 @@ public class ScriptSafeMerge {
 			leftDataSource = ScriptGraphDataSource.Factory.construct(leftPath);
 			rightDataSource = ScriptGraphDataSource.Factory.construct(rightPath);
 
-			rightGraph = loader.loadGraph(rightDataSource);
+			rightGraph = new ScriptFlowGraph(rightDataSource.getDescription(), false);
+			loader.loadGraph(rightDataSource, rightGraph);
 			if (rightDataSource.getType() == Type.DATASET) {
 				ScriptGraphCloner cloner = new ScriptGraphCloner();
-				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getDescription()));
+				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getDescription(), true));
 				loader.loadGraph(leftDataSource, leftGraph);
 			} else {
-				leftGraph = loader.loadGraph(leftDataSource);
+				leftGraph = new ScriptFlowGraph(leftDataSource.getDescription(), false);
+				loader.loadGraph(leftDataSource, leftGraph);
 			}
 
 			Log.log("Left graph is a %s from %s with %d routines", leftDataSource.getClass().getSimpleName(),

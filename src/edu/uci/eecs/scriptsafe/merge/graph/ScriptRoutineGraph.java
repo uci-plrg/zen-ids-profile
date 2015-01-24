@@ -35,13 +35,15 @@ public class ScriptRoutineGraph {
 	public final int unitHash;
 	public final int routineHash;
 	public final Long id;
+	public final boolean isFragmentary;
 
 	private boolean redundant = false;
 	private final List<ScriptNode> nodes = new ArrayList<ScriptNode>();
 
-	public ScriptRoutineGraph(int unitHash, int routineHash) {
+	public ScriptRoutineGraph(int unitHash, int routineHash, boolean isFragmentary) {
 		this.unitHash = unitHash;
 		this.routineHash = routineHash;
+		this.isFragmentary = isFragmentary;
 
 		this.id = constructId(unitHash, routineHash);
 
@@ -49,12 +51,12 @@ public class ScriptRoutineGraph {
 			Log.log("stop!");
 	}
 
-	public ScriptRoutineGraph copy() {
-		return new ScriptRoutineGraph(unitHash, routineHash);
+	public ScriptRoutineGraph copy(boolean isFragmentary) {
+		return new ScriptRoutineGraph(unitHash, routineHash, isFragmentary);
 	}
 
-	public ScriptRoutineGraph rename(int unitHash, int routineHash) {
-		ScriptRoutineGraph renamed = new ScriptRoutineGraph(unitHash, routineHash);
+	public ScriptRoutineGraph rename(int unitHash, int routineHash, boolean isFragmentary) {
+		ScriptRoutineGraph renamed = new ScriptRoutineGraph(unitHash, routineHash, isFragmentary);
 		renamed.nodes.addAll(nodes);
 		return renamed;
 	}
@@ -71,6 +73,8 @@ public class ScriptRoutineGraph {
 	}
 
 	public ScriptNode getNode(int index) {
+		// if (index >= nodes.size() || index < 0)
+		//	Log.spot("halt!");
 		return nodes.get(index);
 	}
 
@@ -101,7 +105,12 @@ public class ScriptRoutineGraph {
 		if (nodes.size() != other.nodes.size())
 			throw new MergeException("Node counts differ at the same routine id 0x%x!", id);
 
-		for (int i = 0; i < nodes.size(); i++)
-			nodes.get(i).verifyEqual(other.nodes.get(i));
+		if (isFragmentary) {
+			for (int i = 0; i < nodes.size(); i++)
+				nodes.get(i).verifyCompatible(other.nodes.get(i));
+		} else {
+			for (int i = 0; i < nodes.size(); i++)
+				nodes.get(i).verifyEqual(other.nodes.get(i));
+		}
 	}
 }

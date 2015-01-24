@@ -52,7 +52,7 @@ public class ScriptDatasetLoader {
 		int unitHash = in.readInt();
 		int routineHash = in.readInt();
 		int dynamicRoutineId, dynamicRoutineCount, targetNodeIndex;
-		ScriptRoutineGraph routine = new ScriptRoutineGraph(unitHash, routineHash);
+		ScriptRoutineGraph routine = new ScriptRoutineGraph(unitHash, routineHash, false);
 
 		int nodeCount = in.readInt();
 		for (int i = 0; i < nodeCount; i++) {

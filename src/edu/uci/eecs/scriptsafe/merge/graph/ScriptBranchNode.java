@@ -60,6 +60,27 @@ public class ScriptBranchNode extends ScriptNode {
 	}
 
 	@Override
+	public void verifyCompatible(ScriptNode other) {
+		super.verifyEqual(other);
+
+		switch (Opcode.forCode(opcode)) {
+			case ZEND_BRK:
+			case ZEND_CONT:
+			case ZEND_CATCH:
+				if (target == null || ((ScriptBranchNode) other).target == null)
+					return;
+		}
+
+		if ((target == null) != (((ScriptBranchNode) other).target == null))
+			return;
+
+		if (target != null) {
+			if (target.index != ((ScriptBranchNode) other).target.index)
+				throw new MergeException("Target mismatch for branch node at index %d", index);
+		}
+	}
+
+	@Override
 	public ScriptNode copy() {
 		return new ScriptBranchNode(opcode, index);
 	}

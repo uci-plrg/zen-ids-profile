@@ -15,7 +15,7 @@ public class ScriptGraphCloner {
 		ScriptNode fromNode;
 
 		for (ScriptRoutineGraph routine : original.getRoutines()) {
-			ScriptRoutineGraph routineCopy = routine.copy();
+			ScriptRoutineGraph routineCopy = routine.copy(true);
 			shallowCopy(routine, routineCopy);
 			flowCopy.addRoutine(routineCopy);
 		}

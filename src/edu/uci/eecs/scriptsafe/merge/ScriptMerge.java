@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.graph.GraphEdgeSet;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge.Type;
@@ -48,6 +49,10 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 				dynamicRoutineMerge.addDynamicRoutine(leftRoutine, Side.LEFT);
 			} else {
 				ScriptRoutineGraph rightRoutine = mergedStaticRoutines.get(leftRoutine.id);
+
+				if (rightRoutine == null)
+					Log.spot("Adding new routine 0x%x|0x%x", leftRoutine.unitHash, leftRoutine.routineHash);
+
 				if (rightRoutine == null)
 					mergedStaticRoutines.put(leftRoutine.id, leftRoutine);
 				else
@@ -65,15 +70,23 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 	private void addRoutineEdges(ScriptFlowGraph graph, Side fromSide) {
 		for (List<RoutineEdge> edges : graph.edges.getOutgoingEdges()) {
 			for (RoutineEdge edge : edges) {
-				if (edge.getEntryType() == Type.THROW) {
-					RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) edge;
-					mergedEdges.addExceptionEdge(resolveRoutineId(throwEdge.getFromRoutineId(), fromSide),
-							getNode(throwEdge.getFromRoutineId(), fromSide, throwEdge.getFromRoutineIndex()),
-							resolveRoutineId(throwEdge.getToRoutineId(), fromSide), throwEdge.getToRoutineIndex());
-				} else {
-					mergedEdges.addCallEdge(resolveRoutineId(edge.getFromRoutineId(), fromSide),
-							getNode(edge.getFromRoutineId(), fromSide, edge.getFromRoutineIndex()),
-							resolveRoutineId(edge.getToRoutineId(), fromSide));
+				try {
+					if (edge.getEntryType() == Type.THROW) {
+						RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) edge;
+						mergedEdges.addExceptionEdge(resolveRoutineId(throwEdge.getFromRoutineId(), fromSide),
+								getNode(throwEdge.getFromRoutineId(), fromSide, throwEdge.getFromRoutineIndex()),
+								resolveRoutineId(throwEdge.getToRoutineId(), fromSide), throwEdge.getToRoutineIndex());
+					} else {
+						mergedEdges.addCallEdge(resolveRoutineId(edge.getFromRoutineId(), fromSide),
+								getNode(edge.getFromRoutineId(), fromSide, edge.getFromRoutineIndex()),
+								resolveRoutineId(edge.getToRoutineId(), fromSide));
+					}
+				} catch (Throwable t) {
+					Log.error("Failed to add routine edge from the %S side: 0x%x[0x%x]:%d -> 0x%x:%d (%s: %s)",
+							fromSide, edge.getFromRoutineId(), resolveRoutineId(edge.getFromRoutineId(), fromSide),
+							edge.getFromRoutineIndex(), edge.getToRoutineId(), edge.getEntryType() == Type.CALL ? 0
+									: ((RoutineExceptionEdge) edge).getToRoutineIndex(), t.getClass().getSimpleName(),
+							t.getMessage());
 				}
 			}
 		}

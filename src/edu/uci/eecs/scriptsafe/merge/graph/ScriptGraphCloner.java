@@ -26,11 +26,12 @@ public class ScriptGraphCloner {
 				fromNode = flowCopy.getRoutine(edge.getFromRoutineId()).getNode(edge.getFromRoutineIndex());
 				switch (edge.getEntryType()) {
 					case CALL:
-						flowCopy.edges.addCallEdge(edge.getFromRoutineId(), fromNode, edge.getToRoutineId());
+						flowCopy.edges.addCallEdge(edge.getFromRoutineId(), fromNode, edge.getToRoutineId(),
+								edge.getUserLevel());
 						break;
 					case THROW:
 						flowCopy.edges.addExceptionEdge(edge.getFromRoutineId(), fromNode, edge.getToRoutineId(),
-								((RoutineExceptionEdge) edge).getToRoutineIndex());
+								((RoutineExceptionEdge) edge).getToRoutineIndex(), edge.getUserLevel());
 						break;
 				}
 			}

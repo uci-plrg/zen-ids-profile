@@ -53,10 +53,11 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 				if (rightRoutine == null)
 					Log.spot("Adding new routine 0x%x|0x%x", leftRoutine.unitHash, leftRoutine.routineHash);
 
-				if (rightRoutine == null)
+				if (rightRoutine == null) {
 					mergedStaticRoutines.put(leftRoutine.id, leftRoutine);
-				else
-					leftRoutine.verifySameRoutine(rightRoutine);
+				} else {
+					rightRoutine.mergeRoutine(leftRoutine);
+				}
 			}
 		}
 
@@ -75,11 +76,12 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 						RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) edge;
 						mergedEdges.addExceptionEdge(resolveRoutineId(throwEdge.getFromRoutineId(), fromSide),
 								getNode(throwEdge.getFromRoutineId(), fromSide, throwEdge.getFromRoutineIndex()),
-								resolveRoutineId(throwEdge.getToRoutineId(), fromSide), throwEdge.getToRoutineIndex());
+								resolveRoutineId(throwEdge.getToRoutineId(), fromSide), throwEdge.getToRoutineIndex(),
+								throwEdge.getUserLevel());
 					} else {
 						mergedEdges.addCallEdge(resolveRoutineId(edge.getFromRoutineId(), fromSide),
 								getNode(edge.getFromRoutineId(), fromSide, edge.getFromRoutineIndex()),
-								resolveRoutineId(edge.getToRoutineId(), fromSide));
+								resolveRoutineId(edge.getToRoutineId(), fromSide), edge.getUserLevel());
 					}
 				} catch (Throwable t) {
 					Log.error("Failed to add routine edge from the %S side: 0x%x[0x%x]:%d -> 0x%x:%d (%s: %s)",

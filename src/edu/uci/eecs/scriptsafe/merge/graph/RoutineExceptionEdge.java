@@ -4,8 +4,8 @@ public class RoutineExceptionEdge extends RoutineEdge {
 
 	private int toRoutineIndex;
 
-	public RoutineExceptionEdge(long fromRoutineId, int fromIndex, long toRoutineId, int toRoutineIndex) {
-		super(fromRoutineId, fromIndex, toRoutineId);
+	public RoutineExceptionEdge(long fromRoutineId, int fromIndex, long toRoutineId, int toRoutineIndex, int userLevel) {
+		super(fromRoutineId, fromIndex, toRoutineId, userLevel);
 
 		this.toRoutineIndex = toRoutineIndex;
 	}

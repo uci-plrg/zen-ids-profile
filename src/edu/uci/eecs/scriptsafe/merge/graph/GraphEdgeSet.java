@@ -37,7 +37,7 @@ public class GraphEdgeSet {
 			return edges.size();
 	}
 
-	public void addCallEdge(long fromRoutineId, ScriptNode fromNode, long toRoutineId) {
+	public void addCallEdge(long fromRoutineId, ScriptNode fromNode, long toRoutineId, int userLevel) {
 		List<RoutineEdge> edges = outgoingEdges.get(fromNode);
 		if (edges == null) {
 			edges = new ArrayList<RoutineEdge>();
@@ -45,17 +45,23 @@ public class GraphEdgeSet {
 		} else {
 			for (RoutineEdge edge : edges) {
 				if (edge.getEntryType() == RoutineEdge.Type.CALL && edge.getToRoutineId() == toRoutineId) {
-					Log.message("Merging duplicate call edge from %s to routine 0x%x", fromNode, toRoutineId);
+					if (edge.getUserLevel() == userLevel) {
+						Log.message("Merging duplicate call edge from %s to routine 0x%x at user level %d", fromNode,
+								toRoutineId, userLevel);
+					} else if (edge.getUserLevel() > userLevel) {
+						edge.setUserLevel(userLevel);
+					}
 					return;
 				}
 			}
 		}
 
 		edgeCount++;
-		edges.add(new RoutineEdge(fromRoutineId, fromNode.index, toRoutineId));
+		edges.add(new RoutineEdge(fromRoutineId, fromNode.index, toRoutineId, userLevel));
 	}
 
-	public void addExceptionEdge(long fromRoutineId, ScriptNode fromNode, long toRoutineId, int toRoutineIndex) {
+	public void addExceptionEdge(long fromRoutineId, ScriptNode fromNode, long toRoutineId, int toRoutineIndex,
+			int userLevel) {
 		List<RoutineEdge> edges = outgoingEdges.get(fromNode);
 		if (edges == null) {
 			edges = new ArrayList<RoutineEdge>();
@@ -64,14 +70,18 @@ public class GraphEdgeSet {
 			for (RoutineEdge edge : edges) {
 				if (edge.getEntryType() == RoutineEdge.Type.THROW && edge.getToRoutineId() == toRoutineId
 						&& ((RoutineExceptionEdge) edge).getToRoutineIndex() == toRoutineIndex) {
-					Log.message("Merging duplicate throw edge from %s to %d in routine 0x%x", fromNode, toRoutineIndex,
-							toRoutineId);
+					if (edge.getUserLevel() == userLevel) {
+						Log.message("Merging duplicate throw edge from %s to %d in routine 0x%x at user level %d",
+								fromNode, toRoutineIndex, toRoutineId, userLevel);
+					} else if (edge.getUserLevel() > userLevel) {
+						edge.setUserLevel(userLevel);
+					}
 					return;
 				}
 			}
 		}
 
 		edgeCount++;
-		edges.add(new RoutineExceptionEdge(fromRoutineId, fromNode.index, toRoutineId, toRoutineIndex));
+		edges.add(new RoutineExceptionEdge(fromRoutineId, fromNode.index, toRoutineId, toRoutineIndex, userLevel));
 	}
 }

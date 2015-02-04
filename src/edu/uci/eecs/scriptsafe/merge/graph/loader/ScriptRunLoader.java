@@ -21,11 +21,13 @@ class ScriptRunLoader {
 		final long routineId;
 		final int fromIndex;
 		final int toIndex;
+		final int userLevel;
 
-		public RawOpcodeEdge(long routineId, int fromIndex, int toIndex) {
+		public RawOpcodeEdge(long routineId, int fromIndex, int toIndex, int userLevel) {
 			this.routineId = routineId;
 			this.fromIndex = fromIndex;
 			this.toIndex = toIndex;
+			this.userLevel = userLevel;
 		}
 	}
 
@@ -34,12 +36,14 @@ class ScriptRunLoader {
 		final int fromIndex;
 		final long toRoutineId;
 		final int toIndex;
+		final int userLevel;
 
-		public RawRoutineEdge(long fromRoutineId, int fromIndex, long toRoutineId, int toIndex) {
+		public RawRoutineEdge(long fromRoutineId, int fromIndex, long toRoutineId, int toIndex, int userLevel) {
 			this.fromRoutineId = fromRoutineId;
 			this.fromIndex = fromIndex;
 			this.toRoutineId = toRoutineId;
 			this.toIndex = toIndex;
+			this.userLevel = userLevel;
 		}
 	}
 
@@ -78,10 +82,13 @@ class ScriptRunLoader {
 	}
 
 	private ScriptNode createNode(int opcode, ScriptNode.Type type, int index) {
-		if (type == Type.BRANCH)
-			return new ScriptBranchNode(opcode, index);
-		else
+		if (type == Type.BRANCH) {
+			int userLevel = (index >>> 26);
+			index = (index & 0x3ffffff);
+			return new ScriptBranchNode(opcode, index, userLevel);
+		} else {
 			return new ScriptNode(type, opcode, index);
+		}
 	}
 
 	private RawRoutineGraph getRawGraph(Long id) {
@@ -106,7 +113,7 @@ class ScriptRunLoader {
 	}
 
 	private void loadOpcodeEdges(ScriptRunFileSet run) throws IOException {
-		int unitHash, routineHash, fromIndex, toIndex;
+		int unitHash, routineHash, fromIndex, toIndex, userLevel;
 		long routineId;
 		RawRoutineGraph graph;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.opcodeEdgeFile);
@@ -117,10 +124,12 @@ class ScriptRunLoader {
 			routineId = ScriptRoutineGraph.constructId(unitHash, routineHash);
 
 			fromIndex = input.readInt();
+			userLevel = (fromIndex >>> 26);
+			fromIndex = (fromIndex & 0x3ffffff);
 			toIndex = input.readInt();
 
 			graph = getRawGraph(routineId);
-			graph.addRawEdge(new RawOpcodeEdge(routineId, fromIndex, toIndex));
+			graph.addRawEdge(new RawOpcodeEdge(routineId, fromIndex, toIndex, userLevel));
 		}
 
 		if (input.ready()) {
@@ -159,7 +168,8 @@ class ScriptRunLoader {
 							Log.warn(
 									"Exception caught within throwing routine: %d -> %d from opcode 0x%x in routine 0x%x!",
 									edge.fromIndex, edge.toIndex, fromNode.opcode, edge.routineId);
-							graph.edges.addExceptionEdge(edge.routineId, fromNode, edge.routineId, edge.toIndex);
+							graph.edges.addExceptionEdge(edge.routineId, fromNode, edge.routineId, edge.toIndex,
+									edge.userLevel);
 						}
 						continue;
 					}
@@ -185,16 +195,17 @@ class ScriptRunLoader {
 					toRoutine = graph.getRoutine(edge.toRoutineId);
 
 					if (edge.toIndex == 0)
-						graph.edges.addCallEdge(fromRoutine.id, fromNode, toRoutine.id);
+						graph.edges.addCallEdge(fromRoutine.id, fromNode, toRoutine.id, edge.userLevel);
 					else
-						graph.edges.addExceptionEdge(fromRoutine.id, fromNode, toRoutine.id, edge.toIndex);
+						graph.edges.addExceptionEdge(fromRoutine.id, fromNode, toRoutine.id, edge.toIndex,
+								edge.userLevel);
 				}
 			}
 		}
 	}
 
 	private void loadRoutineEdges(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
-		int fromUnitHash, fromRoutineHash, fromIndex, toUnitHash, toRoutineHash, toIndex;
+		int fromUnitHash, fromRoutineHash, fromIndex, toUnitHash, toRoutineHash, toIndex, userLevel;
 		long fromRoutineId, toRoutineId;
 		RawRoutineGraph routine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.routineEdgeFile);
@@ -203,6 +214,8 @@ class ScriptRunLoader {
 			fromUnitHash = input.readInt();
 			fromRoutineHash = input.readInt();
 			fromIndex = input.readInt();
+			userLevel = (fromIndex >>> 26);
+			fromIndex = (fromIndex & 0x3ffffff);
 			toUnitHash = input.readInt();
 			toRoutineHash = input.readInt();
 			toIndex = input.readInt();
@@ -211,7 +224,7 @@ class ScriptRunLoader {
 			toRoutineId = ScriptRoutineGraph.constructId(toUnitHash, toRoutineHash);
 
 			routine = getRawGraph(fromRoutineId);
-			routine.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId, toIndex));
+			routine.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId, toIndex, userLevel));
 		}
 
 		if (input.ready()) {

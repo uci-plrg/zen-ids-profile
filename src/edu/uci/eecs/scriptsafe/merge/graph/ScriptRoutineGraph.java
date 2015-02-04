@@ -5,6 +5,7 @@ import java.util.List;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
 public class ScriptRoutineGraph {
 
@@ -74,7 +75,7 @@ public class ScriptRoutineGraph {
 
 	public ScriptNode getNode(int index) {
 		// if (index >= nodes.size() || index < 0)
-		//	Log.spot("halt!");
+		// Log.spot("halt!");
 		return nodes.get(index);
 	}
 
@@ -101,13 +102,23 @@ public class ScriptRoutineGraph {
 		return true;
 	}
 
-	public void verifySameRoutine(ScriptRoutineGraph other) {
+	public void mergeRoutine(ScriptRoutineGraph other) {
 		if (nodes.size() != other.nodes.size())
 			throw new MergeException("Node counts differ at the same routine id 0x%x!", id);
 
-		if (isFragmentary) {
-			for (int i = 0; i < nodes.size(); i++)
-				nodes.get(i).verifyCompatible(other.nodes.get(i));
+		if (other.isFragmentary) {
+			for (int i = 0; i < nodes.size(); i++) {
+				ScriptNode thisNode = nodes.get(i);
+				ScriptNode otherNode = other.nodes.get(i);
+				thisNode.verifyCompatible(otherNode);
+				if (thisNode.type == Type.BRANCH) {
+					ScriptBranchNode thisBranchNode = (ScriptBranchNode) thisNode;
+					ScriptBranchNode otherBranchNode = (ScriptBranchNode) otherNode;
+					if (otherBranchNode.getBranchUserLevel() > thisBranchNode.getBranchUserLevel())
+						thisBranchNode.setBranchUserLevel(otherBranchNode.getBranchUserLevel());
+				}
+
+			}
 		} else {
 			for (int i = 0; i < nodes.size(); i++)
 				nodes.get(i).verifyEqual(other.nodes.get(i));

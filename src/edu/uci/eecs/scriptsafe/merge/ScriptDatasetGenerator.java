@@ -216,9 +216,11 @@ public class ScriptDatasetGenerator {
 					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
 						out.writeLong(target.getToRoutineId());
 						if (target.getEntryType() == Type.CALL)
-							out.writeInt(0); // routine entry point
+							targetIndex = 0; // routine entry point
 						else
-							out.writeInt(((RoutineExceptionEdge) target).getToRoutineIndex());
+							targetIndex = ((RoutineExceptionEdge) target).getToRoutineIndex();
+						targetIndex |= (target.getUserLevel() << 26); // sign?
+						out.writeInt(targetIndex);
 					}
 					filePtr += (1 + (3 * dataSource.getOutgoingEdgeCount(call)));
 				}
@@ -228,9 +230,11 @@ public class ScriptDatasetGenerator {
 					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
 						out.writeInt(ScriptRoutineGraph.getDynamicRoutineId(target.getToRoutineId()));
 						if (target.getEntryType() == Type.CALL)
-							out.writeInt(0); // routine entry point
+							targetIndex = 0; // routine entry point
 						else
-							out.writeInt(((RoutineExceptionEdge) target).getToRoutineIndex());
+							targetIndex = ((RoutineExceptionEdge) target).getToRoutineIndex();
+						targetIndex |= (target.getUserLevel() << 26); // sign?
+						out.writeInt(targetIndex);
 					}
 					filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
 				}

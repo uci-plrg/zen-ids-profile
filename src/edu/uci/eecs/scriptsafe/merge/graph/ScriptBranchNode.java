@@ -5,12 +5,15 @@ import edu.uci.eecs.scriptsafe.merge.MergeException;
 
 public class ScriptBranchNode extends ScriptNode {
 
-	public static final int UNASSIGNED_BRANCH_TARGET_ID = -1;
+	public static final int UNASSIGNED_BRANCH_TARGET_ID = 0xffffff;
 
+	private int branchUserLevel;
 	private ScriptNode target = null;
 
-	public ScriptBranchNode(int opcode, int index) {
+	public ScriptBranchNode(int opcode, int index, int branchUserLevel) {
 		super(Type.BRANCH, opcode, index);
+
+		this.branchUserLevel = branchUserLevel;
 	}
 
 	public void setTarget(ScriptNode target) {
@@ -19,6 +22,14 @@ public class ScriptBranchNode extends ScriptNode {
 
 	public ScriptNode getTarget() {
 		return target;
+	}
+
+	public int getBranchUserLevel() {
+		return branchUserLevel;
+	}
+
+	public void setBranchUserLevel(int branchUserLevel) {
+		this.branchUserLevel = branchUserLevel;
 	}
 
 	public int getTargetIndex(long routineId) {
@@ -31,7 +42,7 @@ public class ScriptBranchNode extends ScriptNode {
 				default:
 					Log.error("Target missing for branch at %d with opcode 0x%x in 0x%x", index, opcode, routineId);
 			}
-			return -1;
+			return UNASSIGNED_BRANCH_TARGET_ID;
 		}
 		return target.index;
 	}
@@ -82,6 +93,6 @@ public class ScriptBranchNode extends ScriptNode {
 
 	@Override
 	public ScriptNode copy() {
-		return new ScriptBranchNode(opcode, index);
+		return new ScriptBranchNode(opcode, index, branchUserLevel);
 	}
 }

@@ -94,7 +94,7 @@ public class ScriptNode {
 					else
 						return Type.CALL;
 				case ZEND_DO_FCALL:
-					return Type.NORMAL;
+					return Type.CALL;
 				case ZEND_JMP:
 				case ZEND_JMPZ:
 				case ZEND_JMPNZ:

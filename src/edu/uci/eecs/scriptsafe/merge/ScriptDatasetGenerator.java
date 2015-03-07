@@ -200,6 +200,10 @@ public class ScriptDatasetGenerator {
 					out.writeInt(targetIndex);
 					break;
 				case CALL:
+					calls.add(node);
+					out.writeInt(callTargetPtr);
+					callTargetPtr += (1 + (3 * dataSource.getOutgoingEdgeCount(node)));
+					break;
 				case EVAL:
 					calls.add(node);
 					out.writeInt(callTargetPtr);

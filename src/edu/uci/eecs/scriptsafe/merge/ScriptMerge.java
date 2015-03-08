@@ -78,10 +78,22 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 								getNode(throwEdge.getFromRoutineId(), fromSide, throwEdge.getFromRoutineIndex()),
 								resolveRoutineId(throwEdge.getToRoutineId(), fromSide), throwEdge.getToRoutineIndex(),
 								throwEdge.getUserLevel());
+
+						if (ScriptMergeWatchList.getInstance().watch(throwEdge.getFromRoutineId(),
+								throwEdge.getFromRoutineIndex())) {
+							Log.log("Merge exception edge from the %s: %s -> %s", fromSide, throwEdge.printFromNode(),
+									throwEdge.printToNode());
+						}
 					} else {
 						mergedEdges.addCallEdge(resolveRoutineId(edge.getFromRoutineId(), fromSide),
 								getNode(edge.getFromRoutineId(), fromSide, edge.getFromRoutineIndex()),
 								resolveRoutineId(edge.getToRoutineId(), fromSide), edge.getUserLevel());
+
+						if (ScriptMergeWatchList.getInstance().watch(edge.getFromRoutineId(),
+								edge.getFromRoutineIndex())) {
+							Log.log("Merge call edge from the %s: %s -> %s", fromSide, edge.printFromNode(),
+									edge.printToNode());
+						}
 					}
 				} catch (Throwable t) {
 					Log.error("Failed to add routine edge from the %S side: 0x%x[0x%x]:%d -> 0x%x:%d (%s: %s)",

@@ -5,8 +5,10 @@ import java.io.File;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
+import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.scriptsafe.merge.ScriptDatasetGenerator;
 import edu.uci.eecs.scriptsafe.merge.ScriptMerge;
+import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptGraphCloner;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource;
@@ -20,6 +22,8 @@ public class ScriptSafeMerge {
 	public static final OptionArgumentMap.StringOption outputDir = OptionArgumentMap.createStringOption('o');
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());
+	public static final OptionArgumentMap.StringOption watchlistFile = OptionArgumentMap.createStringOption('w',
+			OptionMode.OPTIONAL);
 
 	private final ArgumentStack args;
 	private final OptionArgumentMap argMap;
@@ -33,7 +37,7 @@ public class ScriptSafeMerge {
 
 	private ScriptSafeMerge(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, verbose);
+		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, verbose, watchlistFile);
 	}
 
 	private void run() {
@@ -47,6 +51,11 @@ public class ScriptSafeMerge {
 			if (!leftGraphDir.hasValue() || !rightGraphDir.hasValue() || !outputDir.hasValue()) {
 				printUsage();
 				return;
+			}
+
+			if (watchlistFile.hasValue()) {
+				File watchlist = new File(watchlistFile.getValue());
+				ScriptMergeWatchList.getInstance().loadFromFile(watchlist);
 			}
 
 			File leftPath = new File(leftGraphDir.getValue());

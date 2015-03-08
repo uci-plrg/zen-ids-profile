@@ -7,10 +7,10 @@ public class RoutineEdge {
 		THROW;
 	}
 
-	private long fromRoutineId;
-	private int fromIndex;
-	private long toRoutineId;
-	private int userLevel;
+	protected long fromRoutineId;
+	protected int fromIndex;
+	protected long toRoutineId;
+	protected int userLevel;
 
 	public RoutineEdge(long fromRoutineId, int fromIndex, long toRoutineId, int userLevel) {
 		this.fromRoutineId = fromRoutineId;
@@ -49,5 +49,15 @@ public class RoutineEdge {
 
 	public void setUserLevel(int userLevel) {
 		this.userLevel = userLevel;
+	}
+
+	public String printFromNode() {
+		return String.format("0x%x|0x%x %d", ScriptRoutineGraph.extractUnitHash(fromRoutineId),
+				ScriptRoutineGraph.extractRoutineHash(fromRoutineId), fromIndex);
+	}
+
+	public String printToNode() {
+		return String.format("0x%x|0x%x", ScriptRoutineGraph.extractUnitHash(toRoutineId),
+				ScriptRoutineGraph.extractRoutineHash(toRoutineId));
 	}
 }

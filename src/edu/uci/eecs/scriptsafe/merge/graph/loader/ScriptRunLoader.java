@@ -9,6 +9,7 @@ import java.util.Set;
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
+import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
@@ -225,6 +226,11 @@ class ScriptRunLoader {
 
 			routine = getRawGraph(fromRoutineId);
 			routine.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId, toIndex, userLevel));
+
+			if (ScriptMergeWatchList.getInstance().watch(fromRoutineId, fromIndex)) {
+				Log.log("Loaded routine edge 0x%x|0x%x %d -> 0x%x|0x%x", fromUnitHash, fromRoutineHash, fromIndex,
+						toUnitHash, toRoutineHash);
+			}
 		}
 
 		if (input.ready()) {
@@ -256,9 +262,6 @@ class ScriptRunLoader {
 				Log.message("Create routine %x|%x", unitHash, routineHash);
 				routine = new ScriptRoutineGraph(unitHash, routineHash, graph.isFragmentary);
 				graph.addRoutine(routine);
-
-				if (unitHash == 0xccd97170 && routineHash == 0xe70a7619)
-					Log.log("halt!");
 			} else if (preloadedRoutines.contains(routine.id)) { // were nodes copied from the right?
 				routine.clearNodes(); // have a copy on the left, so remove copied nodes
 				preloadedRoutines.remove(routine.id);

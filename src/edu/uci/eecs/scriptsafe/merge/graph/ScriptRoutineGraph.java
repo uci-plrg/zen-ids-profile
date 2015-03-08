@@ -33,6 +33,14 @@ public class ScriptRoutineGraph {
 		return constructId(DYNAMIC_UNIT_HASH, id);
 	}
 
+	public static int extractUnitHash(long routineId) {
+		return (int) (routineId >> 0x10);
+	}
+
+	public static int extractRoutineHash(long routineId) {
+		return (int) (routineId & 0xffffffffL);
+	}
+
 	public final int unitHash;
 	public final int routineHash;
 	public final Long id;

@@ -59,6 +59,7 @@ public class ScriptNode {
 		ZEND_FE_RESET(0x4d),
 		ZEND_FE_FETCH(0x4e),
 		ZEND_CATCH(0x6b, OpcodeTargetType.NULLABLE), // may branch to next catch
+		ZEND_ISSET_ISEMPTY_PROP_OBJ(0x94, OpcodeTargetType.EXTERNAL), // may call an accessor
 		ZEND_JMP_SET(0x98),
 		ZEND_ASSIGN_DIM(0x93, OpcodeTargetType.NONE),
 		OTHER(-1);

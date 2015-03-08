@@ -29,4 +29,8 @@ public class RoutineExceptionEdge extends RoutineEdge {
 		this.toRoutineIndex = toRoutineIndex;
 	}
 
+	public String printToNode() {
+		return String.format("0x%x|0x%x %d", ScriptRoutineGraph.extractUnitHash(toRoutineId),
+				ScriptRoutineGraph.extractRoutineHash(toRoutineId), toRoutineIndex);
+	}
 }

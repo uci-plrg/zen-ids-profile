@@ -9,6 +9,7 @@ import java.util.Set;
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
+import edu.uci.eecs.scriptsafe.merge.ScriptMerge;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
@@ -30,6 +31,37 @@ class ScriptRunLoader {
 			this.toIndex = toIndex;
 			this.userLevel = userLevel;
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + fromIndex;
+			result = prime * result + (int) (routineId ^ (routineId >>> 32));
+			result = prime * result + toIndex;
+			result = prime * result + userLevel;
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			RawOpcodeEdge other = (RawOpcodeEdge) obj;
+			if (fromIndex != other.fromIndex)
+				return false;
+			if (routineId != other.routineId)
+				return false;
+			if (toIndex != other.toIndex)
+				return false;
+			if (userLevel != other.userLevel)
+				return false;
+			return true;
+		}
 	}
 
 	private static class RawRoutineEdge {
@@ -45,6 +77,40 @@ class ScriptRunLoader {
 			this.toRoutineId = toRoutineId;
 			this.toIndex = toIndex;
 			this.userLevel = userLevel;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + fromIndex;
+			result = prime * result + (int) (fromRoutineId ^ (fromRoutineId >>> 32));
+			result = prime * result + toIndex;
+			result = prime * result + (int) (toRoutineId ^ (toRoutineId >>> 32));
+			result = prime * result + userLevel;
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			RawRoutineEdge other = (RawRoutineEdge) obj;
+			if (fromIndex != other.fromIndex)
+				return false;
+			if (fromRoutineId != other.fromRoutineId)
+				return false;
+			if (toIndex != other.toIndex)
+				return false;
+			if (toRoutineId != other.toRoutineId)
+				return false;
+			if (userLevel != other.userLevel)
+				return false;
+			return true;
 		}
 	}
 
@@ -78,6 +144,7 @@ class ScriptRunLoader {
 
 	private final Set<Long> preloadedRoutines = new HashSet<Long>();
 	private final Map<Long, RawRoutineGraph> rawGraphs = new HashMap<Long, RawRoutineGraph>();
+	private ScriptMerge.Side side;
 
 	ScriptRunLoader() {
 	}
@@ -101,11 +168,12 @@ class ScriptRunLoader {
 		return graph;
 	}
 
-	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
+	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph, ScriptMerge.Side side) throws IOException {
 		preloadedRoutines.clear();
 		for (ScriptRoutineGraph preloadedRoutine : graph.getRoutines())
 			preloadedRoutines.add(preloadedRoutine.id);
 		rawGraphs.clear();
+		this.side = side;
 
 		loadOpcodeEdges(run);
 		loadRoutineEdges(run, graph);
@@ -192,8 +260,25 @@ class ScriptRunLoader {
 						throw new IllegalArgumentException(String.format(
 								"Found a routine edge from an unknown routine 0x%x", edge.fromRoutineId));
 					}
+
+					if (edge.fromIndex >= fromRoutine.getNodeCount()) {
+						Log.error(
+								"Found an edge from index %d in 0x%x|0x%x, which only has %d nodes! Skipping it for now.",
+								edge.fromIndex, ScriptRoutineGraph.extractUnitHash(edge.fromRoutineId),
+								ScriptRoutineGraph.extractRoutineHash(edge.fromRoutineId), fromRoutine.getNodeCount());
+						continue;
+					}
 					fromNode = fromRoutine.getNode(edge.fromIndex);
 					toRoutine = graph.getRoutine(edge.toRoutineId);
+
+					if (ScriptMergeWatchList.getInstance().watch(edge.fromRoutineId, edge.fromIndex)) {
+						Log.log("Loader added routine edge to the %s graph from op 0x%x: 0x%x|0x%x %d -> 0x%x|0x%x",
+								side, fromRoutine.getNode(edge.fromIndex).opcode,
+								ScriptRoutineGraph.extractUnitHash(edge.fromRoutineId),
+								ScriptRoutineGraph.extractRoutineHash(edge.fromRoutineId), edge.fromIndex,
+								ScriptRoutineGraph.extractUnitHash(edge.toRoutineId),
+								ScriptRoutineGraph.extractRoutineHash(edge.toRoutineId));
+					}
 
 					if (edge.toIndex == 0)
 						graph.edges.addCallEdge(fromRoutine.id, fromNode, toRoutine.id, edge.userLevel);

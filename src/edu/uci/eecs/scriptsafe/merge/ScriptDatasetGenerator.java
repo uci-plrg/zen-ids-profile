@@ -202,11 +202,21 @@ public class ScriptDatasetGenerator {
 				case CALL:
 					calls.add(node);
 					out.writeInt(callTargetPtr);
+					if (ScriptMergeWatchList.getInstance().watch(routine.id, node.index)) {
+						Log.log("Reserved %d call targets for 0x%x|0x%x %d at 0x%x",
+								dataSource.getOutgoingEdgeCount(node), routine.unitHash, routine.routineHash,
+								node.index, callTargetPtr);
+					}
 					callTargetPtr += (1 + (3 * dataSource.getOutgoingEdgeCount(node)));
 					break;
 				case EVAL:
 					calls.add(node);
 					out.writeInt(callTargetPtr);
+					if (ScriptMergeWatchList.getInstance().watch(routine.id, node.index)) {
+						Log.log("Reserved %d exception targets for 0x%x|0x%x %d at 0x%x",
+								dataSource.getOutgoingEdgeCount(node), routine.unitHash, routine.routineHash,
+								node.index, callTargetPtr);
+					}
 					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
 					break;
 			}
@@ -225,6 +235,12 @@ public class ScriptDatasetGenerator {
 							targetIndex = ((RoutineExceptionEdge) target).getToRoutineIndex();
 						targetIndex |= (target.getUserLevel() << 26); // sign?
 						out.writeInt(targetIndex);
+
+						if (ScriptMergeWatchList.getInstance().watch(routine.id, call.index)) {
+							Log.log("Wrote edge [%s -> %s] with user level %d as [ -> 0x%x 0x%x] at offset 0x%x",
+									target.printFromNode(), target.printToNode(), target.getUserLevel(),
+									target.getToRoutineId(), targetIndex, filePtr);
+						}
 					}
 					filePtr += (1 + (3 * dataSource.getOutgoingEdgeCount(call)));
 				}

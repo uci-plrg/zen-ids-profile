@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 
 public class GraphEdgeSet {
 
@@ -46,8 +47,11 @@ public class GraphEdgeSet {
 			for (RoutineEdge edge : edges) {
 				if (edge.getEntryType() == RoutineEdge.Type.CALL && edge.getToRoutineId() == toRoutineId) {
 					if (edge.getUserLevel() == userLevel) {
-						Log.message("Merging duplicate call edge from %s to routine 0x%x at user level %d", fromNode,
+						Log.message("Skipping duplicate call edge from %s to routine 0x%x at user level %d", fromNode,
 								toRoutineId, userLevel);
+						if (ScriptMergeWatchList.getInstance().watch(fromRoutineId, fromNode.index)) {
+							Log.log("Skipping duplicate call edge %s -> %s", edge.printFromNode(), edge.printToNode());
+						}
 					} else if (edge.getUserLevel() > userLevel) {
 						edge.setUserLevel(userLevel);
 					}
@@ -57,7 +61,11 @@ public class GraphEdgeSet {
 		}
 
 		edgeCount++;
-		edges.add(new RoutineEdge(fromRoutineId, fromNode.index, toRoutineId, userLevel));
+		RoutineEdge newEdge = new RoutineEdge(fromRoutineId, fromNode.index, toRoutineId, userLevel);
+		edges.add(newEdge);
+		if (ScriptMergeWatchList.getInstance().watch(fromRoutineId, fromNode.index)) {
+			Log.log("Add call edge to set: %s -> %s", newEdge.printFromNode(), newEdge.printToNode());
+		}
 	}
 
 	public void addExceptionEdge(long fromRoutineId, ScriptNode fromNode, long toRoutineId, int toRoutineIndex,
@@ -82,6 +90,11 @@ public class GraphEdgeSet {
 		}
 
 		edgeCount++;
-		edges.add(new RoutineExceptionEdge(fromRoutineId, fromNode.index, toRoutineId, toRoutineIndex, userLevel));
+		RoutineExceptionEdge newEdge = new RoutineExceptionEdge(fromRoutineId, fromNode.index, toRoutineId,
+				toRoutineIndex, userLevel);
+		edges.add(newEdge);
+		if (ScriptMergeWatchList.getInstance().watch(fromRoutineId, fromNode.index)) {
+			Log.log("Add exception edge to set: %s -> %s", newEdge.printFromNode(), newEdge.printToNode());
+		}
 	}
 }

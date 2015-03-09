@@ -7,6 +7,7 @@ import java.util.List;
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
+import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
@@ -102,6 +103,14 @@ public class ScriptDatasetLoader {
 						targetNodeIndex = in.readInt();
 						userLevel = (targetNodeIndex >>> 26);
 						targetNodeIndex = (targetNodeIndex & 0x3ffffff);
+
+						if (ScriptMergeWatchList.getInstance().watch(routine.id, call.index)) {
+							Log.log("Loader added routine edge to the dataset graph: 0x%x|0x%x %d -> 0x%x|0x%x",
+									ScriptRoutineGraph.extractUnitHash(routine.id),
+									ScriptRoutineGraph.extractRoutineHash(routine.id), call.index, unitHash,
+									routineHash);
+						}
+
 						if (targetNodeIndex == 0) {
 							graph.edges.addCallEdge(routine.id, call,
 									ScriptRoutineGraph.constructId(unitHash, routineHash), UserLevel.BOTTOM);

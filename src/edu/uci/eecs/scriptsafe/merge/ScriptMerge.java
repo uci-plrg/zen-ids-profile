@@ -56,7 +56,12 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 				if (rightRoutine == null) {
 					mergedStaticRoutines.put(leftRoutine.id, leftRoutine);
 				} else {
-					rightRoutine.mergeRoutine(leftRoutine);
+					try {
+						rightRoutine.mergeRoutine(leftRoutine);
+					} catch (MergeException e) {
+						Log.error("Incompatible routine graphs for 0x%x|0x%x: %s", leftRoutine.unitHash,
+								leftRoutine.routineHash, e.getMessage());
+					}
 				}
 			}
 		}
@@ -81,7 +86,7 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 
 						if (ScriptMergeWatchList.getInstance().watch(throwEdge.getFromRoutineId(),
 								throwEdge.getFromRoutineIndex())) {
-							Log.log("Merge exception edge from the %s: %s -> %s", fromSide, throwEdge.printFromNode(),
+							Log.log("Merged exception edge from the %s: %s -> %s", fromSide, throwEdge.printFromNode(),
 									throwEdge.printToNode());
 						}
 					} else {
@@ -91,7 +96,7 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 
 						if (ScriptMergeWatchList.getInstance().watch(edge.getFromRoutineId(),
 								edge.getFromRoutineIndex())) {
-							Log.log("Merge call edge from the %s: %s -> %s", fromSide, edge.printFromNode(),
+							Log.log("Merged call edge from the %s: %s -> %s", fromSide, edge.printFromNode(),
 									edge.printToNode());
 						}
 					}

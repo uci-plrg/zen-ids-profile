@@ -66,7 +66,7 @@ public class ScriptBranchNode extends ScriptNode {
 
 		if (target != null) {
 			if (target.index != ((ScriptBranchNode) other).target.index)
-				throw new MergeException("Target mismatch for branch node at index %d", index);
+				throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x", index, opcode);
 		}
 	}
 
@@ -87,7 +87,7 @@ public class ScriptBranchNode extends ScriptNode {
 
 		if (target != null) {
 			if (target.index != ((ScriptBranchNode) other).target.index)
-				throw new MergeException("Target mismatch for branch node at index %d", index);
+				throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x", index, opcode);
 		}
 	}
 

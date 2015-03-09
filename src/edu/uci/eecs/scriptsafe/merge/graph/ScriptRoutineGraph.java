@@ -34,7 +34,7 @@ public class ScriptRoutineGraph {
 	}
 
 	public static int extractUnitHash(long routineId) {
-		return (int) (routineId >> 0x10);
+		return (int) (routineId >> 0x20);
 	}
 
 	public static int extractRoutineHash(long routineId) {

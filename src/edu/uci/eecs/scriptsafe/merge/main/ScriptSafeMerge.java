@@ -24,6 +24,8 @@ public class ScriptSafeMerge {
 			Log.Level.ERROR.ordinal());
 	public static final OptionArgumentMap.StringOption watchlistFile = OptionArgumentMap.createStringOption('w',
 			OptionMode.OPTIONAL);
+	public static final OptionArgumentMap.StringOption watchlistCategories = OptionArgumentMap.createStringOption('c',
+			OptionMode.OPTIONAL);
 
 	private final ArgumentStack args;
 	private final OptionArgumentMap argMap;
@@ -37,7 +39,8 @@ public class ScriptSafeMerge {
 
 	private ScriptSafeMerge(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, verbose, watchlistFile);
+		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, verbose, watchlistFile,
+				watchlistCategories);
 	}
 
 	private void run() {
@@ -56,6 +59,9 @@ public class ScriptSafeMerge {
 			if (watchlistFile.hasValue()) {
 				File watchlist = new File(watchlistFile.getValue());
 				ScriptMergeWatchList.getInstance().loadFromFile(watchlist);
+			}
+			if (watchlistCategories.hasValue()) {
+				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
 			File leftPath = new File(leftGraphDir.getValue());

@@ -23,7 +23,7 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 	final ScriptFlowGraph left;
 	final ScriptFlowGraph right;
 
-	private final Map<Long, ScriptRoutineGraph> mergedStaticRoutines = new HashMap<Long, ScriptRoutineGraph>();
+	private final Map<Integer, ScriptRoutineGraph> mergedStaticRoutines = new HashMap<Integer, ScriptRoutineGraph>();
 	private final GraphEdgeSet mergedEdges = new GraphEdgeSet();
 	private final DynamicRoutineMerge dynamicRoutineMerge;
 
@@ -39,71 +39,77 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 
 	public void merge() {
 		for (ScriptRoutineGraph rightRoutine : right.getRoutines()) {
-			if (ScriptRoutineGraph.isDynamicRoutine(rightRoutine.id))
+			if (ScriptRoutineGraph.isDynamicRoutine(rightRoutine.hash))
 				dynamicRoutineMerge.addDynamicRoutine(rightRoutine, Side.RIGHT);
 			else
-				mergedStaticRoutines.put(rightRoutine.id, rightRoutine);
+				mergedStaticRoutines.put(rightRoutine.hash, rightRoutine);
 		}
 		for (ScriptRoutineGraph leftRoutine : left.getRoutines()) {
-			if (ScriptRoutineGraph.isDynamicRoutine(leftRoutine.id)) {
+			if (ScriptRoutineGraph.isDynamicRoutine(leftRoutine.hash)) {
 				dynamicRoutineMerge.addDynamicRoutine(leftRoutine, Side.LEFT);
 			} else {
-				ScriptRoutineGraph rightRoutine = mergedStaticRoutines.get(leftRoutine.id);
+				ScriptRoutineGraph rightRoutine = mergedStaticRoutines.get(leftRoutine.hash);
 
-				if (rightRoutine == null)
-					Log.spot("Adding new routine 0x%x|0x%x", leftRoutine.unitHash, leftRoutine.routineHash);
+				if (rightRoutine == null
+						&& ScriptMergeWatchList.getInstance().isActive(ScriptMergeWatchList.Category.ROUTINE))
+					Log.spot("Adding new routine 0x%x", leftRoutine.hash);
 
 				if (rightRoutine == null) {
-					mergedStaticRoutines.put(leftRoutine.id, leftRoutine);
+					mergedStaticRoutines.put(leftRoutine.hash, leftRoutine);
 				} else {
 					try {
 						rightRoutine.mergeRoutine(leftRoutine);
 					} catch (MergeException e) {
-						Log.error("Incompatible routine graphs for 0x%x|0x%x: %s", leftRoutine.unitHash,
-								leftRoutine.routineHash, e.getMessage());
+						Log.error("Incompatible routine graphs for 0x%x: %s", leftRoutine.hash, e.getMessage());
 					}
 				}
 			}
 		}
 
-		addRoutineEdges(left, Side.LEFT);
 		addRoutineEdges(right, Side.RIGHT);
+		addRoutineEdges(left, Side.LEFT);
 
 		// dataset generator writes from here (interface so it can also write plain graphs?)
 		// nix cloner (hopefully)
 	}
 
 	private void addRoutineEdges(ScriptFlowGraph graph, Side fromSide) {
+		boolean added;
 		for (List<RoutineEdge> edges : graph.edges.getOutgoingEdges()) {
 			for (RoutineEdge edge : edges) {
 				try {
 					if (edge.getEntryType() == Type.THROW) {
 						RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) edge;
-						mergedEdges.addExceptionEdge(resolveRoutineId(throwEdge.getFromRoutineId(), fromSide),
-								getNode(throwEdge.getFromRoutineId(), fromSide, throwEdge.getFromRoutineIndex()),
-								resolveRoutineId(throwEdge.getToRoutineId(), fromSide), throwEdge.getToRoutineIndex(),
-								throwEdge.getUserLevel());
+						added = mergedEdges.addExceptionEdge(
+								resolveRoutineIndex(throwEdge.getFromRoutineHash(), fromSide),
+								getNode(throwEdge.getFromRoutineHash(), fromSide, throwEdge.getFromRoutineIndex()),
+								resolveRoutineIndex(throwEdge.getToRoutineHash(), fromSide),
+								throwEdge.getToRoutineIndex(), throwEdge.getUserLevel());
 
-						if (ScriptMergeWatchList.getInstance().watch(throwEdge.getFromRoutineId(),
-								throwEdge.getFromRoutineIndex())) {
+						if (ScriptMergeWatchList.getInstance().watch(throwEdge.getFromRoutineHash(),
+								throwEdge.getFromRoutineIndex())
+								|| (added && fromSide == Side.LEFT && ScriptMergeWatchList.getInstance().isActive(
+										ScriptMergeWatchList.Category.EXCEPTION_EDGE))) {
 							Log.log("Merged exception edge from the %s: %s -> %s", fromSide, throwEdge.printFromNode(),
 									throwEdge.printToNode());
 						}
 					} else {
-						mergedEdges.addCallEdge(resolveRoutineId(edge.getFromRoutineId(), fromSide),
-								getNode(edge.getFromRoutineId(), fromSide, edge.getFromRoutineIndex()),
-								resolveRoutineId(edge.getToRoutineId(), fromSide), edge.getUserLevel());
+						added = mergedEdges.addCallEdge(resolveRoutineIndex(edge.getFromRoutineHash(), fromSide),
+								getNode(edge.getFromRoutineHash(), fromSide, edge.getFromRoutineIndex()),
+								resolveRoutineIndex(edge.getToRoutineHash(), fromSide), edge.getUserLevel());
 
-						if (ScriptMergeWatchList.getInstance().watch(edge.getFromRoutineId(),
-								edge.getFromRoutineIndex())) {
+						if (ScriptMergeWatchList.getInstance().watch(edge.getFromRoutineHash(),
+								edge.getFromRoutineIndex())
+								|| (added && fromSide == Side.LEFT && ScriptMergeWatchList.getInstance().isActive(
+										ScriptMergeWatchList.Category.ROUTINE_EDGE))) {
 							Log.log("Merged call edge from the %s: %s -> %s", fromSide, edge.printFromNode(),
 									edge.printToNode());
 						}
 					}
 				} catch (Throwable t) {
 					Log.error("Failed to add routine edge from the %S side: 0x%x[0x%x]:%d -> 0x%x:%d (%s: %s)",
-							fromSide, edge.getFromRoutineId(), resolveRoutineId(edge.getFromRoutineId(), fromSide),
-							edge.getFromRoutineIndex(), edge.getToRoutineId(), edge.getEntryType() == Type.CALL ? 0
+							fromSide, edge.getFromRoutineHash(), resolveRoutineIndex(edge.getFromRoutineHash(), fromSide),
+							edge.getFromRoutineIndex(), edge.getToRoutineHash(), edge.getEntryType() == Type.CALL ? 0
 									: ((RoutineExceptionEdge) edge).getToRoutineIndex(), t.getClass().getSimpleName(),
 							t.getMessage());
 				}
@@ -111,28 +117,28 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 		}
 	}
 
-	private long resolveRoutineId(long routineId, Side fromSide) {
-		if (ScriptRoutineGraph.isDynamicRoutine(routineId)) {
+	private int resolveRoutineIndex(int routineIndex, Side fromSide) {
+		if (ScriptRoutineGraph.isDynamicRoutine(routineIndex)) {
 			if (fromSide == Side.LEFT)
-				return dynamicRoutineMerge
-						.getNewLeftDynamicRoutineId(ScriptRoutineGraph.getDynamicRoutineId(routineId));
+				return dynamicRoutineMerge.getNewLeftDynamicRoutineIndex(ScriptRoutineGraph
+						.getDynamicRoutineIndex(routineIndex));
 			else
-				return dynamicRoutineMerge.getNewRightDynamicRoutineId(ScriptRoutineGraph
-						.getDynamicRoutineId(routineId));
+				return dynamicRoutineMerge.getNewRightDynamicRoutineIndex(ScriptRoutineGraph
+						.getDynamicRoutineIndex(routineIndex));
 		} else {
-			return routineId;
+			return routineIndex;
 		}
 	}
 
-	private ScriptRoutineGraph getRoutineGraph(long routineId, Side fromSide) {
-		if (ScriptRoutineGraph.isDynamicRoutine(routineId))
-			return dynamicRoutineMerge.getMergedGraph(ScriptRoutineGraph.getDynamicRoutineId(routineId), fromSide);
+	private ScriptRoutineGraph getRoutineGraph(int routineHash, Side fromSide) {
+		if (ScriptRoutineGraph.isDynamicRoutine(routineHash))
+			return dynamicRoutineMerge.getMergedGraph(ScriptRoutineGraph.getDynamicRoutineIndex(routineHash), fromSide);
 		else
-			return mergedStaticRoutines.get(routineId);
+			return mergedStaticRoutines.get(routineHash);
 	}
 
-	private ScriptNode getNode(long routineId, Side side, int index) {
-		return getRoutineGraph(routineId, side).getNode(index);
+	private ScriptNode getNode(int routineHash, Side side, int index) {
+		return getRoutineGraph(routineHash, side).getNode(index);
 	}
 
 	public int getRoutineCount() {

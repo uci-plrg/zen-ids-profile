@@ -40,32 +40,32 @@ public class ScriptDatasetGenerator {
 			table = new HashtableEntry[configuration.size];
 		}
 
-		HashtableEntry getEntry(long routineId) {
-			int key = getKey(routineId);
+		HashtableEntry getEntry(int routineHash) {
+			int key = getKey(routineHash);
 			HashtableEntry entry = table[key];
 
 			while (entry != null) {
-				if (entry.routineId == routineId)
+				if (entry.routineHash == routineHash)
 					return entry;
 			}
 			return null;
 		}
 
-		void putEntry(long routineId, int dataOffset) {
-			int key = getKey(routineId);
+		void putEntry(int routineHash, int dataOffset) {
+			int key = getKey(routineHash);
 			HashtableEntry entry = table[key];
 			if (entry == null) {
-				table[key] = new HashtableEntry(routineId, dataOffset);
+				table[key] = new HashtableEntry(routineHash, dataOffset);
 			} else {
 				while (entry.next != null)
 					entry = entry.next;
 
-				entry.next = new HashtableEntry(routineId, dataOffset);
+				entry.next = new HashtableEntry(routineHash, dataOffset);
 			}
 		}
 
-		private int getKey(long routineId) {
-			return (((int) (routineId >> 0x20)) ^ ((int) (routineId & 0xffffffffL))) & configuration.mask;
+		private int getKey(int routineHash) {
+			return routineHash & configuration.mask;
 		}
 	}
 
@@ -82,18 +82,16 @@ public class ScriptDatasetGenerator {
 	}
 
 	private static class HashtableEntry {
-		final long routineId;
+		final int routineHash;
 		HashtableEntry next = null;
 		final int dataOffset;
 		int chainOffset;
 
-		public HashtableEntry(long routineId, int dataOffset) {
-			this.routineId = routineId;
+		public HashtableEntry(int routineHash, int dataOffset) {
+			this.routineHash = routineHash;
 			this.dataOffset = dataOffset;
 		}
 	}
-
-	private static final int HASHTABLE_ENTRY_SIZE = 4;
 
 	private final DataSource dataSource;
 	private final File outputFile;
@@ -181,10 +179,9 @@ public class ScriptDatasetGenerator {
 	private void writeRoutineData(ScriptRoutineGraph routine) throws IOException {
 		List<ScriptNode> calls = new ArrayList<ScriptNode>();
 		int targetIndex;
-		out.writeInt(routine.unitHash);
-		out.writeInt(routine.routineHash);
+		out.writeInt(routine.hash);
 		out.writeInt(routine.getNodeCount());
-		callTargetPtr = filePtr + (3 + (routine.getNodeCount() * 2));
+		callTargetPtr = filePtr + (2 + (routine.getNodeCount() * 2));
 
 		for (int i = 0; i < routine.getNodeCount(); i++) {
 			ScriptNode node = routine.getNode(i);
@@ -196,39 +193,37 @@ public class ScriptDatasetGenerator {
 					out.writeInt(0);
 					break;
 				case BRANCH:
-					targetIndex = ((ScriptBranchNode) node).getTargetIndex(routine.id);
+					targetIndex = ((ScriptBranchNode) node).getTargetIndex(routine.hash);
 					out.writeInt(targetIndex);
 					break;
 				case CALL:
 					calls.add(node);
 					out.writeInt(callTargetPtr);
-					if (ScriptMergeWatchList.getInstance().watch(routine.id, node.index)) {
+					if (ScriptMergeWatchList.getInstance().watch(routine.hash, node.index)) {
 						Log.log("Reserved %d call targets for 0x%x|0x%x %d at 0x%x",
-								dataSource.getOutgoingEdgeCount(node), routine.unitHash, routine.routineHash,
-								node.index, callTargetPtr);
+								dataSource.getOutgoingEdgeCount(node), routine.hash, node.index, callTargetPtr);
 					}
-					callTargetPtr += (1 + (3 * dataSource.getOutgoingEdgeCount(node)));
+					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
 					break;
 				case EVAL:
 					calls.add(node);
 					out.writeInt(callTargetPtr);
-					if (ScriptMergeWatchList.getInstance().watch(routine.id, node.index)) {
-						Log.log("Reserved %d exception targets for 0x%x|0x%x %d at 0x%x",
-								dataSource.getOutgoingEdgeCount(node), routine.unitHash, routine.routineHash,
-								node.index, callTargetPtr);
+					if (ScriptMergeWatchList.getInstance().watch(routine.hash, node.index)) {
+						Log.log("Reserved %d exception targets for 0x%x %d at 0x%x",
+								dataSource.getOutgoingEdgeCount(node), routine.hash, node.index, callTargetPtr);
 					}
 					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
 					break;
 			}
 		}
-		filePtr += (3 + (routine.getNodeCount() * 2));
+		filePtr += (2 + (routine.getNodeCount() * 2));
 
 		for (ScriptNode call : calls) {
 			switch (call.type) {
 				case CALL: {
 					out.writeInt(dataSource.getOutgoingEdgeCount(call));
 					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
-						out.writeLong(target.getToRoutineId());
+						out.writeInt(target.getToRoutineHash());
 						if (target.getEntryType() == Type.CALL)
 							targetIndex = 0; // routine entry point
 						else
@@ -236,19 +231,19 @@ public class ScriptDatasetGenerator {
 						targetIndex |= (target.getUserLevel() << 26); // sign?
 						out.writeInt(targetIndex);
 
-						if (ScriptMergeWatchList.getInstance().watch(routine.id, call.index)) {
+						if (ScriptMergeWatchList.getInstance().watch(routine.hash, call.index)) {
 							Log.log("Wrote edge [%s -> %s] with user level %d as [ -> 0x%x 0x%x] at offset 0x%x",
 									target.printFromNode(), target.printToNode(), target.getUserLevel(),
-									target.getToRoutineId(), targetIndex, filePtr);
+									target.getToRoutineHash(), targetIndex, filePtr);
 						}
 					}
-					filePtr += (1 + (3 * dataSource.getOutgoingEdgeCount(call)));
+					filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
 				}
 					break;
 				case EVAL: {
 					out.writeInt(dataSource.getOutgoingEdgeCount(call));
 					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
-						out.writeInt(ScriptRoutineGraph.getDynamicRoutineId(target.getToRoutineId()));
+						out.writeInt(ScriptRoutineGraph.getDynamicRoutineIndex(target.getToRoutineHash()));
 						if (target.getEntryType() == Type.CALL)
 							targetIndex = 0; // routine entry point
 						else
@@ -266,7 +261,7 @@ public class ScriptDatasetGenerator {
 		callTargetPtr = 0;
 		dynamicRoutineOffsets.clear();
 		for (ScriptRoutineGraph routine : dataSource.getStaticRoutines()) {
-			hashtable.putEntry(routine.id, filePtr);
+			hashtable.putEntry(routine.hash, filePtr);
 			writeRoutineData(routine);
 		}
 		for (ScriptRoutineGraph routine : dataSource.getDynamicRoutines()) {

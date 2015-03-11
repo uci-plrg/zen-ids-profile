@@ -7,15 +7,15 @@ public class RoutineEdge {
 		THROW;
 	}
 
-	protected long fromRoutineId;
+	protected int fromRoutineHash;
 	protected int fromIndex;
-	protected long toRoutineId;
+	protected int toRoutineHash;
 	protected int userLevel;
 
-	public RoutineEdge(long fromRoutineId, int fromIndex, long toRoutineId, int userLevel) {
-		this.fromRoutineId = fromRoutineId;
+	public RoutineEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel) {
+		this.fromRoutineHash = fromRoutineHash;
 		this.fromIndex = fromIndex;
-		this.toRoutineId = toRoutineId;
+		this.toRoutineHash = toRoutineHash;
 		this.userLevel = userLevel;
 	}
 
@@ -27,20 +27,20 @@ public class RoutineEdge {
 		return Type.CALL;
 	}
 
-	public long getFromRoutineId() {
-		return fromRoutineId;
+	public int getFromRoutineHash() {
+		return fromRoutineHash;
 	}
 
 	public int getFromRoutineIndex() {
 		return fromIndex;
 	}
 
-	public long getToRoutineId() {
-		return toRoutineId;
+	public int getToRoutineHash() {
+		return toRoutineHash;
 	}
 
-	public void setToRoutineId(long toRoutineId) {
-		this.toRoutineId = toRoutineId;
+	public void setToRoutineHash(int toRoutineHash) {
+		this.toRoutineHash = toRoutineHash;
 	}
 
 	public int getUserLevel() {
@@ -52,12 +52,10 @@ public class RoutineEdge {
 	}
 
 	public String printFromNode() {
-		return String.format("0x%x|0x%x %d", ScriptRoutineGraph.extractUnitHash(fromRoutineId),
-				ScriptRoutineGraph.extractRoutineHash(fromRoutineId), fromIndex);
+		return String.format("0x%x|0x%x %d", fromRoutineHash, fromRoutineHash, fromIndex);
 	}
 
 	public String printToNode() {
-		return String.format("0x%x|0x%x", ScriptRoutineGraph.extractUnitHash(toRoutineId),
-				ScriptRoutineGraph.extractRoutineHash(toRoutineId));
+		return String.format("0x%x|0x%x", toRoutineHash, toRoutineHash);
 	}
 }

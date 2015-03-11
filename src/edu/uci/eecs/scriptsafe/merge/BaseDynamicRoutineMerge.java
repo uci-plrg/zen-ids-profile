@@ -11,22 +11,22 @@ public class BaseDynamicRoutineMerge extends DynamicRoutineMerge {
 	public BaseDynamicRoutineMerge(ScriptFlowGraph left, ScriptFlowGraph right) {
 		super(left);
 
-		rightRemapping = new int[right.getMaxDynamicRoutineId() + 1];
+		rightRemapping = new int[right.getMaxDynamicRoutineIndex() + 1];
 	}
 
 	@Override
-	protected void remapRoutine(ScriptRoutineGraph routine, long toId, Side fromSide) {
+	protected void remapRoutine(ScriptRoutineGraph routine, int toHash, Side fromSide) {
 		if (fromSide == ScriptMerge.Side.LEFT) {
-			leftRemapping[ScriptRoutineGraph.getDynamicRoutineId(routine.id)] = ScriptRoutineGraph
-					.getDynamicRoutineId(toId);
+			leftRemapping[ScriptRoutineGraph.getDynamicRoutineIndex(routine.hash)] = ScriptRoutineGraph
+					.getDynamicRoutineIndex(toHash);
 		} else {
-			rightRemapping[ScriptRoutineGraph.getDynamicRoutineId(routine.id)] = ScriptRoutineGraph
-					.getDynamicRoutineId(toId);
+			rightRemapping[ScriptRoutineGraph.getDynamicRoutineIndex(routine.hash)] = ScriptRoutineGraph
+					.getDynamicRoutineIndex(toHash);
 		}
 	}
 
 	@Override
-	public int getNewRightDynamicRoutineId(int originalId) {
-		return rightRemapping[originalId];
+	public int getNewRightDynamicRoutineIndex(int originalIndex) {
+		return rightRemapping[originalIndex];
 	}
 }

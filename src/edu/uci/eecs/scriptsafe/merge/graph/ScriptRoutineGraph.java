@@ -9,63 +9,38 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
 public class ScriptRoutineGraph {
 
-	public static final int DYNAMIC_UNIT_HASH = 0;
-
-	public static boolean isDynamicRoutine(long routineId) {
-		return (int) (routineId >> 0x20) == 0;
+	public static boolean isDynamicRoutine(int routineHash) {
+		return routineHash < 0;
 	}
 
-	public static int getDynamicRoutineId(long routineId) {
-		if (!isDynamicRoutine(routineId))
-			return -1;
-
-		return (int) (routineId & 0xffffffffL);
-	}
-
-	public static long constructId(int unitHash, int routineHash) {
+	public static int getDynamicRoutineIndex(int routineHash) {
 		if (routineHash < 0)
-			return (((long) unitHash << 0x20) | 0xffffffffL) & routineHash; // dislike!
-		else
-			return ((long) unitHash << 0x20) | routineHash;
+			return -routineHash;
+
+		throw new MergeException("Attempt to extract a dynamic routine index from a routine hash that is not dynamic");
 	}
 
-	public static long constructDynamicId(int id) {
-		return constructId(DYNAMIC_UNIT_HASH, id);
+	public static int constructDynamicHash(int index) {
+		return -index;
 	}
 
-	public static int extractUnitHash(long routineId) {
-		return (int) (routineId >> 0x20);
-	}
-
-	public static int extractRoutineHash(long routineId) {
-		return (int) (routineId & 0xffffffffL);
-	}
-
-	public final int unitHash;
-	public final int routineHash;
-	public final Long id;
+	public final int hash;
 	public final boolean isFragmentary;
 
 	private boolean redundant = false;
 	private final List<ScriptNode> nodes = new ArrayList<ScriptNode>();
 
-	public ScriptRoutineGraph(int unitHash, int routineHash, boolean isFragmentary) {
-		this.unitHash = unitHash;
-		this.routineHash = routineHash;
+	public ScriptRoutineGraph(int hash, boolean isFragmentary) {
+		this.hash = hash;
 		this.isFragmentary = isFragmentary;
-
-		this.id = constructId(unitHash, routineHash);
-
-		if (((int) (id >> 0x20)) == 0xffffffff)
-			Log.log("stop!");
 	}
 
 	public ScriptRoutineGraph copy(boolean isFragmentary) {
-		return new ScriptRoutineGraph(unitHash, routineHash, isFragmentary);
+		return new ScriptRoutineGraph(hash, isFragmentary);
 	}
 
-	public ScriptRoutineGraph rename(int unitHash, int routineHash, boolean isFragmentary) {
-		ScriptRoutineGraph renamed = new ScriptRoutineGraph(unitHash, routineHash, isFragmentary);
+	public ScriptRoutineGraph rename(int hash, boolean isFragmentary) {
+		ScriptRoutineGraph renamed = new ScriptRoutineGraph(hash, isFragmentary);
 		renamed.nodes.addAll(nodes);
 		return renamed;
 	}
@@ -112,7 +87,7 @@ public class ScriptRoutineGraph {
 
 	public void mergeRoutine(ScriptRoutineGraph other) {
 		if (nodes.size() != other.nodes.size())
-			throw new MergeException("Node counts differ at the same routine id 0x%x!", id);
+			throw new MergeException("Node counts differ at the same routine hash 0x%x!", hash);
 
 		if (other.isFragmentary) {
 			for (int i = 0; i < nodes.size(); i++) {

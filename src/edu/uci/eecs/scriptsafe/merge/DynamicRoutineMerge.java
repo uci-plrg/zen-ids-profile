@@ -12,37 +12,37 @@ public abstract class DynamicRoutineMerge {
 	final int leftRemapping[];
 
 	public DynamicRoutineMerge(ScriptFlowGraph left) {
-		leftRemapping = new int[left.getMaxDynamicRoutineId() + 1];
+		leftRemapping = new int[left.getMaxDynamicRoutineIndex() + 1];
 	}
 
-	abstract void remapRoutine(ScriptRoutineGraph routine, long toId, ScriptMerge.Side fromSide);
+	abstract void remapRoutine(ScriptRoutineGraph routine, int toHash, ScriptMerge.Side fromSide);
 
 	public void addDynamicRoutine(ScriptRoutineGraph routine, ScriptMerge.Side fromSide) {
 		for (ScriptRoutineGraph merged : mergedGraphs) {
 			if (routine.isSameRoutine(merged)) {
-				remapRoutine(routine, merged.id, fromSide);
+				remapRoutine(routine, merged.hash, fromSide);
 				return;
 			}
 		}
-		mergedGraphs.add(routine.rename(ScriptRoutineGraph.DYNAMIC_UNIT_HASH, mergedGraphs.size(), false));
+		mergedGraphs.add(routine.rename(mergedGraphs.size(), false));
 	}
 
 	public Iterable<ScriptRoutineGraph> getMergedGraphs() {
 		return mergedGraphs;
 	}
 
-	public ScriptRoutineGraph getMergedGraph(int dynamicRoutineId, ScriptMerge.Side fromSide) {
+	public ScriptRoutineGraph getMergedGraph(int dynamicRoutineIndex, ScriptMerge.Side fromSide) {
 		if (fromSide == ScriptMerge.Side.LEFT)
-			return mergedGraphs.get(getNewLeftDynamicRoutineId(dynamicRoutineId));
+			return mergedGraphs.get(getNewLeftDynamicRoutineIndex(dynamicRoutineIndex));
 		else
-			return mergedGraphs.get(getNewRightDynamicRoutineId(dynamicRoutineId));
+			return mergedGraphs.get(getNewRightDynamicRoutineIndex(dynamicRoutineIndex));
 	}
 
-	public int getNewLeftDynamicRoutineId(int originalId) {
-		return leftRemapping[originalId];
+	public int getNewLeftDynamicRoutineIndex(int originalIndex) {
+		return leftRemapping[originalIndex];
 	}
 
-	public int getNewRightDynamicRoutineId(int originalId) {
-		return originalId;
+	public int getNewRightDynamicRoutineIndex(int originalIndex) {
+		return originalIndex;
 	}
 }

@@ -20,13 +20,13 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 class ScriptRunLoader {
 
 	private static class RawOpcodeEdge {
-		final long routineId;
+		final int routineHash;
 		final int fromIndex;
 		final int toIndex;
 		final int userLevel;
 
-		public RawOpcodeEdge(long routineId, int fromIndex, int toIndex, int userLevel) {
-			this.routineId = routineId;
+		public RawOpcodeEdge(int routineHash, int fromIndex, int toIndex, int userLevel) {
+			this.routineHash = routineHash;
 			this.fromIndex = fromIndex;
 			this.toIndex = toIndex;
 			this.userLevel = userLevel;
@@ -37,7 +37,7 @@ class ScriptRunLoader {
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + fromIndex;
-			result = prime * result + (int) (routineId ^ (routineId >>> 32));
+			result = prime * result + routineHash;
 			result = prime * result + toIndex;
 			result = prime * result + userLevel;
 			return result;
@@ -54,7 +54,7 @@ class ScriptRunLoader {
 			RawOpcodeEdge other = (RawOpcodeEdge) obj;
 			if (fromIndex != other.fromIndex)
 				return false;
-			if (routineId != other.routineId)
+			if (routineHash != other.routineHash)
 				return false;
 			if (toIndex != other.toIndex)
 				return false;
@@ -65,14 +65,14 @@ class ScriptRunLoader {
 	}
 
 	private static class RawRoutineEdge {
-		final long fromRoutineId;
+		final int fromRoutineHash;
 		final int fromIndex;
-		final long toRoutineId;
+		final int toRoutineId;
 		final int toIndex;
 		final int userLevel;
 
-		public RawRoutineEdge(long fromRoutineId, int fromIndex, long toRoutineId, int toIndex, int userLevel) {
-			this.fromRoutineId = fromRoutineId;
+		public RawRoutineEdge(int fromRoutineHash, int fromIndex, int toRoutineId, int toIndex, int userLevel) {
+			this.fromRoutineHash = fromRoutineHash;
 			this.fromIndex = fromIndex;
 			this.toRoutineId = toRoutineId;
 			this.toIndex = toIndex;
@@ -84,9 +84,9 @@ class ScriptRunLoader {
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + fromIndex;
-			result = prime * result + (int) (fromRoutineId ^ (fromRoutineId >>> 32));
+			result = prime * result + fromRoutineHash;
 			result = prime * result + toIndex;
-			result = prime * result + (int) (toRoutineId ^ (toRoutineId >>> 32));
+			result = prime * result + toRoutineId;
 			result = prime * result + userLevel;
 			return result;
 		}
@@ -102,7 +102,7 @@ class ScriptRunLoader {
 			RawRoutineEdge other = (RawRoutineEdge) obj;
 			if (fromIndex != other.fromIndex)
 				return false;
-			if (fromRoutineId != other.fromRoutineId)
+			if (fromRoutineHash != other.fromRoutineHash)
 				return false;
 			if (toIndex != other.toIndex)
 				return false;
@@ -115,12 +115,12 @@ class ScriptRunLoader {
 	}
 
 	private static class RawRoutineGraph {
-		final long id;
+		final int hash;
 		final Map<Integer, Set<RawOpcodeEdge>> opcodeEdges = new HashMap<Integer, Set<RawOpcodeEdge>>();
 		final Map<Integer, Set<RawRoutineEdge>> routineEdges = new HashMap<Integer, Set<RawRoutineEdge>>();
 
-		public RawRoutineGraph(long id) {
-			this.id = id;
+		public RawRoutineGraph(int hash) {
+			this.hash = hash;
 		}
 
 		void addRawEdge(RawOpcodeEdge edge) {
@@ -142,8 +142,8 @@ class ScriptRunLoader {
 		}
 	}
 
-	private final Set<Long> preloadedRoutines = new HashSet<Long>();
-	private final Map<Long, RawRoutineGraph> rawGraphs = new HashMap<Long, RawRoutineGraph>();
+	private final Set<Integer> preloadedRoutines = new HashSet<Integer>();
+	private final Map<Integer, RawRoutineGraph> rawGraphs = new HashMap<Integer, RawRoutineGraph>();
 	private ScriptMerge.Side side;
 
 	ScriptRunLoader() {
@@ -159,11 +159,11 @@ class ScriptRunLoader {
 		}
 	}
 
-	private RawRoutineGraph getRawGraph(Long id) {
-		RawRoutineGraph graph = rawGraphs.get(id);
+	private RawRoutineGraph getRawGraph(Integer hash) {
+		RawRoutineGraph graph = rawGraphs.get(hash);
 		if (graph == null) {
-			graph = new RawRoutineGraph(id);
-			rawGraphs.put(id, graph);
+			graph = new RawRoutineGraph(hash);
+			rawGraphs.put(hash, graph);
 		}
 		return graph;
 	}
@@ -171,7 +171,7 @@ class ScriptRunLoader {
 	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph, ScriptMerge.Side side) throws IOException {
 		preloadedRoutines.clear();
 		for (ScriptRoutineGraph preloadedRoutine : graph.getRoutines())
-			preloadedRoutines.add(preloadedRoutine.id);
+			preloadedRoutines.add(preloadedRoutine.hash);
 		rawGraphs.clear();
 		this.side = side;
 
@@ -182,23 +182,20 @@ class ScriptRunLoader {
 	}
 
 	private void loadOpcodeEdges(ScriptRunFileSet run) throws IOException {
-		int unitHash, routineHash, fromIndex, toIndex, userLevel;
-		long routineId;
+		int routineHash, fromIndex, toIndex, userLevel;
 		RawRoutineGraph graph;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.opcodeEdgeFile);
 
 		while (input.ready(0x10)) {
-			unitHash = input.readInt();
 			routineHash = input.readInt();
-			routineId = ScriptRoutineGraph.constructId(unitHash, routineHash);
 
 			fromIndex = input.readInt();
 			userLevel = (fromIndex >>> 26);
 			fromIndex = (fromIndex & 0x3ffffff);
 			toIndex = input.readInt();
 
-			graph = getRawGraph(routineId);
-			graph.addRawEdge(new RawOpcodeEdge(routineId, fromIndex, toIndex, userLevel));
+			graph = getRawGraph(routineHash);
+			graph.addRawEdge(new RawOpcodeEdge(routineHash, fromIndex, toIndex, userLevel));
 		}
 
 		if (input.ready()) {
@@ -229,15 +226,15 @@ class ScriptRunLoader {
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
 				for (RawOpcodeEdge edge : edges) {
-					routine = graph.getRoutine(edge.routineId);
+					routine = graph.getRoutine(edge.routineHash);
 					fromNode = routine.getNode(edge.fromIndex);
 
 					if (!(fromNode instanceof ScriptBranchNode)) {
 						if (!isFallThrough(fromNode, edge)) {
 							Log.warn(
 									"Exception caught within throwing routine: %d -> %d from opcode 0x%x in routine 0x%x!",
-									edge.fromIndex, edge.toIndex, fromNode.opcode, edge.routineId);
-							graph.edges.addExceptionEdge(edge.routineId, fromNode, edge.routineId, edge.toIndex,
+									edge.fromIndex, edge.toIndex, fromNode.opcode, edge.routineHash);
+							graph.edges.addExceptionEdge(edge.routineHash, fromNode, edge.routineHash, edge.toIndex,
 									edge.userLevel);
 						}
 						continue;
@@ -255,35 +252,31 @@ class ScriptRunLoader {
 
 			for (Set<RawRoutineEdge> edges : rawGraph.routineEdges.values()) {
 				for (RawRoutineEdge edge : edges) {
-					fromRoutine = graph.getRoutine(edge.fromRoutineId);
+					fromRoutine = graph.getRoutine(edge.fromRoutineHash);
 					if (fromRoutine == null) {
 						throw new IllegalArgumentException(String.format(
-								"Found a routine edge from an unknown routine 0x%x", edge.fromRoutineId));
+								"Found a routine edge from an unknown routine 0x%x", edge.fromRoutineHash));
 					}
 
 					if (edge.fromIndex >= fromRoutine.getNodeCount()) {
 						Log.error(
 								"Found an edge from index %d in 0x%x|0x%x, which only has %d nodes! Skipping it for now.",
-								edge.fromIndex, ScriptRoutineGraph.extractUnitHash(edge.fromRoutineId),
-								ScriptRoutineGraph.extractRoutineHash(edge.fromRoutineId), fromRoutine.getNodeCount());
+								edge.fromIndex, edge.fromRoutineHash, edge.fromRoutineHash, fromRoutine.getNodeCount());
 						continue;
 					}
 					fromNode = fromRoutine.getNode(edge.fromIndex);
 					toRoutine = graph.getRoutine(edge.toRoutineId);
 
-					if (ScriptMergeWatchList.getInstance().watch(edge.fromRoutineId, edge.fromIndex)) {
+					if (ScriptMergeWatchList.getInstance().watch(edge.fromRoutineHash, edge.fromIndex)) {
 						Log.log("Loader added routine edge to the %s graph from op 0x%x: 0x%x|0x%x %d -> 0x%x|0x%x",
-								side, fromRoutine.getNode(edge.fromIndex).opcode,
-								ScriptRoutineGraph.extractUnitHash(edge.fromRoutineId),
-								ScriptRoutineGraph.extractRoutineHash(edge.fromRoutineId), edge.fromIndex,
-								ScriptRoutineGraph.extractUnitHash(edge.toRoutineId),
-								ScriptRoutineGraph.extractRoutineHash(edge.toRoutineId));
+								side, fromRoutine.getNode(edge.fromIndex).opcode, edge.fromRoutineHash,
+								edge.fromRoutineHash, edge.fromIndex, edge.toRoutineId, edge.toRoutineId);
 					}
 
 					if (edge.toIndex == 0)
-						graph.edges.addCallEdge(fromRoutine.id, fromNode, toRoutine.id, edge.userLevel);
+						graph.edges.addCallEdge(fromRoutine.hash, fromNode, toRoutine.hash, edge.userLevel);
 					else
-						graph.edges.addExceptionEdge(fromRoutine.id, fromNode, toRoutine.id, edge.toIndex,
+						graph.edges.addExceptionEdge(fromRoutine.hash, fromNode, toRoutine.hash, edge.toIndex,
 								edge.userLevel);
 				}
 			}
@@ -291,30 +284,23 @@ class ScriptRunLoader {
 	}
 
 	private void loadRoutineEdges(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
-		int fromUnitHash, fromRoutineHash, fromIndex, toUnitHash, toRoutineHash, toIndex, userLevel;
-		long fromRoutineId, toRoutineId;
+		int fromRoutineHash, fromIndex, toRoutineHash, toIndex, userLevel;
 		RawRoutineGraph routine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.routineEdgeFile);
 
 		while (input.ready(24)) {
-			fromUnitHash = input.readInt();
 			fromRoutineHash = input.readInt();
 			fromIndex = input.readInt();
 			userLevel = (fromIndex >>> 26);
 			fromIndex = (fromIndex & 0x3ffffff);
-			toUnitHash = input.readInt();
 			toRoutineHash = input.readInt();
 			toIndex = input.readInt();
 
-			fromRoutineId = ScriptRoutineGraph.constructId(fromUnitHash, fromRoutineHash);
-			toRoutineId = ScriptRoutineGraph.constructId(toUnitHash, toRoutineHash);
+			routine = getRawGraph(fromRoutineHash);
+			routine.addRawEdge(new RawRoutineEdge(fromRoutineHash, fromIndex, toRoutineHash, toIndex, userLevel));
 
-			routine = getRawGraph(fromRoutineId);
-			routine.addRawEdge(new RawRoutineEdge(fromRoutineId, fromIndex, toRoutineId, toIndex, userLevel));
-
-			if (ScriptMergeWatchList.getInstance().watch(fromRoutineId, fromIndex)) {
-				Log.log("Loaded routine edge 0x%x|0x%x %d -> 0x%x|0x%x", fromUnitHash, fromRoutineHash, fromIndex,
-						toUnitHash, toRoutineHash);
+			if (ScriptMergeWatchList.getInstance().watch(fromRoutineHash, fromIndex)) {
+				Log.log("Loaded routine edge 0x%x %d -> 0x%x", fromRoutineHash, fromIndex, toRoutineHash);
 			}
 		}
 
@@ -325,31 +311,28 @@ class ScriptRunLoader {
 	}
 
 	private void loadNodes(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
-		int unitHash, routineHash, opcodeField, opcode, extendedValue, nodeIndex = 0;
+		int routineHash, opcodeField, opcode, extendedValue, nodeIndex = 0;
 		ScriptNode.Type type;
-		long routineId;
 		ScriptNode node, lastNode = null;
 		ScriptRoutineGraph routine = null;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.nodeFile);
 
 		while (input.ready(0x10)) {
-			unitHash = input.readInt();
 			routineHash = input.readInt();
-			routineId = ScriptRoutineGraph.constructId(unitHash, routineHash);
 
-			if (routine == null || routine.id != routineId) {
+			if (routine == null || routine.hash != routineHash) {
 				lastNode = null;
 				routine = null;
-				routine = graph.getRoutine(routineId);
+				routine = graph.getRoutine(routineHash);
 			}
 
 			if (routine == null) {
-				Log.message("Create routine %x|%x", unitHash, routineHash);
-				routine = new ScriptRoutineGraph(unitHash, routineHash, graph.isFragmentary);
+				Log.message("Create routine %x", routineHash);
+				routine = new ScriptRoutineGraph(routineHash, graph.isFragmentary);
 				graph.addRoutine(routine);
-			} else if (preloadedRoutines.contains(routine.id)) { // were nodes copied from the right?
+			} else if (preloadedRoutines.contains(routine.hash)) { // were nodes copied from the right?
 				routine.clearNodes(); // have a copy on the left, so remove copied nodes
-				preloadedRoutines.remove(routine.id);
+				preloadedRoutines.remove(routine.hash);
 			}
 
 			opcodeField = input.readInt();
@@ -364,8 +347,8 @@ class ScriptRunLoader {
 				lastNode.setNext(node);
 			lastNode = node;
 
-			Log.message("%s: @%d Opcode 0x%x (%x|%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, unitHash,
-					routineHash, node.type);
+			Log.message("%s: @%d Opcode 0x%x (%x|%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
+					node.type);
 
 			routine.addNode(node);
 		}

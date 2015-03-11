@@ -20,23 +20,23 @@ public class ScriptGraphCloner {
 			flowCopy.addRoutine(routineCopy);
 		}
 
-		Log.message("Copying %d dynamic routines", original.getMaxDynamicRoutineId());
+		Log.message("Copying %d dynamic routines", original.getMaxDynamicRoutineIndex());
 		for (List<RoutineEdge> edges : original.edges.getOutgoingEdges()) {
 			for (RoutineEdge edge : edges) {
-				fromNode = flowCopy.getRoutine(edge.getFromRoutineId()).getNode(edge.getFromRoutineIndex());
+				fromNode = flowCopy.getRoutine(edge.getFromRoutineHash()).getNode(edge.getFromRoutineIndex());
 				switch (edge.getEntryType()) {
 					case CALL:
-						flowCopy.edges.addCallEdge(edge.getFromRoutineId(), fromNode, edge.getToRoutineId(),
+						flowCopy.edges.addCallEdge(edge.getFromRoutineHash(), fromNode, edge.getToRoutineHash(),
 								edge.getUserLevel());
 						break;
 					case THROW:
-						flowCopy.edges.addExceptionEdge(edge.getFromRoutineId(), fromNode, edge.getToRoutineId(),
+						flowCopy.edges.addExceptionEdge(edge.getFromRoutineHash(), fromNode, edge.getToRoutineHash(),
 								((RoutineExceptionEdge) edge).getToRoutineIndex(), edge.getUserLevel());
 						break;
 				}
 			}
 		}
-		Log.message("Copy now has %d dynamic routines", flowCopy.getMaxDynamicRoutineId());
+		Log.message("Copy now has %d dynamic routines", flowCopy.getMaxDynamicRoutineIndex());
 
 		return flowCopy;
 	}

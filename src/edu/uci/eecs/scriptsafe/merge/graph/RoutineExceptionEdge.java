@@ -4,8 +4,8 @@ public class RoutineExceptionEdge extends RoutineEdge {
 
 	private int toRoutineIndex;
 
-	public RoutineExceptionEdge(long fromRoutineId, int fromIndex, long toRoutineId, int toRoutineIndex, int userLevel) {
-		super(fromRoutineId, fromIndex, toRoutineId, userLevel);
+	public RoutineExceptionEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int toRoutineIndex, int userLevel) {
+		super(fromRoutineHash, fromIndex, toRoutineHash, userLevel);
 
 		this.toRoutineIndex = toRoutineIndex;
 	}
@@ -30,7 +30,6 @@ public class RoutineExceptionEdge extends RoutineEdge {
 	}
 
 	public String printToNode() {
-		return String.format("0x%x|0x%x %d", ScriptRoutineGraph.extractUnitHash(toRoutineId),
-				ScriptRoutineGraph.extractRoutineHash(toRoutineId), toRoutineIndex);
+		return String.format("0x%x|0x%x %d", toRoutineHash, toRoutineHash, toRoutineIndex);
 	}
 }

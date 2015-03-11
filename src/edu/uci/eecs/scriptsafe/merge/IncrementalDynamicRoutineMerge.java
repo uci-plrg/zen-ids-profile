@@ -11,11 +11,11 @@ public class IncrementalDynamicRoutineMerge extends DynamicRoutineMerge {
 	}
 
 	@Override
-	protected void remapRoutine(ScriptRoutineGraph routine, long toId, Side fromSide) {
+	protected void remapRoutine(ScriptRoutineGraph routine, int toHash, Side fromSide) {
 		if (fromSide == Side.RIGHT)
 			throw new MergeException("Attempt to append a dynamic routine from the right!");
 
-		leftRemapping[ScriptRoutineGraph.getDynamicRoutineId(routine.id)] = ScriptRoutineGraph
-				.getDynamicRoutineId(toId);
+		leftRemapping[ScriptRoutineGraph.getDynamicRoutineIndex(routine.hash)] = ScriptRoutineGraph
+				.getDynamicRoutineIndex(toHash);
 	}
 }

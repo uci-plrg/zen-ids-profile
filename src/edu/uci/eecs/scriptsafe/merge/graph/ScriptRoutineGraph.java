@@ -15,13 +15,13 @@ public class ScriptRoutineGraph {
 
 	public static int getDynamicRoutineIndex(int routineHash) {
 		if (routineHash < 0)
-			return -routineHash;
+			return (routineHash & 0x7fffffff);
 
 		throw new MergeException("Attempt to extract a dynamic routine index from a routine hash that is not dynamic");
 	}
 
 	public static int constructDynamicHash(int index) {
-		return -index;
+		return (index | 0x80000000);
 	}
 
 	public final int hash;
@@ -39,8 +39,9 @@ public class ScriptRoutineGraph {
 		return new ScriptRoutineGraph(hash, isFragmentary);
 	}
 
-	public ScriptRoutineGraph rename(int hash, boolean isFragmentary) {
-		ScriptRoutineGraph renamed = new ScriptRoutineGraph(hash, isFragmentary);
+	public ScriptRoutineGraph renameDynamicRoutine(int routineIndex, boolean isFragmentary) {
+		ScriptRoutineGraph renamed = new ScriptRoutineGraph(ScriptRoutineGraph.constructDynamicHash(routineIndex),
+				isFragmentary);
 		renamed.nodes.addAll(nodes);
 		return renamed;
 	}

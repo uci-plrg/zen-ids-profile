@@ -108,8 +108,9 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 					}
 				} catch (Throwable t) {
 					Log.error("Failed to add routine edge from the %S side: 0x%x[0x%x]:%d -> 0x%x:%d (%s: %s)",
-							fromSide, edge.getFromRoutineHash(), resolveRoutineIndex(edge.getFromRoutineHash(), fromSide),
-							edge.getFromRoutineIndex(), edge.getToRoutineHash(), edge.getEntryType() == Type.CALL ? 0
+							fromSide, edge.getFromRoutineHash(),
+							resolveRoutineIndex(edge.getFromRoutineHash(), fromSide), edge.getFromRoutineIndex(), edge
+									.getToRoutineHash(), edge.getEntryType() == Type.CALL ? 0
 									: ((RoutineExceptionEdge) edge).getToRoutineIndex(), t.getClass().getSimpleName(),
 							t.getMessage());
 				}
@@ -120,11 +121,11 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 	private int resolveRoutineIndex(int routineIndex, Side fromSide) {
 		if (ScriptRoutineGraph.isDynamicRoutine(routineIndex)) {
 			if (fromSide == Side.LEFT)
-				return dynamicRoutineMerge.getNewLeftDynamicRoutineIndex(ScriptRoutineGraph
-						.getDynamicRoutineIndex(routineIndex));
+				return ScriptRoutineGraph.constructDynamicHash(dynamicRoutineMerge
+						.getNewLeftDynamicRoutineIndex(ScriptRoutineGraph.getDynamicRoutineIndex(routineIndex)));
 			else
-				return dynamicRoutineMerge.getNewRightDynamicRoutineIndex(ScriptRoutineGraph
-						.getDynamicRoutineIndex(routineIndex));
+				return ScriptRoutineGraph.constructDynamicHash(dynamicRoutineMerge
+						.getNewRightDynamicRoutineIndex(ScriptRoutineGraph.getDynamicRoutineIndex(routineIndex)));
 		} else {
 			return routineIndex;
 		}

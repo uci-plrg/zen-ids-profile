@@ -67,16 +67,19 @@ class ScriptRunLoader {
 	private static class RawRoutineEdge {
 		final int fromRoutineHash;
 		final int fromIndex;
-		final int toRoutineId;
+		final int toRoutineHash;
 		final int toIndex;
 		final int userLevel;
 
-		public RawRoutineEdge(int fromRoutineHash, int fromIndex, int toRoutineId, int toIndex, int userLevel) {
+		public RawRoutineEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int toIndex, int userLevel) {
 			this.fromRoutineHash = fromRoutineHash;
 			this.fromIndex = fromIndex;
-			this.toRoutineId = toRoutineId;
+			this.toRoutineHash = toRoutineHash;
 			this.toIndex = toIndex;
 			this.userLevel = userLevel;
+			
+			if (toRoutineHash >= 0 && toRoutineHash < 0x100)
+				Log.log("hm...");
 		}
 
 		@Override
@@ -86,7 +89,7 @@ class ScriptRunLoader {
 			result = prime * result + fromIndex;
 			result = prime * result + fromRoutineHash;
 			result = prime * result + toIndex;
-			result = prime * result + toRoutineId;
+			result = prime * result + toRoutineHash;
 			result = prime * result + userLevel;
 			return result;
 		}
@@ -106,7 +109,7 @@ class ScriptRunLoader {
 				return false;
 			if (toIndex != other.toIndex)
 				return false;
-			if (toRoutineId != other.toRoutineId)
+			if (toRoutineHash != other.toRoutineHash)
 				return false;
 			if (userLevel != other.userLevel)
 				return false;
@@ -186,7 +189,7 @@ class ScriptRunLoader {
 		RawRoutineGraph graph;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.opcodeEdgeFile);
 
-		while (input.ready(0x10)) {
+		while (input.ready(0xc)) {
 			routineHash = input.readInt();
 
 			fromIndex = input.readInt();
@@ -265,12 +268,16 @@ class ScriptRunLoader {
 						continue;
 					}
 					fromNode = fromRoutine.getNode(edge.fromIndex);
-					toRoutine = graph.getRoutine(edge.toRoutineId);
+					toRoutine = graph.getRoutine(edge.toRoutineHash);
+					if (toRoutine == null) {
+						throw new IllegalArgumentException(String.format(
+								"Found a routine edge to an unknown routine 0x%x", edge.toRoutineHash));
+					}
 
 					if (ScriptMergeWatchList.getInstance().watch(edge.fromRoutineHash, edge.fromIndex)) {
 						Log.log("Loader added routine edge to the %s graph from op 0x%x: 0x%x|0x%x %d -> 0x%x|0x%x",
 								side, fromRoutine.getNode(edge.fromIndex).opcode, edge.fromRoutineHash,
-								edge.fromRoutineHash, edge.fromIndex, edge.toRoutineId, edge.toRoutineId);
+								edge.fromRoutineHash, edge.fromIndex, edge.toRoutineHash, edge.toRoutineHash);
 					}
 
 					if (edge.toIndex == 0)
@@ -288,7 +295,7 @@ class ScriptRunLoader {
 		RawRoutineGraph routine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.routineEdgeFile);
 
-		while (input.ready(24)) {
+		while (input.ready(0x10)) {
 			fromRoutineHash = input.readInt();
 			fromIndex = input.readInt();
 			userLevel = (fromIndex >>> 26);
@@ -317,7 +324,7 @@ class ScriptRunLoader {
 		ScriptRoutineGraph routine = null;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.nodeFile);
 
-		while (input.ready(0x10)) {
+		while (input.ready(0xc)) {
 			routineHash = input.readInt();
 
 			if (routine == null || routine.hash != routineHash) {

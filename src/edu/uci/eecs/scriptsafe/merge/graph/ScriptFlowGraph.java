@@ -23,15 +23,14 @@ public class ScriptFlowGraph {
 			throw new MergeException("Attemp to add a routine 0x%x that already exists in the graph!", routine.hash);
 
 		if (ScriptRoutineGraph.isDynamicRoutine(routine.hash))
-			maxDynamicRoutineIndex = Math
-					.max(maxDynamicRoutineIndex, ScriptRoutineGraph.getDynamicRoutineIndex(routine.hash));
+			maxDynamicRoutineIndex = Math.max(maxDynamicRoutineIndex,
+					ScriptRoutineGraph.getDynamicRoutineIndex(routine.hash));
 
 		routines.put(routine.hash, routine);
 	}
 
 	public void appendDynamicRoutine(ScriptRoutineGraph dynamicRoutine) {
-		ScriptRoutineGraph append = dynamicRoutine.rename(
-				ScriptRoutineGraph.constructDynamicHash(maxDynamicRoutineIndex++), false);
+		ScriptRoutineGraph append = dynamicRoutine.renameDynamicRoutine(maxDynamicRoutineIndex++, false);
 		routines.put(append.hash, append);
 	}
 

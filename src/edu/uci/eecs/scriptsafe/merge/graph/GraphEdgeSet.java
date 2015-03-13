@@ -38,18 +38,19 @@ public class GraphEdgeSet {
 			return edges.size();
 	}
 
-	public boolean addCallEdge(int fromRoutineId, ScriptNode fromNode, int toRoutineId, int userLevel) {
+	public boolean addCallEdge(int fromRoutineHash, ScriptNode fromNode, int toRoutineHash, int userLevel) {
 		List<RoutineEdge> edges = outgoingEdges.get(fromNode);
 		if (edges == null) {
 			edges = new ArrayList<RoutineEdge>();
 			outgoingEdges.put(fromNode, edges);
 		} else {
 			for (RoutineEdge edge : edges) {
-				if (edge.getEntryType() == RoutineEdge.Type.CALL && edge.getToRoutineHash() == toRoutineId) {
+				if (edge.getEntryType() == RoutineEdge.Type.CALL && edge.getToRoutineHash() == toRoutineHash) {
 					if (edge.getUserLevel() == userLevel) {
 						Log.message("Skipping duplicate call edge from %s to routine 0x%x at user level %d", fromNode,
-								toRoutineId, userLevel);
-						if (ScriptMergeWatchList.getInstance().watch(fromRoutineId, fromNode.index)) {
+								toRoutineHash, userLevel);
+						if (ScriptMergeWatchList.watchAny(fromRoutineHash, fromNode.index)
+								|| ScriptMergeWatchList.watch(toRoutineHash)) {
 							Log.log("Skipping duplicate call edge %s -> %s", edge.printFromNode(), edge.printToNode());
 						}
 					} else if (edge.getUserLevel() > userLevel) {
@@ -61,15 +62,16 @@ public class GraphEdgeSet {
 		}
 
 		edgeCount++;
-		RoutineEdge newEdge = new RoutineEdge(fromRoutineId, fromNode.index, toRoutineId, userLevel);
+		RoutineEdge newEdge = new RoutineEdge(fromRoutineHash, fromNode.index, toRoutineHash, userLevel);
 		edges.add(newEdge);
-		if (ScriptMergeWatchList.getInstance().watch(fromRoutineId, fromNode.index)) {
-			Log.log("Add call edge to set: %s -> %s", newEdge.printFromNode(), newEdge.printToNode());
+		if (ScriptMergeWatchList.watchAny(fromRoutineHash, fromNode.index) || ScriptMergeWatchList.watch(toRoutineHash)) {
+			Log.log("Add call edge to set: %s (op 0x%x) -> %s", newEdge.printFromNode(), fromNode.opcode,
+					newEdge.printToNode());
 		}
 		return true;
 	}
 
-	public boolean addExceptionEdge(int fromRoutineId, ScriptNode fromNode, int toRoutineId, int toRoutineIndex,
+	public boolean addExceptionEdge(int fromRoutineHash, ScriptNode fromNode, int toRoutineHash, int toRoutineIndex,
 			int userLevel) {
 		List<RoutineEdge> edges = outgoingEdges.get(fromNode);
 		if (edges == null) {
@@ -77,11 +79,11 @@ public class GraphEdgeSet {
 			outgoingEdges.put(fromNode, edges);
 		} else {
 			for (RoutineEdge edge : edges) {
-				if (edge.getEntryType() == RoutineEdge.Type.THROW && edge.getToRoutineHash() == toRoutineId
+				if (edge.getEntryType() == RoutineEdge.Type.THROW && edge.getToRoutineHash() == toRoutineHash
 						&& ((RoutineExceptionEdge) edge).getToRoutineIndex() == toRoutineIndex) {
 					if (edge.getUserLevel() == userLevel) {
 						Log.message("Merging duplicate throw edge from %s to %d in routine 0x%x at user level %d",
-								fromNode, toRoutineIndex, toRoutineId, userLevel);
+								fromNode, toRoutineIndex, toRoutineHash, userLevel);
 					} else if (edge.getUserLevel() > userLevel) {
 						edge.setUserLevel(userLevel);
 					}
@@ -91,10 +93,10 @@ public class GraphEdgeSet {
 		}
 
 		edgeCount++;
-		RoutineExceptionEdge newEdge = new RoutineExceptionEdge(fromRoutineId, fromNode.index, toRoutineId,
+		RoutineExceptionEdge newEdge = new RoutineExceptionEdge(fromRoutineHash, fromNode.index, toRoutineHash,
 				toRoutineIndex, userLevel);
 		edges.add(newEdge);
-		if (ScriptMergeWatchList.getInstance().watch(fromRoutineId, fromNode.index)) {
+		if (ScriptMergeWatchList.watchAny(fromRoutineHash, fromNode.index) || ScriptMergeWatchList.watch(toRoutineHash)) {
 			Log.log("Add exception edge to set: %s -> %s", newEdge.printFromNode(), newEdge.printToNode());
 		}
 		return true;

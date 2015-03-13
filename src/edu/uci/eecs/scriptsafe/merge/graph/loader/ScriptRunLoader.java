@@ -277,7 +277,8 @@ class ScriptRunLoader {
 						// "Found a routine edge to an unknown routine 0x%x", edge.toRoutineHash));
 					}
 
-					if (ScriptMergeWatchList.getInstance().watch(edge.fromRoutineHash, edge.fromIndex)) {
+					if (ScriptMergeWatchList.watchAny(edge.fromRoutineHash, edge.fromIndex)
+							|| ScriptMergeWatchList.watch(edge.toRoutineHash)) {
 						Log.log("Loader added routine edge to the %s graph from op 0x%x: 0x%x|0x%x %d -> 0x%x|0x%x",
 								side, fromRoutine.getNode(edge.fromIndex).opcode, edge.fromRoutineHash,
 								edge.fromRoutineHash, edge.fromIndex, edge.toRoutineHash, edge.toRoutineHash);
@@ -309,7 +310,7 @@ class ScriptRunLoader {
 			routine = getRawGraph(fromRoutineHash);
 			routine.addRawEdge(new RawRoutineEdge(fromRoutineHash, fromIndex, toRoutineHash, toIndex, userLevel));
 
-			if (ScriptMergeWatchList.getInstance().watch(fromRoutineHash, fromIndex)) {
+			if (ScriptMergeWatchList.watchAny(fromRoutineHash, fromIndex) || ScriptMergeWatchList.watch(toRoutineHash)) {
 				Log.log("Loaded routine edge 0x%x %d -> 0x%x", fromRoutineHash, fromIndex, toRoutineHash);
 			}
 		}
@@ -357,8 +358,12 @@ class ScriptRunLoader {
 				lastNode.setNext(node);
 			lastNode = node;
 
-			Log.message("%s: @%d Opcode 0x%x (%x|%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
+			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
 					node.type);
+			if (ScriptMergeWatchList.watch(routineHash)) {
+				Log.log("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
+						node.type);
+			}
 
 			routine.addNode(node);
 		}

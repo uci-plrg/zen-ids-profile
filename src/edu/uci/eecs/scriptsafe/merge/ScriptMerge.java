@@ -86,8 +86,9 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 								resolveRoutineIndex(throwEdge.getToRoutineHash(), fromSide),
 								throwEdge.getToRoutineIndex(), throwEdge.getUserLevel());
 
-						if (ScriptMergeWatchList.getInstance().watch(throwEdge.getFromRoutineHash(),
+						if (ScriptMergeWatchList.watchAny(throwEdge.getFromRoutineHash(),
 								throwEdge.getFromRoutineIndex())
+								|| ScriptMergeWatchList.watch(throwEdge.getToRoutineHash())
 								|| (added && fromSide == Side.LEFT && ScriptMergeWatchList.getInstance().isActive(
 										ScriptMergeWatchList.Category.EXCEPTION_EDGE))) {
 							Log.log("Merged exception edge from the %s: %s -> %s", fromSide, throwEdge.printFromNode(),
@@ -98,8 +99,8 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 								getNode(edge.getFromRoutineHash(), fromSide, edge.getFromRoutineIndex()),
 								resolveRoutineIndex(edge.getToRoutineHash(), fromSide), edge.getUserLevel());
 
-						if (ScriptMergeWatchList.getInstance().watch(edge.getFromRoutineHash(),
-								edge.getFromRoutineIndex())
+						if (ScriptMergeWatchList.watchAny(edge.getFromRoutineHash(), edge.getFromRoutineIndex())
+								|| ScriptMergeWatchList.watch(edge.getToRoutineHash())
 								|| (added && fromSide == Side.LEFT && ScriptMergeWatchList.getInstance().isActive(
 										ScriptMergeWatchList.Category.ROUTINE_EDGE))) {
 							Log.log("Merged call edge from the %s: %s -> %s", fromSide, edge.printFromNode(),

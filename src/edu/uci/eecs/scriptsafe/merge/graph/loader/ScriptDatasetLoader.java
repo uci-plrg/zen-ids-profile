@@ -73,6 +73,8 @@ public class ScriptDatasetLoader {
 				routine.addNode(call);
 			}
 			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, type);
+			if (ScriptMergeWatchList.watch(routineHash))
+				Log.log("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, type);
 		}
 
 		for (PendingEdges<ScriptBranchNode, Integer> pendingBranch : pendingBranches) {
@@ -101,7 +103,8 @@ public class ScriptDatasetLoader {
 						userLevel = (targetNodeIndex >>> 26);
 						targetNodeIndex = (targetNodeIndex & 0x3ffffff);
 
-						if (ScriptMergeWatchList.getInstance().watch(routine.hash, call.index)) {
+						if (ScriptMergeWatchList.watchAny(routine.hash, call.index)
+								|| ScriptMergeWatchList.watch(routineHash)) {
 							Log.log("Loader added routine edge to the dataset graph: 0x%x %d -> 0x%x", routine.hash,
 									call.index, routineHash);
 						}

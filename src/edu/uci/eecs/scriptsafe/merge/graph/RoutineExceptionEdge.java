@@ -30,6 +30,6 @@ public class RoutineExceptionEdge extends RoutineEdge {
 	}
 
 	public String printToNode() {
-		return String.format("0x%x|0x%x %d", toRoutineHash, toRoutineHash, toRoutineIndex);
+		return String.format("0x%x %d", toRoutineHash, toRoutineIndex);
 	}
 }

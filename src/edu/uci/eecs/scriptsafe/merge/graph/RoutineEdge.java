@@ -52,10 +52,10 @@ public class RoutineEdge {
 	}
 
 	public String printFromNode() {
-		return String.format("0x%x|0x%x %d", fromRoutineHash, fromRoutineHash, fromIndex);
+		return String.format("0x%x %d", fromRoutineHash, fromIndex);
 	}
 
 	public String printToNode() {
-		return String.format("0x%x|0x%x", toRoutineHash, toRoutineHash);
+		return String.format("0x%x", toRoutineHash);
 	}
 }

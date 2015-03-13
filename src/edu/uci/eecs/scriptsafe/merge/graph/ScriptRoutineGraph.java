@@ -27,7 +27,6 @@ public class ScriptRoutineGraph {
 	public final int hash;
 	public final boolean isFragmentary;
 
-	private boolean redundant = false;
 	private final List<ScriptNode> nodes = new ArrayList<ScriptNode>();
 
 	public ScriptRoutineGraph(int hash, boolean isFragmentary) {

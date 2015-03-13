@@ -77,7 +77,7 @@ class ScriptRunLoader {
 			this.toRoutineHash = toRoutineHash;
 			this.toIndex = toIndex;
 			this.userLevel = userLevel;
-			
+
 			if (toRoutineHash >= 0 && toRoutineHash < 0x100)
 				Log.log("hm...");
 		}
@@ -257,8 +257,8 @@ class ScriptRunLoader {
 				for (RawRoutineEdge edge : edges) {
 					fromRoutine = graph.getRoutine(edge.fromRoutineHash);
 					if (fromRoutine == null) {
-						throw new IllegalArgumentException(String.format(
-								"Found a routine edge from an unknown routine 0x%x", edge.fromRoutineHash));
+						throw new MergeException("Found an edge from unknown routine 0x%x @%d to 0x%x",
+								edge.fromRoutineHash, edge.fromIndex, edge.toRoutineHash);
 					}
 
 					if (edge.fromIndex >= fromRoutine.getNodeCount()) {
@@ -270,8 +270,11 @@ class ScriptRunLoader {
 					fromNode = fromRoutine.getNode(edge.fromIndex);
 					toRoutine = graph.getRoutine(edge.toRoutineHash);
 					if (toRoutine == null) {
-						throw new IllegalArgumentException(String.format(
-								"Found a routine edge to an unknown routine 0x%x", edge.toRoutineHash));
+						Log.log("Skipping edge from 0x%x @%d to unknown routine 0x%x", fromRoutine.hash,
+								edge.fromIndex, edge.toRoutineHash);
+						continue;
+						// throw new IllegalArgumentException(String.format(
+						// "Found a routine edge to an unknown routine 0x%x", edge.toRoutineHash));
 					}
 
 					if (ScriptMergeWatchList.getInstance().watch(edge.fromRoutineHash, edge.fromIndex)) {

@@ -91,7 +91,10 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 								|| ScriptMergeWatchList.watch(throwEdge.getToRoutineHash())
 								|| (added && fromSide == Side.LEFT && ScriptMergeWatchList.getInstance().isActive(
 										ScriptMergeWatchList.Category.EXCEPTION_EDGE))) {
-							Log.log("Merged exception edge from the %s: %s -> %s", fromSide, throwEdge.printFromNode(),
+							Log.log("Merged exception edge from the %s: %s (0x%x) -> %s",
+									fromSide,
+									throwEdge.printFromNode(),
+									getNode(throwEdge.getFromRoutineHash(), fromSide, throwEdge.getFromRoutineIndex()).opcode,
 									throwEdge.printToNode());
 						}
 					} else {
@@ -103,7 +106,8 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 								|| ScriptMergeWatchList.watch(edge.getToRoutineHash())
 								|| (added && fromSide == Side.LEFT && ScriptMergeWatchList.getInstance().isActive(
 										ScriptMergeWatchList.Category.ROUTINE_EDGE))) {
-							Log.log("Merged call edge from the %s: %s -> %s", fromSide, edge.printFromNode(),
+							Log.log("Merged call edge from the %s: %s (0x%x) -> %s", fromSide, edge.printFromNode(),
+									getNode(edge.getFromRoutineHash(), fromSide, edge.getFromRoutineIndex()).opcode,
 									edge.printToNode());
 						}
 					}

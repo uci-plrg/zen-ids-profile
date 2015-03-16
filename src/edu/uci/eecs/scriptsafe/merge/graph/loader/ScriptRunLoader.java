@@ -357,6 +357,10 @@ class ScriptRunLoader {
 			if (lastNode != null)
 				lastNode.setNext(node);
 			lastNode = node;
+			
+			if (ScriptNode.isCallInit(opcode)) {
+				
+			} 
 
 			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
 					node.type);

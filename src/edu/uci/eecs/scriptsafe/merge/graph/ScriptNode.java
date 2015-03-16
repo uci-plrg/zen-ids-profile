@@ -1,6 +1,7 @@
 package edu.uci.eecs.scriptsafe.merge.graph;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 import edu.uci.eecs.scriptsafe.merge.MergeException;
@@ -53,12 +54,18 @@ public class ScriptNode {
 		ZEND_JMPNZ_EX(0x2f),
 		ZEND_BRK(0x32, OpcodeTargetType.DYNAMIC),
 		ZEND_CONT(0x33, OpcodeTargetType.DYNAMIC),
+		ZEND_INIT_FCALL_BY_NAME(0x3b, OpcodeTargetType.NONE),
 		ZEND_DO_FCALL(0x3c, OpcodeTargetType.EXTERNAL),
+		ZEND_INIT_FCALL(0x3d, OpcodeTargetType.NONE),
 		ZEND_NEW(0x44, OpcodeTargetType.NONE),
+		ZEND_INIT_NS_FCALL_BY_NAME(0x45, OpcodeTargetType.NONE),
 		ZEND_INCLUDE_OR_EVAL(0x49, OpcodeTargetType.EXTERNAL),
 		ZEND_FE_RESET(0x4d),
 		ZEND_FE_FETCH(0x4e),
 		ZEND_CATCH(0x6b, OpcodeTargetType.NULLABLE), // may branch to next catch
+		ZEND_INIT_METHOD_CALL(0x70, OpcodeTargetType.NONE),
+		ZEND_INIT_STATIC_METHOD_CALL(0x71, OpcodeTargetType.NONE),
+		ZEND_INIT_USER_CALL(0x76, OpcodeTargetType.NONE),
 		ZEND_ISSET_ISEMPTY_PROP_OBJ(0x94, OpcodeTargetType.EXTERNAL), // may call an accessor
 		ZEND_JMP_SET(0x98),
 		ZEND_ASSIGN_DIM(0x93, OpcodeTargetType.NONE),
@@ -113,8 +120,20 @@ public class ScriptNode {
 		return Type.NORMAL;
 	}
 
+	public static boolean isCallInit(int opcode) {
+		for (Opcode op : CALL_INIT_OPCODES) {
+			if (op.code == opcode)
+				return true;
+		}
+		return false;
+	}
+
+	public static final EnumSet<Opcode> CALL_INIT_OPCODES = EnumSet.of(Opcode.ZEND_INIT_FCALL,
+			Opcode.ZEND_INIT_FCALL_BY_NAME, Opcode.ZEND_INIT_METHOD_CALL, Opcode.ZEND_INIT_NS_FCALL_BY_NAME,
+			Opcode.ZEND_INIT_STATIC_METHOD_CALL, Opcode.ZEND_INIT_USER_CALL);
+
 	public final Type type;
-	public final int opcode;
+	public final int opcode; // TODO: use Opcode
 	public final int index;
 
 	private ScriptNode next;

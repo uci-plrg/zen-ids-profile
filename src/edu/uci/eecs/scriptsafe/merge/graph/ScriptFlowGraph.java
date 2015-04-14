@@ -7,6 +7,8 @@ import edu.uci.eecs.scriptsafe.merge.MergeException;
 
 public class ScriptFlowGraph {
 
+	private static ScriptRoutineGraph ENTRY_ROUTINE = new ScriptRoutineGraph(1, false);
+
 	public final String description;
 	public final boolean isFragmentary;
 	private final Map<Integer, ScriptRoutineGraph> routines = new HashMap<Integer, ScriptRoutineGraph>();
@@ -16,6 +18,8 @@ public class ScriptFlowGraph {
 	public ScriptFlowGraph(String description, boolean isFragmentary) {
 		this.description = description;
 		this.isFragmentary = isFragmentary;
+
+		// routines.put(1, ENTRY_ROUTINE);
 	}
 
 	public void addRoutine(ScriptRoutineGraph routine) {

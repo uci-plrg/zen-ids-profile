@@ -75,9 +75,13 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 
 	private void addRoutineEdges(ScriptFlowGraph graph, Side fromSide) {
 		boolean added;
+		int routineHash, minUserLevel;
 		for (List<RoutineEdge> edges : graph.edges.getOutgoingEdges()) {
 			for (RoutineEdge edge : edges) {
 				try {
+					routineHash = resolveRoutineIndex(edge.getToRoutineHash(), fromSide);
+					minUserLevel = mergedEdges.getMinUserLevel(routineHash);
+
 					if (edge.getEntryType() == Type.THROW) {
 						RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) edge;
 						added = mergedEdges.addExceptionEdge(
@@ -99,8 +103,8 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 						}
 					} else {
 						added = mergedEdges.addCallEdge(resolveRoutineIndex(edge.getFromRoutineHash(), fromSide),
-								getNode(edge.getFromRoutineHash(), fromSide, edge.getFromRoutineIndex()),
-								resolveRoutineIndex(edge.getToRoutineHash(), fromSide), edge.getUserLevel());
+								getNode(edge.getFromRoutineHash(), fromSide, edge.getFromRoutineIndex()), routineHash,
+								edge.getUserLevel());
 
 						if (ScriptMergeWatchList.watchAny(edge.getFromRoutineHash(), edge.getFromRoutineIndex())
 								|| ScriptMergeWatchList.watch(edge.getToRoutineHash())
@@ -110,6 +114,13 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 									getNode(edge.getFromRoutineHash(), fromSide, edge.getFromRoutineIndex()).opcode,
 									edge.printToNode());
 						}
+					}
+					if (added
+							&& fromSide == Side.LEFT
+							&& minUserLevel > edge.getUserLevel()
+							&& ScriptMergeWatchList.getInstance().isActive(
+									ScriptMergeWatchList.Category.NODE_USER_LEVEL)) {
+						Log.log("Lowered user level of %s to %d", edge.printToNode(), edge.getUserLevel());
 					}
 				} catch (Throwable t) {
 					Log.error("Failed to add routine edge from the %S side: 0x%x[0x%x]:%d -> 0x%x:%d (%s: %s)",

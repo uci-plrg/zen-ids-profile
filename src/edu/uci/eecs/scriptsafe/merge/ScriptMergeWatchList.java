@@ -55,6 +55,7 @@ public class ScriptMergeWatchList {
 	}
 
 	public enum Category {
+		NODE_USER_LEVEL("ul"),
 		OPCODE_EDGE("oe"),
 		ROUTINE("r"),
 		ROUTINE_EDGE("re"),

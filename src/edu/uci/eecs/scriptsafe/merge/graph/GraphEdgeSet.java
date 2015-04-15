@@ -39,6 +39,11 @@ public class GraphEdgeSet {
 			return edges.size();
 	}
 
+	public int getIncomingEdgeCount(int routineHash) {
+		List<RoutineEdge> edges = incomingEdges.get(routineHash);
+		return (edges == null) ? 0 : edges.size();
+	}
+
 	public int getMinUserLevel(int routineHash) {
 		int min = Integer.MAX_VALUE;
 		List<RoutineEdge> nodeIncoming = incomingEdges.get(routineHash);

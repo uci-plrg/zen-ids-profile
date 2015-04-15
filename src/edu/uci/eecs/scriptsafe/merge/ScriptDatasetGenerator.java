@@ -200,7 +200,7 @@ public class ScriptDatasetGenerator {
 					calls.add(node);
 					out.writeInt(callTargetPtr);
 					if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {
-						Log.log("Reserved %d call targets for 0x%x|0x%x %d at 0x%x",
+						Log.log("Reserved %d call targets for 0x%x %d at 0x%x",
 								dataSource.getOutgoingEdgeCount(node), routine.hash, node.index, callTargetPtr);
 					}
 					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
@@ -209,7 +209,7 @@ public class ScriptDatasetGenerator {
 					calls.add(node);
 					out.writeInt(callTargetPtr);
 					if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {
-						Log.log("Reserved %d exception targets for 0x%x %d at 0x%x",
+						Log.log("Dataset generator reserved %d exception targets for 0x%x %d at 0x%x",
 								dataSource.getOutgoingEdgeCount(node), routine.hash, node.index, callTargetPtr);
 					}
 					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));

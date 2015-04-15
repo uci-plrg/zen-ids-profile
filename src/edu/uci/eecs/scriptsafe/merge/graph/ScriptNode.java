@@ -57,14 +57,21 @@ public class ScriptNode {
 		ZEND_INIT_FCALL_BY_NAME(0x3b, OpcodeTargetType.NONE),
 		ZEND_DO_FCALL(0x3c, OpcodeTargetType.EXTERNAL),
 		ZEND_INIT_FCALL(0x3d, OpcodeTargetType.NONE),
+		ZEND_SEND_VAL(0x41, OpcodeTargetType.NONE),
+		ZEND_SEND_VAR(0x42, OpcodeTargetType.NONE),
 		ZEND_NEW(0x44, OpcodeTargetType.NONE),
 		ZEND_INIT_NS_FCALL_BY_NAME(0x45, OpcodeTargetType.NONE),
 		ZEND_INCLUDE_OR_EVAL(0x49, OpcodeTargetType.EXTERNAL),
 		ZEND_FE_RESET(0x4d),
 		ZEND_FE_FETCH(0x4e),
+		ZEND_FETCH_DIM_R(0x51, OpcodeTargetType.NONE),
+		ZEND_FETCH_DIM_FUNC_ARG(0x5d, OpcodeTargetType.NONE),
+		ZEND_SEND_VAR_NO_REF(0x6a, OpcodeTargetType.NONE),
 		ZEND_CATCH(0x6b, OpcodeTargetType.NULLABLE), // may branch to next catch
 		ZEND_INIT_METHOD_CALL(0x70, OpcodeTargetType.NONE),
 		ZEND_INIT_STATIC_METHOD_CALL(0x71, OpcodeTargetType.NONE),
+		ZEND_SEND_VAL_EX(0x74, OpcodeTargetType.NONE),
+		ZEND_SEND_VAR_EX(0x75, OpcodeTargetType.NONE),
 		ZEND_INIT_USER_CALL(0x76, OpcodeTargetType.NONE),
 		ZEND_ISSET_ISEMPTY_PROP_OBJ(0x94, OpcodeTargetType.EXTERNAL), // may call an accessor
 		ZEND_JMP_SET(0x98),
@@ -128,6 +135,31 @@ public class ScriptNode {
 		return false;
 	}
 
+	public static boolean isOpcodeCompatible(int first, int second) {
+		if (first == second)
+			return true;
+
+		Opcode firstOp = Opcode.forCode(first);
+		Opcode secondOp = Opcode.forCode(second);
+		if (firstOp != null && secondOp != null) {
+			for (EnumSet<Opcode> compatibleSet : COMPATIBLE_OPCODE_SETS) {
+				if (compatibleSet.contains(firstOp) && compatibleSet.contains(secondOp))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	public static void init() {
+		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_INIT_FCALL, Opcode.ZEND_INIT_FCALL_BY_NAME));
+		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_SEND_VAL, Opcode.ZEND_SEND_VAL_EX));
+		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_SEND_VAR, Opcode.ZEND_SEND_VAR_EX,
+				Opcode.ZEND_SEND_VAR_NO_REF));
+		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_FETCH_DIM_R, Opcode.ZEND_FETCH_DIM_FUNC_ARG));
+	}
+
+	public static final List<EnumSet<Opcode>> COMPATIBLE_OPCODE_SETS = new ArrayList<EnumSet<Opcode>>();
+
 	public static final EnumSet<Opcode> CALL_INIT_OPCODES = EnumSet.of(Opcode.ZEND_INIT_FCALL,
 			Opcode.ZEND_INIT_FCALL_BY_NAME, Opcode.ZEND_INIT_METHOD_CALL, Opcode.ZEND_INIT_NS_FCALL_BY_NAME,
 			Opcode.ZEND_INIT_STATIC_METHOD_CALL, Opcode.ZEND_INIT_USER_CALL);
@@ -165,9 +197,9 @@ public class ScriptNode {
 		if (index != other.index) {
 			throw new MergeException("Matching nodes have differing index: %d vs. %d", index, other.index);
 		}
-		if (opcode != other.opcode) {
-			throw new MergeException("Matching nodes at index %d have differing opcodes: %d vs. %d", index, opcode,
-					other.opcode);
+		if (!isOpcodeCompatible(opcode, other.opcode)) {
+			throw new MergeException("Matching nodes at index %d have incompatible opcodes: 0x%x vs. 0x%x", index,
+					opcode, other.opcode);
 		}
 	}
 

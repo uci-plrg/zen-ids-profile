@@ -87,7 +87,8 @@ public class ScriptRoutineGraph {
 
 	public void mergeRoutine(ScriptRoutineGraph other) {
 		if (nodes.size() != other.nodes.size())
-			throw new MergeException("Node counts differ at the same routine hash 0x%x!", hash);
+			throw new MergeException("Node counts differ at the same routine hash 0x%x: %d vs. %d!", hash,
+					nodes.size(), other.nodes.size());
 
 		if (other.isFragmentary) {
 			for (int i = 0; i < nodes.size(); i++) {

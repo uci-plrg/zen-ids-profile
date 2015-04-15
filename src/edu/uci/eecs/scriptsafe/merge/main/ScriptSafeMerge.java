@@ -11,6 +11,7 @@ import edu.uci.eecs.scriptsafe.merge.ScriptMerge;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptGraphCloner;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphLoader;
@@ -45,6 +46,8 @@ public class ScriptSafeMerge {
 
 	private void run() {
 		try {
+			ScriptNode.init();
+
 			argMap.parseOptions();
 
 			Log.addOutput(System.out);
@@ -69,14 +72,15 @@ public class ScriptSafeMerge {
 			leftDataSource = ScriptGraphDataSource.Factory.construct(leftPath);
 			rightDataSource = ScriptGraphDataSource.Factory.construct(rightPath);
 
-			rightGraph = new ScriptFlowGraph(rightDataSource.getDescription(), false);
+			rightGraph = new ScriptFlowGraph(rightDataSource.getType(), rightDataSource.getDescription(), false);
 			loader.loadGraph(rightDataSource, rightGraph, ScriptMerge.Side.RIGHT);
 			if (rightDataSource.getType() == Type.DATASET) {
 				ScriptGraphCloner cloner = new ScriptGraphCloner();
-				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getDescription(), true));
+				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getType(),
+						leftDataSource.getDescription(), true));
 				loader.loadGraph(leftDataSource, leftGraph, ScriptMerge.Side.LEFT);
 			} else {
-				leftGraph = new ScriptFlowGraph(leftDataSource.getDescription(), false);
+				leftGraph = new ScriptFlowGraph(leftDataSource.getType(), leftDataSource.getDescription(), false);
 				loader.loadGraph(leftDataSource, leftGraph, ScriptMerge.Side.LEFT);
 			}
 

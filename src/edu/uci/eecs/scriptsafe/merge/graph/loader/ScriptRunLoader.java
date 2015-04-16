@@ -11,6 +11,7 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.ScriptMerge;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
@@ -152,13 +153,13 @@ class ScriptRunLoader {
 	ScriptRunLoader() {
 	}
 
-	private ScriptNode createNode(int opcode, ScriptNode.Type type, int index) {
+	private ScriptNode createNode(int routineHash, int opcode, ScriptNode.Type type, int index) {
 		if (type == Type.BRANCH) {
 			int userLevel = (index >>> 26);
 			index = (index & 0x3ffffff);
-			return new ScriptBranchNode(opcode, index, userLevel);
+			return new ScriptBranchNode(routineHash, opcode, index, userLevel);
 		} else {
-			return new ScriptNode(type, opcode, index);
+			return new ScriptNode(routineHash, type, opcode, index);
 		}
 	}
 
@@ -279,9 +280,10 @@ class ScriptRunLoader {
 
 					if (ScriptMergeWatchList.watchAny(edge.fromRoutineHash, edge.fromIndex)
 							|| ScriptMergeWatchList.watch(edge.toRoutineHash)) {
-						Log.log("Loader added routine edge to the %s graph from op 0x%x: 0x%x|0x%x %d -> 0x%x|0x%x",
+						Log.log("Loader added routine edge to the %s graph from op 0x%x: 0x%x|0x%x %d -%s-> 0x%x|0x%x",
 								side, fromRoutine.getNode(edge.fromIndex).opcode, edge.fromRoutineHash,
-								edge.fromRoutineHash, edge.fromIndex, edge.toRoutineHash, edge.toRoutineHash);
+								edge.fromRoutineHash, edge.fromIndex, RoutineEdge.printUserLevel(edge.userLevel),
+								edge.toRoutineHash, edge.toRoutineHash);
 					}
 
 					if (edge.toIndex == 0)
@@ -311,7 +313,8 @@ class ScriptRunLoader {
 			routine.addRawEdge(new RawRoutineEdge(fromRoutineHash, fromIndex, toRoutineHash, toIndex, userLevel));
 
 			if (ScriptMergeWatchList.watchAny(fromRoutineHash, fromIndex) || ScriptMergeWatchList.watch(toRoutineHash)) {
-				Log.log("Loaded routine edge 0x%x %d -> 0x%x", fromRoutineHash, fromIndex, toRoutineHash);
+				Log.log("Loaded routine edge 0x%x @%d -%s-> 0x%x", fromRoutineHash, fromIndex,
+						RoutineEdge.printUserLevel(userLevel), toRoutineHash);
 			}
 		}
 
@@ -353,14 +356,14 @@ class ScriptRunLoader {
 
 			// parse out extended value for include/eval nodes
 			nodeIndex = input.readInt();
-			node = createNode(opcode, type, nodeIndex);
+			node = createNode(routineHash, opcode, type, nodeIndex);
 			if (lastNode != null)
 				lastNode.setNext(node);
 			lastNode = node;
-			
+
 			if (ScriptNode.isCallInit(opcode)) {
-				
-			} 
+
+			}
 
 			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
 					node.type);

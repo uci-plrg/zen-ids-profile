@@ -7,6 +7,10 @@ public class RoutineEdge {
 		THROW;
 	}
 
+	public static String printUserLevel(int userLevel) {
+		return userLevel == Integer.MAX_VALUE ? "X" : String.valueOf(userLevel);
+	}
+
 	protected int fromRoutineHash;
 	protected int fromIndex;
 	protected int toRoutineHash;
@@ -47,12 +51,16 @@ public class RoutineEdge {
 		return userLevel;
 	}
 
+	public String printUserLevel() {
+		return userLevel == Integer.MAX_VALUE ? "X" : String.valueOf(userLevel);
+	}
+
 	public void setUserLevel(int userLevel) {
 		this.userLevel = userLevel;
 	}
 
 	public String printFromNode() {
-		return String.format("0x%x %d", fromRoutineHash, fromIndex);
+		return String.format("0x%x @%d", fromRoutineHash, fromIndex);
 	}
 
 	public String printToNode() {

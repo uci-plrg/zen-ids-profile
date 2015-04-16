@@ -55,7 +55,8 @@ public class ScriptMergeWatchList {
 	}
 
 	public enum Category {
-		NODE_USER_LEVEL("ul"),
+		ROUTINE_USER_LEVEL("rul"),
+		FLOW_USER_LEVEL("ful"),
 		OPCODE_EDGE("oe"),
 		ROUTINE("r"),
 		ROUTINE_EDGE("re"),
@@ -124,7 +125,12 @@ public class ScriptMergeWatchList {
 	public void activateCategories(String codeList) {
 		StringTokenizer tokens = new StringTokenizer(codeList, ",");
 		while (tokens.hasMoreTokens()) {
-			activeCategories.add(Category.forCode(tokens.nextToken()));
+			String code = tokens.nextToken();
+			Category category = Category.forCode(code);
+			if (category == null)
+				Log.error("Unknown watch list category '%s'", code);
+			else
+				activeCategories.add(category);
 		}
 
 		Log.log("Watching categories %s", activeCategories);

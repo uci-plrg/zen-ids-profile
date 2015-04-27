@@ -185,7 +185,7 @@ public class ScriptDatasetGenerator {
 
 		for (int i = 0; i < routine.getNodeCount(); i++) {
 			ScriptNode node = routine.getNode(i);
-			int nodeId = (node.type.ordinal() << 8) | node.opcode;
+			int nodeId = (node.lineNumber << 0x10) | (node.type.ordinal() << 8) | node.opcode;
 			out.writeInt(nodeId);
 
 			switch (node.type) {

@@ -15,9 +15,9 @@ public abstract class DynamicRoutineMerge {
 		leftRemapping = new int[left.getMaxDynamicRoutineIndex() + 1];
 	}
 
-	abstract void remapRoutine(ScriptRoutineGraph routine, int toHash, ScriptMerge.Side fromSide);
+	abstract void remapRoutine(ScriptRoutineGraph routine, int toHash, DatasetMerge.Side fromSide);
 
-	public void addDynamicRoutine(ScriptRoutineGraph routine, ScriptMerge.Side fromSide) {
+	public void addDynamicRoutine(ScriptRoutineGraph routine, DatasetMerge.Side fromSide) {
 		for (ScriptRoutineGraph merged : mergedGraphs) {
 			if (routine.isSameRoutine(merged)) {
 				remapRoutine(routine, merged.hash, fromSide);
@@ -31,8 +31,8 @@ public abstract class DynamicRoutineMerge {
 		return mergedGraphs;
 	}
 
-	public ScriptRoutineGraph getMergedGraph(int dynamicRoutineIndex, ScriptMerge.Side fromSide) {
-		if (fromSide == ScriptMerge.Side.LEFT)
+	public ScriptRoutineGraph getMergedGraph(int dynamicRoutineIndex, DatasetMerge.Side fromSide) {
+		if (fromSide == DatasetMerge.Side.LEFT)
 			return mergedGraphs.get(getNewLeftDynamicRoutineIndex(dynamicRoutineIndex));
 		else
 			return mergedGraphs.get(getNewRightDynamicRoutineIndex(dynamicRoutineIndex));

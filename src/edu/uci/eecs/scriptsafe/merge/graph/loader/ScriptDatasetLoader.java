@@ -35,8 +35,8 @@ public class ScriptDatasetLoader {
 
 	private LittleEndianInputStream in;
 
-	public void loadDataset(ScriptDatasetFile dataset, ScriptFlowGraph graph) throws IOException {
-		in = new LittleEndianInputStream(dataset.file);
+	public void loadDataset(ScriptDatasetFiles dataset, ScriptFlowGraph graph) throws IOException {
+		in = new LittleEndianInputStream(dataset.dataset);
 
 		in.readInt(); // skip hashtable pointer
 		int routineCount = in.readInt();
@@ -59,17 +59,18 @@ public class ScriptDatasetLoader {
 		for (int i = 0; i < nodeCount; i++) {
 			int nodeId = in.readInt();
 			int opcode = nodeId & 0xff;
-			int typeOrdinal = (nodeId >> 8);
+			int typeOrdinal = (nodeId >> 8) & 0xff;
+			int lineNumber = (nodeId >> 0x10);
 			ScriptNode.Type type = ScriptNode.Type.values()[typeOrdinal];
 			int target = in.readInt();
 			if (type == Type.BRANCH) {
 				userLevel = (target >>> 26);
 				target = (target & 0x3ffffff);
-				ScriptBranchNode branch = new ScriptBranchNode(routineHash, opcode, i, userLevel);
+				ScriptBranchNode branch = new ScriptBranchNode(routineHash, opcode, i, lineNumber, userLevel);
 				pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(routineHash, branch, target));
 				routine.addNode(branch);
 			} else {
-				ScriptNode call = new ScriptNode(routineHash, type, opcode, i);
+				ScriptNode call = new ScriptNode(routineHash, type, opcode, lineNumber, i);
 				calls.add(call); // use list seequence instead of `target` pointer
 				routine.addNode(call);
 			}

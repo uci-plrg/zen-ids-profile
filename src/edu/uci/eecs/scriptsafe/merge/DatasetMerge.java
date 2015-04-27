@@ -12,9 +12,9 @@ import edu.uci.eecs.scriptsafe.merge.graph.RoutineExceptionEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles;
 
-public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
+public class DatasetMerge implements ScriptDatasetGenerator.DataSource {
 
 	public enum Side {
 		LEFT,
@@ -31,7 +31,7 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 	private final Map<Integer, Integer> userLevelDeltas = new HashMap<Integer, Integer>(); // routineHash->userLevel
 	private int maxUserLevelDelta = 0;
 
-	public ScriptMerge(ScriptFlowGraph left, ScriptFlowGraph right, boolean isIncremental) {
+	public DatasetMerge(ScriptFlowGraph left, ScriptFlowGraph right, boolean isIncremental) {
 		this.left = left;
 		this.right = right;
 
@@ -105,7 +105,7 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 						if (ScriptMergeWatchList.watchAny(throwEdge.getFromRoutineHash(),
 								throwEdge.getFromRoutineIndex())
 								|| ScriptMergeWatchList.watch(throwEdge.getToRoutineHash())
-								|| (added && graph.dataSourceType == ScriptGraphDataSource.Type.RUN && ScriptMergeWatchList
+								|| (added && graph.dataSourceType == ScriptGraphDataFiles.Type.RUN && ScriptMergeWatchList
 										.getInstance().isActive(ScriptMergeWatchList.Category.EXCEPTION_EDGE))) {
 							Log.log("Merged exception edge from the %s: %s (0x%x) -%s-> %s",
 									fromSide,
@@ -120,14 +120,14 @@ public class ScriptMerge implements ScriptDatasetGenerator.DataSource {
 
 						if (ScriptMergeWatchList.watchAny(edge.getFromRoutineHash(), edge.getFromRoutineIndex())
 								|| ScriptMergeWatchList.watch(edge.getToRoutineHash())
-								|| (added && graph.dataSourceType == ScriptGraphDataSource.Type.RUN && ScriptMergeWatchList
+								|| (added && graph.dataSourceType == ScriptGraphDataFiles.Type.RUN && ScriptMergeWatchList
 										.getInstance().isActive(ScriptMergeWatchList.Category.ROUTINE_EDGE))) {
 							Log.log("Merged call edge from the %s: %s (0x%x) -%s-> %s", fromSide, edge.printFromNode(),
 									getNode(edge.getFromRoutineHash(), fromSide, edge.getFromRoutineIndex()).opcode,
 									edge.printUserLevel(), edge.printToNode());
 						}
 					}
-					if (added && graph.dataSourceType == ScriptGraphDataSource.Type.RUN
+					if (added && graph.dataSourceType == ScriptGraphDataFiles.Type.RUN
 							&& minUserLevel > edge.getUserLevel()) {
 						if (ScriptMergeWatchList.getInstance().isActive(ScriptMergeWatchList.Category.FLOW_USER_LEVEL))
 							userLevelDeltas.put(edge.getToRoutineHash(), edge.getUserLevel());

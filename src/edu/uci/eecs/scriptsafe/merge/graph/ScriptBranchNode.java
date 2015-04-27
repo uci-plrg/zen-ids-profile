@@ -10,8 +10,8 @@ public class ScriptBranchNode extends ScriptNode {
 	private int branchUserLevel;
 	private ScriptNode target = null;
 
-	public ScriptBranchNode(int routineHash, int opcode, int index, int branchUserLevel) {
-		super(routineHash, Type.BRANCH, opcode, index);
+	public ScriptBranchNode(int routineHash, int opcode, int index, int lineNumber, int branchUserLevel) {
+		super(routineHash, Type.BRANCH, opcode, lineNumber, index);
 
 		this.branchUserLevel = branchUserLevel;
 	}
@@ -93,6 +93,6 @@ public class ScriptBranchNode extends ScriptNode {
 
 	@Override
 	public ScriptNode copy() {
-		return new ScriptBranchNode(routineHash, opcode, index, branchUserLevel);
+		return new ScriptBranchNode(routineHash, opcode, index, lineNumber, branchUserLevel);
 	}
 }

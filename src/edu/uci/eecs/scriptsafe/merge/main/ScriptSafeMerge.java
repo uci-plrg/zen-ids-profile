@@ -6,14 +6,17 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
+import edu.uci.eecs.scriptsafe.merge.DatasetMerge;
 import edu.uci.eecs.scriptsafe.merge.ScriptDatasetGenerator;
-import edu.uci.eecs.scriptsafe.merge.ScriptMerge;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptGraphCloner;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource.Type;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.CatalogMerge;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.RequestMerge;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetFiles;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphLoader;
 
 public class ScriptSafeMerge {
@@ -33,8 +36,8 @@ public class ScriptSafeMerge {
 
 	private final ScriptGraphLoader loader = new ScriptGraphLoader();
 
-	private ScriptGraphDataSource leftDataSource;
-	private ScriptGraphDataSource rightDataSource;
+	private ScriptGraphDataFiles leftDataSource;
+	private ScriptGraphDataFiles rightDataSource;
 	private ScriptFlowGraph leftGraph;
 	private ScriptFlowGraph rightGraph;
 
@@ -69,19 +72,19 @@ public class ScriptSafeMerge {
 
 			File leftPath = new File(leftGraphDir.getValue());
 			File rightPath = new File(rightGraphDir.getValue());
-			leftDataSource = ScriptGraphDataSource.Factory.construct(leftPath);
-			rightDataSource = ScriptGraphDataSource.Factory.construct(rightPath);
+			leftDataSource = ScriptGraphDataFiles.Factory.bind(leftPath);
+			rightDataSource = ScriptGraphDataFiles.Factory.bind(rightPath);
 
 			rightGraph = new ScriptFlowGraph(rightDataSource.getType(), rightDataSource.getDescription(), false);
-			loader.loadGraph(rightDataSource, rightGraph, ScriptMerge.Side.RIGHT);
+			loader.loadGraph(rightDataSource, rightGraph, DatasetMerge.Side.RIGHT);
 			if (rightDataSource.getType() == Type.DATASET) {
 				ScriptGraphCloner cloner = new ScriptGraphCloner();
 				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getType(),
 						leftDataSource.getDescription(), true));
-				loader.loadGraph(leftDataSource, leftGraph, ScriptMerge.Side.LEFT);
+				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT);
 			} else {
 				leftGraph = new ScriptFlowGraph(leftDataSource.getType(), leftDataSource.getDescription(), false);
-				loader.loadGraph(leftDataSource, leftGraph, ScriptMerge.Side.LEFT);
+				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT);
 			}
 
 			Log.log("Left graph is a %s from %s with %d routines", leftDataSource.getClass().getSimpleName(),
@@ -89,15 +92,25 @@ public class ScriptSafeMerge {
 			Log.log("Right graph is a %s from %s with %d routines", rightDataSource.getClass().getSimpleName(),
 					rightPath.getAbsolutePath(), rightGraph.getRoutineCount());
 
-			ScriptMerge merge = new ScriptMerge(leftGraph, rightGraph, rightDataSource.getType() == Type.DATASET);
-			merge.merge();
+			DatasetMerge datasetMerge = new DatasetMerge(leftGraph, rightGraph,
+					rightDataSource.getType() == Type.DATASET);
+			datasetMerge.merge();
 
-			Log.log("Merged graph is a %s with %d routines (%d eval routines)", merge.getClass().getSimpleName(),
-					merge.getRoutineCount(), merge.getDynamicRoutineCount());
+			Log.log("Merged graph is a %s with %d routines (%d eval routines)",
+					datasetMerge.getClass().getSimpleName(), datasetMerge.getRoutineCount(),
+					datasetMerge.getDynamicRoutineCount());
 
-			File outputFile = new File(outputDir.getValue());
-			ScriptDatasetGenerator output = new ScriptDatasetGenerator(merge, outputFile);
-			output.generateDataset();
+			ScriptDatasetFiles outputFiles = ScriptGraphDataFiles.Factory.construct(new File(outputDir.getValue()));
+			ScriptDatasetGenerator datasetGenerator = new ScriptDatasetGenerator(datasetMerge, outputFiles.dataset);
+			datasetGenerator.generateDataset();
+
+			CatalogMerge catalogMerge = new CatalogMerge(leftDataSource.getRoutineCatalogFile(),
+					rightDataSource.getRoutineCatalogFile());
+			catalogMerge.merge();
+			catalogMerge.generateCatalog(outputFiles.getRoutineCatalogFile());
+
+			RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
+			requestMerge.merge(outputFiles);
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}

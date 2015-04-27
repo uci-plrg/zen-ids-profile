@@ -1,6 +1,6 @@
 package edu.uci.eecs.scriptsafe.merge;
 
-import edu.uci.eecs.scriptsafe.merge.ScriptMerge.Side;
+import edu.uci.eecs.scriptsafe.merge.DatasetMerge.Side;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 

@@ -9,7 +9,7 @@ import java.util.Set;
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
-import edu.uci.eecs.scriptsafe.merge.ScriptMerge;
+import edu.uci.eecs.scriptsafe.merge.DatasetMerge;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
@@ -148,18 +148,18 @@ class ScriptRunLoader {
 
 	private final Set<Integer> preloadedRoutines = new HashSet<Integer>();
 	private final Map<Integer, RawRoutineGraph> rawGraphs = new HashMap<Integer, RawRoutineGraph>();
-	private ScriptMerge.Side side;
+	private DatasetMerge.Side side;
 
 	ScriptRunLoader() {
 	}
 
-	private ScriptNode createNode(int routineHash, int opcode, ScriptNode.Type type, int index) {
+	private ScriptNode createNode(int routineHash, int opcode, ScriptNode.Type type, int lineNumber, int index) {
 		if (type == Type.BRANCH) {
 			int userLevel = (index >>> 26);
 			index = (index & 0x3ffffff);
-			return new ScriptBranchNode(routineHash, opcode, index, userLevel);
+			return new ScriptBranchNode(routineHash, opcode, index, lineNumber, userLevel);
 		} else {
-			return new ScriptNode(routineHash, type, opcode, index);
+			return new ScriptNode(routineHash, type, opcode, lineNumber, index);
 		}
 	}
 
@@ -172,7 +172,7 @@ class ScriptRunLoader {
 		return graph;
 	}
 
-	void loadRun(ScriptRunFileSet run, ScriptFlowGraph graph, ScriptMerge.Side side) throws IOException {
+	void loadRun(ScriptRunFiles run, ScriptFlowGraph graph, DatasetMerge.Side side) throws IOException {
 		preloadedRoutines.clear();
 		for (ScriptRoutineGraph preloadedRoutine : graph.getRoutines())
 			preloadedRoutines.add(preloadedRoutine.hash);
@@ -185,7 +185,7 @@ class ScriptRunLoader {
 		linkNodes(graph);
 	}
 
-	private void loadOpcodeEdges(ScriptRunFileSet run) throws IOException {
+	private void loadOpcodeEdges(ScriptRunFiles run) throws IOException {
 		int routineHash, fromIndex, toIndex, userLevel;
 		RawRoutineGraph graph;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.opcodeEdgeFile);
@@ -296,7 +296,7 @@ class ScriptRunLoader {
 		}
 	}
 
-	private void loadRoutineEdges(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
+	private void loadRoutineEdges(ScriptRunFiles run, ScriptFlowGraph graph) throws IOException {
 		int fromRoutineHash, fromIndex, toRoutineHash, toIndex, userLevel;
 		RawRoutineGraph routine;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.routineEdgeFile);
@@ -324,8 +324,8 @@ class ScriptRunLoader {
 		input.close();
 	}
 
-	private void loadNodes(ScriptRunFileSet run, ScriptFlowGraph graph) throws IOException {
-		int routineHash, opcodeField, opcode, extendedValue, nodeIndex = 0;
+	private void loadNodes(ScriptRunFiles run, ScriptFlowGraph graph) throws IOException {
+		int routineHash, opcodeField, opcode, extendedValue, lineNumber, nodeIndex = 0;
 		ScriptNode.Type type;
 		ScriptNode node, lastNode = null;
 		ScriptRoutineGraph routine = null;
@@ -352,11 +352,12 @@ class ScriptRunLoader {
 			opcodeField = input.readInt();
 			opcode = opcodeField & 0xff;
 			extendedValue = (opcodeField >> 8) & 0xff;
+			lineNumber = opcodeField >> 0x10;
 			type = ScriptNode.identifyType(opcode, extendedValue);
 
 			// parse out extended value for include/eval nodes
 			nodeIndex = input.readInt();
-			node = createNode(routineHash, opcode, type, nodeIndex);
+			node = createNode(routineHash, opcode, type, lineNumber, nodeIndex);
 			if (lastNode != null)
 				lastNode.setNext(node);
 			lastNode = node;
@@ -365,8 +366,9 @@ class ScriptRunLoader {
 
 			}
 
-			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
-					node.type);
+			
+			Log.message("%s: @%d#%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, lineNumber, opcode,
+					routineHash, node.type);
 			if (ScriptMergeWatchList.watch(routineHash)) {
 				Log.log("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
 						node.type);

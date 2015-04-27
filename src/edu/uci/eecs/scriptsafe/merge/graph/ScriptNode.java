@@ -183,21 +183,23 @@ public class ScriptNode {
 	public final int routineHash;
 	public final Type type;
 	public final int opcode; // TODO: use Opcode
+	public final int lineNumber;
 	public final int index;
 
 	private ScriptNode next;
 
 	private List<RoutineExceptionEdge> thrownExceptions = new ArrayList<RoutineExceptionEdge>();
 
-	public ScriptNode(int routineHash, Type type, int opcode, int index) {
+	public ScriptNode(int routineHash, Type type, int opcode, int lineNumber, int index) {
 		this.routineHash = routineHash;
 		this.type = type;
 		this.opcode = opcode;
+		this.lineNumber = lineNumber;
 		this.index = index;
 	}
 
 	public ScriptNode copy() {
-		return new ScriptNode(routineHash, type, opcode, index);
+		return new ScriptNode(routineHash, type, opcode, lineNumber, index);
 	}
 
 	public ScriptNode getNext() {

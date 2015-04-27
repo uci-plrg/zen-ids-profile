@@ -4,20 +4,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 import edu.uci.eecs.scriptsafe.merge.MergeException;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataSource;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles;
 
 public class ScriptFlowGraph {
 
 	private static ScriptRoutineGraph ENTRY_ROUTINE = new ScriptRoutineGraph(1, false);
 
-	public final ScriptGraphDataSource.Type dataSourceType;
+	public final ScriptGraphDataFiles.Type dataSourceType;
 	public final String description;
 	public final boolean isFragmentary;
 	private final Map<Integer, ScriptRoutineGraph> routines = new HashMap<Integer, ScriptRoutineGraph>();
 	public final GraphEdgeSet edges = new GraphEdgeSet();
 	private int maxDynamicRoutineIndex;
 
-	public ScriptFlowGraph(ScriptGraphDataSource.Type dataSourceType, String description, boolean isFragmentary) {
+	public ScriptFlowGraph(ScriptGraphDataFiles.Type dataSourceType, String description, boolean isFragmentary) {
 		this.dataSourceType = dataSourceType;
 		this.description = description;
 		this.isFragmentary = isFragmentary;

@@ -1,4 +1,4 @@
-package edu.uci.eecs.scriptsafe.merge.graph.loader;
+package edu.uci.eecs.scriptsafe.merge;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -9,8 +9,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-
-import edu.uci.eecs.scriptsafe.merge.MergeException;
 
 public class CatalogMerge {
 

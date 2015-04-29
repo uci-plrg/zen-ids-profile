@@ -146,21 +146,39 @@ class ScriptRunLoader {
 		}
 	}
 
+	private class ScriptNodeLoadContext implements ScriptNodeLoader.LoadContext {
+		private ScriptFlowGraph flowGraph;
+
+		void setFlowGraph(ScriptFlowGraph flowGraph) {
+			this.flowGraph = flowGraph;
+		}
+
+		@Override
+		public ScriptRoutineGraph createRoutine(int routineHash) {
+			ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash, flowGraph.isFragmentary);
+			flowGraph.addRoutine(routine);
+			return routine;
+		}
+
+		@Override
+		public ScriptRoutineGraph getRoutine(int routineHash) {
+			ScriptRoutineGraph routine = flowGraph.getRoutine(routineHash);
+			if (routine != null && preloadedRoutines.contains(routine.hash)) { // were nodes copied from the right?
+				routine.clearNodes(); // have a copy on the left, so remove copied nodes
+				preloadedRoutines.remove(routine.hash);
+			}
+			return routine;
+		}
+	}
+
 	private final Set<Integer> preloadedRoutines = new HashSet<Integer>();
 	private final Map<Integer, RawRoutineGraph> rawGraphs = new HashMap<Integer, RawRoutineGraph>();
 	private DatasetMerge.Side side;
 
-	ScriptRunLoader() {
-	}
+	private final ScriptNodeLoadContext nodeLoadContext = new ScriptNodeLoadContext();
+	private final ScriptNodeLoader nodeLoader = new ScriptNodeLoader(nodeLoadContext);
 
-	private ScriptNode createNode(int routineHash, int opcode, ScriptNode.Type type, int lineNumber, int index) {
-		if (type == Type.BRANCH) {
-			int userLevel = (index >>> 26);
-			index = (index & 0x3ffffff);
-			return new ScriptBranchNode(routineHash, opcode, index, lineNumber, userLevel);
-		} else {
-			return new ScriptNode(routineHash, type, opcode, lineNumber, index);
-		}
+	ScriptRunLoader() {
 	}
 
 	private RawRoutineGraph getRawGraph(Integer hash) {
@@ -181,7 +199,10 @@ class ScriptRunLoader {
 
 		loadOpcodeEdges(run);
 		loadRoutineEdges(run, graph);
-		loadNodes(run, graph);
+
+		nodeLoadContext.setFlowGraph(graph);
+		nodeLoader.loadNodes(run.nodeFile);
+
 		linkNodes(graph);
 	}
 
@@ -321,64 +342,6 @@ class ScriptRunLoader {
 		if (input.ready()) {
 			Log.error("Input file " + run.routineEdgeFile.getAbsolutePath() + " has trailing data!");
 		}
-		input.close();
-	}
-
-	private void loadNodes(ScriptRunFiles run, ScriptFlowGraph graph) throws IOException {
-		int routineHash, opcodeField, opcode, extendedValue, lineNumber, nodeIndex = 0;
-		ScriptNode.Type type;
-		ScriptNode node, lastNode = null;
-		ScriptRoutineGraph routine = null;
-		LittleEndianInputStream input = new LittleEndianInputStream(run.nodeFile);
-
-		while (input.ready(0xc)) {
-			routineHash = input.readInt();
-
-			if (routine == null || routine.hash != routineHash) {
-				lastNode = null;
-				routine = null;
-				routine = graph.getRoutine(routineHash);
-			}
-
-			if (routine == null) {
-				Log.message("Create routine %x", routineHash);
-				routine = new ScriptRoutineGraph(routineHash, graph.isFragmentary);
-				graph.addRoutine(routine);
-			} else if (preloadedRoutines.contains(routine.hash)) { // were nodes copied from the right?
-				routine.clearNodes(); // have a copy on the left, so remove copied nodes
-				preloadedRoutines.remove(routine.hash);
-			}
-
-			opcodeField = input.readInt();
-			opcode = opcodeField & 0xff;
-			extendedValue = (opcodeField >> 8) & 0xff;
-			lineNumber = opcodeField >> 0x10;
-			type = ScriptNode.identifyType(opcode, extendedValue);
-
-			// parse out extended value for include/eval nodes
-			nodeIndex = input.readInt();
-			node = createNode(routineHash, opcode, type, lineNumber, nodeIndex);
-			if (lastNode != null)
-				lastNode.setNext(node);
-			lastNode = node;
-
-			if (ScriptNode.isCallInit(opcode)) {
-
-			}
-
-			
-			Log.message("%s: @%d#%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, lineNumber, opcode,
-					routineHash, node.type);
-			if (ScriptMergeWatchList.watch(routineHash)) {
-				Log.log("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
-						node.type);
-			}
-
-			routine.addNode(node);
-		}
-
-		if (input.ready())
-			Log.error("Input file " + run.nodeFile.getAbsolutePath() + " has trailing data!");
 		input.close();
 	}
 }

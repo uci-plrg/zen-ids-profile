@@ -143,6 +143,9 @@ public class RequestGraph {
 
 					in.readInt();
 				}
+			} catch (Exception e) {
+				Log.error("Failed to load file %s. Skipping it.", fileSet.requestFile.getAbsolutePath());
+				Log.log(e);
 			} finally {
 				in.close();
 			}

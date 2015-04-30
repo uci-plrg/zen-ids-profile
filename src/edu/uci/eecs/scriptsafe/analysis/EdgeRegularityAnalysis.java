@@ -81,7 +81,8 @@ public class EdgeRegularityAnalysis {
 			for (CallSite callSite : callSitesByRegularity) {
 				if (callSite.regularity > 0.5)
 					break;
-				Log.log("%02.03f%% %s (0x%x):", callSite.regularity * 100, callSite.name, callSite.routine.hash);
+				Log.log("%02.03f%% %s (0x%x):%d", callSite.regularity * 100, callSite.name, callSite.routine.hash,
+						callSite.node.lineNumber);
 				for (Edge edge : callSite.edges)
 					Log.log("\t%04d: -%02d-> %s (0x%x)", edge.count, edge.userLevel, edge.calleeName, edge.callee.hash);
 			}

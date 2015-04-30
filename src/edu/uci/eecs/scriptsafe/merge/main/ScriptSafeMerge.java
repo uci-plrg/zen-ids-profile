@@ -57,7 +57,7 @@ public class ScriptSafeMerge {
 			Log.setLevel(Log.Level.values()[verbose.getValue()]);
 			System.out.println("Log level " + verbose.getValue());
 
-			if (!leftGraphDir.hasValue() || !rightGraphDir.hasValue() || !outputDir.hasValue()) {
+			if (!leftGraphDir.hasValue() || !outputDir.hasValue()) {
 				printUsage();
 				return;
 			}
@@ -70,8 +70,9 @@ public class ScriptSafeMerge {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
+			String rightGraphDirName = rightGraphDir.hasValue() ? rightGraphDir.getValue() : outputDir.getValue();
 			File leftPath = new File(leftGraphDir.getValue());
-			File rightPath = new File(rightGraphDir.getValue());
+			File rightPath = new File(rightGraphDirName);
 			leftDataSource = ScriptGraphDataFiles.Factory.bind(leftPath);
 			rightDataSource = ScriptGraphDataFiles.Factory.bind(rightPath);
 

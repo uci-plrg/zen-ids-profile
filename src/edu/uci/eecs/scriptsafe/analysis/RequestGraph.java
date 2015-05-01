@@ -89,9 +89,8 @@ public class RequestGraph {
 		public RequestGraph load() throws IOException {
 			requestGraph = new RequestGraph();
 			RequestFileCollector requestFileCollector = requestGraph.new RequestFileCollector();
-			for (Path path : paths) {
+			for (Path path : paths) 
 				Files.walkFileTree(path, requestFileCollector);
-			}
 
 			nodeLoader = new ScriptNodeLoader(new ScriptNodeLoadContext(requestGraph));
 			int totalRequests = 0;

@@ -27,7 +27,7 @@ public class ScriptFlowGraph {
 
 	public void addRoutine(ScriptRoutineGraph routine) {
 		if (routines.containsKey(routine.hash))
-			throw new MergeException("Attemp to add a routine 0x%x that already exists in the graph!", routine.hash);
+			throw new MergeException("Attempt to add a routine 0x%x that already exists in the graph!", routine.hash);
 
 		if (ScriptRoutineGraph.isDynamicRoutine(routine.hash))
 			maxDynamicRoutineIndex = Math.max(maxDynamicRoutineIndex,

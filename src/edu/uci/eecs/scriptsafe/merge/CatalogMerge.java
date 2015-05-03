@@ -26,12 +26,14 @@ public class CatalogMerge {
 		BufferedReader inLeft = new BufferedReader(new FileReader(left));
 		BufferedReader inRight = new BufferedReader(new FileReader(right));
 		String line, hash, name, duplicateName;
+		int split;
 
 		try {
 			while (inLeft.ready()) {
 				line = inLeft.readLine();
-				hash = line.substring(0, 10);
-				name = line.substring(11);
+				split = line.indexOf(' ');
+				hash = line.substring(0, split);
+				name = line.substring(split + 1);
 
 				duplicateName = routines.get(hash);
 				if (duplicateName == null) {
@@ -43,8 +45,9 @@ public class CatalogMerge {
 			}
 			while (inRight.ready()) {
 				line = inRight.readLine();
-				hash = line.substring(0, 10);
-				name = line.substring(11);
+				split = line.indexOf(' ');
+				hash = line.substring(0, split);
+				name = line.substring(split + 1);
 
 				duplicateName = routines.get(hash);
 				if (duplicateName == null) {

@@ -19,28 +19,11 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetFiles;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetLoader;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles;
 
-public class GraphExporter {
+public class DictionaryGenerator {
 
-	private enum Color {
-		ADMIN("red"),
-		ANONYMOUS("blue");
-
-		final String name;
-
-		private Color(String name) {
-			this.name = name;
-		}
-
-		static Color forUserLevel(int userLevel) {
-			if (userLevel < 2)
-				return ANONYMOUS;
-			else
-				return ADMIN;
-		}
-	}
-
-	public static final OptionArgumentMap.StringOption sourceGraphDir = OptionArgumentMap.createStringOption('s');
-	public static final OptionArgumentMap.StringOption outputFilePath = OptionArgumentMap.createStringOption('o');
+	public static final OptionArgumentMap.StringOption datasetDir = OptionArgumentMap.createStringOption('d');
+	public static final OptionArgumentMap.StringOption phpDir = OptionArgumentMap.createStringOption('p');
+	// public static final OptionArgumentMap.StringOption outputDir = OptionArgumentMap.createStringOption('o');
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());
 	public static final OptionArgumentMap.StringOption watchlistFile = OptionArgumentMap.createStringOption('w',
@@ -51,16 +34,17 @@ public class GraphExporter {
 	private final ArgumentStack args;
 	private final OptionArgumentMap argMap;
 
+	private final RoutineLineMap routineLineMap = new RoutineLineMap();
+
 	private final RequestGraph.Loader requestLoader = new RequestGraph.Loader();
 	private RequestGraph requestGraph;
 
 	private ScriptFlowGraph sourceGraph;
 	private File outputFile;
 
-	private GraphExporter(ArgumentStack args) {
+	private DictionaryGenerator(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, sourceGraphDir, outputFilePath, verbose, watchlistFile,
-				watchlistCategories);
+		argMap = new OptionArgumentMap(args, datasetDir, phpDir, verbose, watchlistFile, watchlistCategories);
 	}
 
 	private void run() {
@@ -73,14 +57,15 @@ public class GraphExporter {
 			Log.setLevel(Log.Level.values()[verbose.getValue()]);
 			System.out.println("Log level " + verbose.getValue());
 
-			if (!(sourceGraphDir.hasValue() && outputFilePath.hasValue())) {
+			if (!(datasetDir.hasValue() && phpDir.hasValue())) {
 				printUsage();
 				return;
 			}
 
-			File sourcePath = new File(sourceGraphDir.getValue());
-			requestLoader.addPath(sourcePath.toPath());
-			requestGraph = requestLoader.load();
+			File datasetDirectory = new File(datasetDir.getValue());
+			File phpDirectory = new File(phpDir.getValue());
+			routineLineMap.load(new File(datasetDirectory, "routine-catalog.tab"), phpDirectory, new File(
+					datasetDirectory, "cfg.set"));
 
 			if (watchlistFile.hasValue()) {
 				File watchlist = new File(watchlistFile.getValue());
@@ -89,43 +74,21 @@ public class GraphExporter {
 			if (watchlistCategories.hasValue()) {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
-
-			outputFile = new File(outputFilePath.getValue());
-
-			generateGraph();
+			
+			Log.log("%s", routineLineMap.toString());
 
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}
 	}
 
-	private void generateGraph() throws FileNotFoundException {
-		PrintWriter out = new PrintWriter(outputFile);
-		try {
-			out.println("digraph g {");
-			out.println("  node [shape=point]");
-
-			for (CallSite callSite : requestGraph.callSites.values()) {
-				for (Edge edge : callSite.edges) {
-					out.format("  \"0x%x:%d\" -> \"0x%x\" [color=%s weight=%d]\n", callSite.routine.hash,
-							callSite.node.lineNumber, edge.callee.hash, Color.forUserLevel(edge.userLevel).name,
-							edge.count);
-				}
-			}
-			out.println("}");
-		} finally {
-			out.flush();
-			out.close();
-		}
-	}
-
 	private void printUsage() {
-		System.err.println(String.format("Usage: %s <run-dir> [ <run-dir> ... ]", getClass().getSimpleName()));
+		System.err.println(String.format("Usage: -d <dataset-dir> -p <php-src-dir>", getClass().getSimpleName()));
 	}
 
 	public static void main(String[] args) {
 		ArgumentStack stack = new ArgumentStack(args);
-		GraphExporter exporter = new GraphExporter(stack);
+		DictionaryGenerator exporter = new DictionaryGenerator(stack);
 		exporter.run();
 	}
 }

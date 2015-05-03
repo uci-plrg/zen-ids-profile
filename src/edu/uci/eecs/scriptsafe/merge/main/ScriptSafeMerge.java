@@ -3,6 +3,7 @@ package edu.uci.eecs.scriptsafe.merge.main;
 import java.io.File;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.crowdsafe.common.log.Log.FileMode;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
@@ -62,6 +63,9 @@ public class ScriptSafeMerge {
 				return;
 			}
 
+			ScriptDatasetFiles outputFiles = ScriptGraphDataFiles.Factory.construct(new File(outputDir.getValue()));
+			Log.addOutput(outputFiles.mergeLog, FileMode.APPEND);
+
 			if (watchlistFile.hasValue()) {
 				File watchlist = new File(watchlistFile.getValue());
 				ScriptMergeWatchList.getInstance().loadFromFile(watchlist);
@@ -76,22 +80,29 @@ public class ScriptSafeMerge {
 			leftDataSource = ScriptGraphDataFiles.Factory.bind(leftPath);
 			rightDataSource = ScriptGraphDataFiles.Factory.bind(rightPath);
 
+			Log.log("\n\n--- ScriptSafeMerge ---\n\ns-merge -l %s -r %s -o %s", leftPath.getAbsolutePath(),
+					rightPath.getAbsolutePath(), outputFiles.directory.getAbsolutePath());
+
 			rightGraph = new ScriptFlowGraph(rightDataSource.getType(), rightDataSource.getDescription(), false);
 			loader.loadGraph(rightDataSource, rightGraph, DatasetMerge.Side.RIGHT);
 			if (rightDataSource.getType() == Type.DATASET) {
 				ScriptGraphCloner cloner = new ScriptGraphCloner();
 				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getType(),
 						leftDataSource.getDescription(), true));
+				Log.log("Cloned %d routines and %d edges into the left graph", leftGraph.getRoutineCount(),
+						leftGraph.edges.getOutgoingEdgeCount());
 				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT);
 			} else {
 				leftGraph = new ScriptFlowGraph(leftDataSource.getType(), leftDataSource.getDescription(), false);
 				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT);
 			}
 
-			Log.log("Left graph is a %s from %s with %d routines", leftDataSource.getClass().getSimpleName(),
-					leftPath.getAbsolutePath(), leftGraph.getRoutineCount());
-			Log.log("Right graph is a %s from %s with %d routines", rightDataSource.getClass().getSimpleName(),
-					rightPath.getAbsolutePath(), rightGraph.getRoutineCount());
+			Log.log("Left graph is a %s from %s with %d routines and %d edges", leftDataSource.getClass()
+					.getSimpleName(), leftPath.getAbsolutePath(), leftGraph.getRoutineCount(), leftGraph.edges
+					.getOutgoingEdgeCount());
+			Log.log("Right graph is a %s from %s with %d routines and %d edges", rightDataSource.getClass()
+					.getSimpleName(), rightPath.getAbsolutePath(), rightGraph.getRoutineCount(), rightGraph.edges
+					.getOutgoingEdgeCount());
 
 			DatasetMerge datasetMerge = new DatasetMerge(leftGraph, rightGraph,
 					rightDataSource.getType() == Type.DATASET);
@@ -101,7 +112,6 @@ public class ScriptSafeMerge {
 					datasetMerge.getClass().getSimpleName(), datasetMerge.getRoutineCount(),
 					datasetMerge.getDynamicRoutineCount());
 
-			ScriptDatasetFiles outputFiles = ScriptGraphDataFiles.Factory.construct(new File(outputDir.getValue()));
 			ScriptDatasetGenerator datasetGenerator = new ScriptDatasetGenerator(datasetMerge, outputFiles.dataset);
 			datasetGenerator.generateDataset();
 

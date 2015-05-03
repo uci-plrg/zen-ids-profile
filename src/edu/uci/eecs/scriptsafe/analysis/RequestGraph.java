@@ -16,19 +16,27 @@ import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.scriptsafe.merge.DatasetMerge;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetLoader;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphLoader;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptNodeLoader;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
 
 public class RequestGraph {
 	private static class FileSet {
+
 		private final File requestFile;
 		private final File nodeFile;
+		private final File datasetFile;
 		private final File routineCatalog;
 
-		FileSet(File requestFile, File nodeFile, File routineCatalog) {
+		FileSet(File requestFile, File nodeFile, File datasetFile, File routineCatalog) {
 			this.requestFile = requestFile;
 			this.nodeFile = nodeFile;
+			this.datasetFile = datasetFile;
 			this.routineCatalog = routineCatalog;
 		}
 	}
@@ -37,15 +45,19 @@ public class RequestGraph {
 		@Override
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 			if (file.getFileName().toString().equals("request-edge.run")) {
-				File nodeFile = new File(file.getParent().toFile(), "node.run");
-				if (!(nodeFile.exists() && nodeFile.isFile()))
-					throw new AnalysisException("Cannot find the node.run file corresponding to %s",
-							file.toAbsolutePath());
 				File routineCatalog = new File(file.getParent().toFile(), "routine-catalog.tab");
 				if (!(routineCatalog.exists() && routineCatalog.isFile()))
 					throw new AnalysisException("Cannot find the routine-catalog.tab file corresponding to %s",
 							file.toAbsolutePath());
-				fileSets.add(new FileSet(file.toFile(), nodeFile, routineCatalog));
+				File nodeFile = new File(file.getParent().toFile(), "node.run");
+				File datasetFile = new File(file.getParent().toFile(), "cfg.set");
+				if (nodeFile.exists() && nodeFile.isFile())
+					fileSets.add(new FileSet(file.toFile(), nodeFile, null, routineCatalog));
+				else if (datasetFile.exists() && datasetFile.isFile())
+					fileSets.add(new FileSet(file.toFile(), null, datasetFile, routineCatalog));
+				else
+					throw new AnalysisException("Cannot find the node.run or cfg.set file corresponding to %s",
+							file.toAbsolutePath());
 			}
 			return FileVisitResult.CONTINUE;
 		}
@@ -74,7 +86,9 @@ public class RequestGraph {
 
 		private final List<Path> paths = new ArrayList<Path>();
 		private final Map<Integer, String> routineNames = new HashMap<Integer, String>();
+
 		private ScriptNodeLoader nodeLoader;
+		private final ScriptDatasetLoader cfgLoader = new ScriptDatasetLoader();
 
 		private RequestGraph requestGraph;
 
@@ -89,7 +103,7 @@ public class RequestGraph {
 		public RequestGraph load() throws IOException {
 			requestGraph = new RequestGraph();
 			RequestFileCollector requestFileCollector = requestGraph.new RequestFileCollector();
-			for (Path path : paths) 
+			for (Path path : paths)
 				Files.walkFileTree(path, requestFileCollector);
 
 			nodeLoader = new ScriptNodeLoader(new ScriptNodeLoadContext(requestGraph));
@@ -105,21 +119,18 @@ public class RequestGraph {
 		}
 
 		int load(FileSet fileSet) throws IOException {
-			nodeLoader.loadNodes(fileSet.nodeFile);
+			if (fileSet.nodeFile != null) {
+				nodeLoader.loadNodes(fileSet.nodeFile);
+			} else {
+				ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, fileSet.datasetFile.getAbsolutePath(), false);
+				cfgLoader.loadDataset(fileSet.datasetFile, cfg);
+				for (ScriptRoutineGraph routine : cfg.getRoutines())
+					requestGraph.routines.put(routine.hash, routine);
+			}
 
 			LittleEndianInputStream in = new LittleEndianInputStream(fileSet.requestFile);
 			int fromIndex, toRoutineHash, userLevel, totalRequests = 0;
 			CallSite callSite;
-
-			// fwrite(&request_header_tag, sizeof(uint), 1, cfg_files->request_edge);
-			// fwrite(&request_state.request_id, sizeof(uint), 1, cfg_files->request_edge);
-			// fwrite(&session.hash, sizeof(uint), 1, cfg_files->request_edge);
-			// fwrite(&timestamp, sizeof(uint), 1, cfg_files->request_edge);
-
-			// fwrite(&from_routine_hash, sizeof(uint), 1, cfg_files->request_edge);
-			// fwrite(&packed_from_index, sizeof(uint), 1, cfg_files->request_edge);
-			// fwrite(&to_routine_hash, sizeof(uint), 1, cfg_files->request_edge);
-			// fwrite(&to_index, sizeof(uint), 1, cfg_files->request_edge);
 
 			try {
 				int firstField;

@@ -84,8 +84,6 @@ public class DatasetMerge implements ScriptDatasetGenerator.DataSource {
 		boolean added;
 		int toRoutineHash, minUserLevel;
 
-		Log.log("Add %d routine edges from the %s", graph.edges.getOutgoingEdgeCount(), fromSide);
-
 		for (List<RoutineEdge> edges : graph.edges.getOutgoingEdges()) {
 			for (RoutineEdge edge : edges) {
 				try {

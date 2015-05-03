@@ -19,7 +19,7 @@ public class ScriptGraphLoader {
 				break;
 			case DATASET:
 				ScriptDatasetLoader datasetLoader = new ScriptDatasetLoader();
-				datasetLoader.loadDataset((ScriptDatasetFiles) dataSource, graph);
+				datasetLoader.loadDataset(((ScriptDatasetFiles) dataSource).dataset, graph);
 				break;
 		}
 	}

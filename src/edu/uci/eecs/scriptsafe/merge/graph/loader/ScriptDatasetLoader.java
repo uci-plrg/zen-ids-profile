@@ -1,5 +1,6 @@
 package edu.uci.eecs.scriptsafe.merge.graph.loader;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +15,6 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.UserLevel;
 
 public class ScriptDatasetLoader {
 
@@ -35,8 +35,8 @@ public class ScriptDatasetLoader {
 
 	private LittleEndianInputStream in;
 
-	public void loadDataset(ScriptDatasetFiles dataset, ScriptFlowGraph graph) throws IOException {
-		in = new LittleEndianInputStream(dataset.dataset);
+	public void loadDataset(File datasetFile, ScriptFlowGraph graph) throws IOException {
+		in = new LittleEndianInputStream(datasetFile);
 
 		in.readInt(); // skip hashtable pointer
 		int routineCount = in.readInt();

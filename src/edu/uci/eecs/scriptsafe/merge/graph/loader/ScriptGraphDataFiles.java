@@ -1,6 +1,7 @@
 package edu.uci.eecs.scriptsafe.merge.graph.loader;
 
 import java.io.File;
+import java.io.IOException;
 
 public interface ScriptGraphDataFiles {
 
@@ -20,7 +21,8 @@ public interface ScriptGraphDataFiles {
 	}
 
 	public static class Factory {
-		public static ScriptGraphDataFiles bind(File path) {
+		public static ScriptGraphDataFiles bind(File path) throws IOException {
+			path = path.getCanonicalFile();
 			if (!path.exists())
 				throw new IllegalArgumentException("Invalid script data source: " + path + " does not exist");
 			if (!path.isDirectory())

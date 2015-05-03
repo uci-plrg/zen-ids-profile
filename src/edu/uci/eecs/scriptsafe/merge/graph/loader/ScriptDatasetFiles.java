@@ -5,10 +5,13 @@ import java.io.File;
 public class ScriptDatasetFiles implements ScriptGraphDataFiles {
 
 	public final File directory;
+	
 	public final File dataset;
 	public final File routineCatalog;
 	public final File request;
 	public final File requestEdge;
+	
+	public final File mergeLog;
 
 	ScriptDatasetFiles(File directory) {
 		this.directory = directory;
@@ -17,6 +20,7 @@ public class ScriptDatasetFiles implements ScriptGraphDataFiles {
 		routineCatalog = new File(directory, "routine-catalog.tab");
 		request = new File(directory, "request.tab");
 		requestEdge = new File(directory, "request-edge.run");
+		mergeLog = new File(directory, "merge.log");
 	}
 	
 	public boolean exists() {

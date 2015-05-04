@@ -7,8 +7,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
@@ -20,7 +22,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
 
 public class RoutineLineMap {
 
-	private class CodeLine {
+	private static class CodeLine {
 		final int lineNumber; // N.B.: based from 1
 		final String code;
 
@@ -30,10 +32,15 @@ public class RoutineLineMap {
 		}
 	}
 
-	private class RoutineSpan {
+	private static class RoutineSpan {
+
+		static final Set<String> wordSetBuilder = new HashSet<String>();
+
 		final int hash;
 		final Path filePath;
 		final List<CodeLine> code = new ArrayList<CodeLine>(); // N.B.: based from 0
+
+		List<String> words = null;
 
 		RoutineSpan(int hash, Path filePath) {
 			this.hash = hash;
@@ -41,8 +48,38 @@ public class RoutineLineMap {
 		}
 
 		void addSpan(List<String> codeLines, int start, int end /* exclusive */) {
+			words = null;
 			for (int i = start; i < end; i++)
 				code.add(new CodeLine(i, codeLines.get(i)));
+		}
+
+		void parseWords() {
+			if (words != null)
+				return;
+
+			StringBuilder buffer = new StringBuilder();
+			char c;
+			for (CodeLine line : code) {
+				for (int i = 0; i < line.code.length(); i++) {
+					c = line.code.charAt(i);
+					if (buffer.length() == 0) {
+						if (Character.isJavaIdentifierStart(c)) {
+							buffer.append(c);
+						}
+					} else {
+						if (Character.isJavaIdentifierPart(c)) {
+							buffer.append(c);
+						} else {
+							wordSetBuilder.add(buffer.toString());
+							buffer.setLength(0);
+						}
+					}
+				}
+				if (buffer.length() > 0)
+					wordSetBuilder.add(buffer.toString());
+			}
+			words = new ArrayList<String>(wordSetBuilder);
+			wordSetBuilder.clear();
 		}
 
 		void print(StringBuilder buffer) {
@@ -52,7 +89,18 @@ public class RoutineLineMap {
 				buffer.append(String.format("Routine 0x%x in %s:%d-%d\n", hash, filePath, code.get(0).lineNumber,
 						code.get(code.size() - 1).lineNumber));
 				for (CodeLine line : code)
-					buffer.append(String.format("\t%04d: %s\n", line.lineNumber, line.code));
+					buffer.append(String.format("\t%04d: %s\n", line.lineNumber + 1, line.code));
+
+				parseWords();
+
+				buffer.append("\tWord bag: {");
+				for (String word : words) {
+					buffer.append(word);
+					buffer.append("|");
+				}
+				if (!words.isEmpty())
+					buffer.setLength(buffer.length() - 1);
+				buffer.append("}\n");
 			}
 		}
 	}
@@ -69,6 +117,7 @@ public class RoutineLineMap {
 			while (in.ready()) {
 				lines.add(in.readLine());
 			}
+			lines.add(""); // file ending in html will have opcodes off the end
 			in.close();
 		}
 
@@ -77,17 +126,20 @@ public class RoutineLineMap {
 				return;
 
 			List<Integer> routineCoverage = new ArrayList<Integer>();
-			for (int i = 0; i < lines.size(); i++)
+			for (int i = 0; i < (lines.size() + 1); i++)
 				routineCoverage.add(0);
 			for (Integer hash : routines) {
 				ScriptRoutineGraph routine = cfg.getRoutine(hash);
+
 				for (ScriptNode node : routine.getNodes()) {
-					if (node.lineNumber >= routineCoverage.size()) {
-						Log.error("Node has line number %d, but the file only has %d lines", node.lineNumber,
-								routineCoverage.size());
-					} else {
-						routineCoverage.set(Math.max(0, node.lineNumber - 1), routine.hash);
+					if (node.lineNumber > (routineCoverage.size() + 1)) {
+						Log.error("Node with opcode 0x%x in 0x%x has line number %d, but the file only has %d lines",
+								node.opcode, routine.hash, node.lineNumber, routineCoverage.size());
+						continue;
 					}
+					if (node.opcode == 0)
+						continue; // there is no opcode zero
+					routineCoverage.set(Math.max(0, node.lineNumber - 1), routine.hash);
 				}
 			}
 
@@ -98,7 +150,8 @@ public class RoutineLineMap {
 				if (i >= routineCoverage.size())
 					return;
 			} while (hash == 0);
-			start = i;
+			start = i - 1;
+			end = start + 1;
 			currentSpan = establishRoutineSpan(hash);
 
 			for (; i < routineCoverage.size(); i++) {
@@ -112,12 +165,13 @@ public class RoutineLineMap {
 					continue;
 				}
 
-				currentSpan.addSpan(lines, start, end);
+				currentSpan.addSpan(lines, start, end + 1);
 
 				start = end + 1;
+				end = i;
 				currentSpan = nextSpan;
 			}
-			currentSpan.addSpan(lines, start, i);
+			currentSpan.addSpan(lines, start, i - 1);
 		}
 
 		RoutineSpan establishRoutineSpan(int hash) {
@@ -160,9 +214,8 @@ public class RoutineLineMap {
 		ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, dataset.getAbsolutePath(), false);
 		cfgLoader.loadDataset(dataset, cfg);
 
-		for (ApplicationFile appFile : catalog.values()) {
+		for (ApplicationFile appFile : catalog.values())
 			appFile.installRoutineSpans(cfg);
-		}
 	}
 
 	@Override

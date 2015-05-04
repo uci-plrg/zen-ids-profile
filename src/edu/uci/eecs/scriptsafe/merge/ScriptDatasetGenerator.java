@@ -194,7 +194,7 @@ public class ScriptDatasetGenerator {
 					break;
 				case BRANCH:
 					ScriptBranchNode branch = (ScriptBranchNode) node;
-					targetIndex = branch.getTargetIndex(routine.hash);
+					targetIndex = branch.getTargetIndex();
 					targetIndex |= (branch.getBranchUserLevel() << 26);
 					out.writeInt(targetIndex);
 					break;

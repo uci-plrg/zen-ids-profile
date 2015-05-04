@@ -133,14 +133,21 @@ public class RoutineLineMap {
 				return;
 
 			List<Integer> lineCoverage = new ArrayList<Integer>();
-			// List<Integer> Coverage = new ArrayList<Integer>();
-			for (int i = 0; i < (lines.size() + 1); i++)
+			List<Integer> userLevelCoverage = new ArrayList<Integer>();
+			for (int i = 0; i < (lines.size() + 1); i++) {
 				lineCoverage.add(0);
+				userLevelCoverage.add(ScriptNode.USER_LEVEL_TOP);
+			}
 			for (Integer hash : routines) {
 				ScriptRoutineGraph routine = cfg.getRoutine(hash);
 
-				boolean isAnonymous = cfg.edges.getMinUserLevel(routine.hash) < 2;
+				int entryUserLevel = cfg.edges.getMinUserLevel(routine.hash);
+				boolean changedUserLevel = false;
 
+				List<Integer> userLevelPhi = new ArrayList<Integer>();
+				for (ScriptNode node : routine.getNodes()) {
+					userLevelPhi.add(ScriptNode.USER_LEVEL_TOP);
+				}
 				for (ScriptNode node : routine.getNodes()) {
 					if (node.lineNumber > (lineCoverage.size() + 1)) {
 						Log.error("Node with opcode 0x%x in 0x%x has line number %d, but the file only has %d lines",
@@ -150,40 +157,91 @@ public class RoutineLineMap {
 					if (node.opcode == 0)
 						continue; // there is no opcode zero
 
-					/*
-					 * if (node instanceof ScriptBranchNode) { ScriptBranchNode branch = (ScriptBranchNode) node; if
-					 * (isAnonymous) { if (branch.getBranchUserLevel() >= 2) {
-					 * Log.log(" === admin-only branch at index %d(%d) in anonymous routine 0x%x", node.index,
-					 * routine.getNodeCount(), routine.hash); } else { //
-					 * Log.log(" === anonymous branch at index %d(%d) in anonymous routine 0x%x", // node.index, //
-					 * routine.getNodeCount(), routine.hash); } } else { if (branch.getBranchUserLevel() >= 2) { //
-					 * Log.log(" === admin-only branch at index %d(%d) in admin routine 0x%x", node.index, //
-					 * routine.getNodeCount(), routine.hash); } else {
-					 * Log.log(" === anonymous branch at index %d(%d) in admin routine 0x%x", node.index,
-					 * routine.getNodeCount(), routine.hash); } } }
-					 */
+					if (node instanceof ScriptBranchNode) {
+						ScriptBranchNode branch = (ScriptBranchNode) node;
+						if (branch.getBranchUserLevel() != entryUserLevel) {
+							if (branch.getBranchUserLevel() != ScriptNode.USER_LEVEL_TOP) {
+								int targetIndex = branch.getTargetIndex();
+								if (targetIndex != ScriptBranchNode.UNASSIGNED_BRANCH_TARGET_ID) {
+									userLevelPhi.set(targetIndex, branch.getBranchUserLevel());
+									changedUserLevel = true;
+									Log.message("Starting phi %d on node %d, line %d of 0x%x",
+											branch.getBranchUserLevel(), targetIndex,
+											routine.getNode(targetIndex).lineNumber, routine.hash);
+								} else {
+									Log.message("Skipping phi for branch with unknown target in 0x%x", routine.hash);
+								}
+							} else {
+								Log.message("Skipping phi for branch with top user level in 0x%x", routine.hash);
+							}
+						}
+					}
 
-					lineCoverage.set(Math.max(0, node.lineNumber - 1), routine.hash);
+					lineCoverage.set(getLineIndex(node), routine.hash);
+					userLevelCoverage.set(getLineIndex(node), entryUserLevel);
+				}
+
+				while (changedUserLevel) {
+					changedUserLevel = false;
+					for (int i = 0; i < userLevelPhi.size(); i++) {
+						int phi = userLevelPhi.get(i);
+						if (phi != ScriptNode.USER_LEVEL_TOP) {
+							for (int j = i; j < routine.getNodeCount(); j++) {
+								ScriptNode node = routine.getNode(j);
+								if (userLevelCoverage.get(getLineIndex(node)) != phi) {
+									userLevelCoverage.set(getLineIndex(node), phi);
+									Log.log("Changing user level on line %d of 0x%x to %d", node.lineNumber,
+											routine.hash, phi);
+									changedUserLevel = true;
+								}
+								if (node instanceof ScriptBranchNode) {
+									ScriptBranchNode branch = (ScriptBranchNode) node;
+									int targetIndex = branch.getTargetIndex();
+									if (targetIndex != ScriptBranchNode.UNASSIGNED_BRANCH_TARGET_ID) {
+										int targetPhi = userLevelPhi.get(targetIndex);
+										if (branch.getBranchUserLevel() < targetPhi) {
+											userLevelPhi.set(targetIndex, branch.getBranchUserLevel());
+											changedUserLevel = true;
+											Log.message("Propagating phi %d on node %d, line %d of 0x%x",
+													branch.getBranchUserLevel(), targetIndex,
+													routine.getNode(targetIndex).lineNumber, routine.hash);
+										}
+										if (branch.isConditional()
+												&& userLevelCoverage.get(getLineIndex(node)) < userLevelPhi.get(j + 1)) {
+											userLevelPhi.set(j + 1, userLevelCoverage.get(getLineIndex(node)));
+											changedUserLevel = true;
+											Log.message("Propagating phi %d on node %d, line %d of 0x%x",
+													userLevelCoverage.get(getLineIndex(node)), j + 1,
+													routine.getNode(j + 1).lineNumber, routine.hash);
+										}
+										break;
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 
-			int i = 0, hash, start, end = 0;
+			int i = 0, hash, userLevel, start, end = 0;
 			RoutineSpan currentSpan = null, nextSpan;
 			do {
-				hash = lineCoverage.get(i++);
+				hash = lineCoverage.get(i);
+				userLevel = userLevelCoverage.get(i++);
 				if (i >= lineCoverage.size())
 					return;
 			} while (hash == 0);
 			start = i - 1;
 			end = start + 1;
-			currentSpan = establishRoutineSpan(hash);
+			currentSpan = establishRoutineSpan(hash, userLevel);
 
 			for (; i < lineCoverage.size(); i++) {
 				hash = lineCoverage.get(i);
+				userLevel = userLevelCoverage.get(i);
 				if (hash == 0)
 					continue;
 
-				nextSpan = establishRoutineSpan(hash);
+				nextSpan = establishRoutineSpan(hash, userLevel);
 				if (currentSpan == nextSpan) {
 					end = i;
 					continue;
@@ -198,19 +256,59 @@ public class RoutineLineMap {
 			currentSpan.addSpan(lines, start, i - 1);
 		}
 
-		RoutineSpan establishRoutineSpan(int hash) {
-			RoutineSpan span = routineSpans.get(hash);
+		int getLineIndex(ScriptNode node) {
+			return Math.max(0, node.lineNumber - 1);
+		}
+
+		RoutineSpan establishRoutineSpan(int hash, int userLevel) {
+			ColoredRoutineSpan key = new ColoredRoutineSpan(hash, userLevel >= 2);
+			RoutineSpan span = routineSpans.get(key);
 			if (span == null) {
 				span = new RoutineSpan(hash, phpFile.toPath());
-				routineSpans.put(hash, span);
+				routineSpans.put(key, span);
 			}
 			return span;
 		}
 	}
 
+	private static class ColoredRoutineSpan {
+		final int hash;
+		final boolean isAdmin;
+
+		ColoredRoutineSpan(int hash, boolean isAdmin) {
+			this.hash = hash;
+			this.isAdmin = isAdmin;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + hash;
+			result = prime * result + (isAdmin ? 1231 : 1237);
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			ColoredRoutineSpan other = (ColoredRoutineSpan) obj;
+			if (hash != other.hash)
+				return false;
+			if (isAdmin != other.isAdmin)
+				return false;
+			return true;
+		}
+	}
+
 	private final ScriptDatasetLoader cfgLoader = new ScriptDatasetLoader();
 
-	private final Map<Integer, RoutineSpan> routineSpans = new HashMap<Integer, RoutineSpan>();
+	private final Map<ColoredRoutineSpan, RoutineSpan> routineSpans = new HashMap<ColoredRoutineSpan, RoutineSpan>();
 
 	void load(File routineCatalog, File phpSourceDir, File dataset) throws NumberFormatException, IOException {
 		if (!(routineCatalog.exists() && routineCatalog.isFile()))
@@ -243,11 +341,25 @@ public class RoutineLineMap {
 	}
 
 	List<String> getWords(int hash) {
-		RoutineSpan span = routineSpans.get(hash);
+		List<String> words = new ArrayList<String>();
+		ColoredRoutineSpan key = new ColoredRoutineSpan(hash, true);
+		RoutineSpan span = routineSpans.get(key);
+		if (span != null)
+			words.addAll(span.getWords());
+		key = new ColoredRoutineSpan(hash, false);
+		span = routineSpans.get(key);
+		if (span != null)
+			words.addAll(span.getWords());
+		return words;
+	}
+
+	List<String> getWords(int hash, boolean isAdmin) {
+		ColoredRoutineSpan key = new ColoredRoutineSpan(hash, isAdmin);
+		RoutineSpan span = routineSpans.get(key);
 		if (span == null)
-			return Collections.EMPTY_LIST;
+			return Collections.emptyList();
 		else
-			return span.getWords();
+			return Collections.unmodifiableList(span.getWords());
 	}
 
 	@Override

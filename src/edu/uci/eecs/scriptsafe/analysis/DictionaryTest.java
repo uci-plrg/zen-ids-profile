@@ -101,11 +101,7 @@ public class DictionaryTest {
 			try {
 				for (ScriptRoutineGraph routine : trainingRoutines) {
 					sendInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash);
-					if (dataset.edges.getMinUserLevel(routine.hash) < 2) {
-						sendInstruction(Instruction.ADD_ANONYMOUS_ROUTINE, routine.hash);
-					} else {
-						sendInstruction(Instruction.ADD_ADMIN_ROUTINE, routine.hash);
-					}
+					sendInstruction(Instruction.ADD_ROUTINE, routine.hash);
 				}
 				for (ScriptRoutineGraph routine : testRoutines) {
 					sendInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash,

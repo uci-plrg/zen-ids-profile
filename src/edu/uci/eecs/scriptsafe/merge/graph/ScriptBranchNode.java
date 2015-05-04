@@ -32,19 +32,30 @@ public class ScriptBranchNode extends ScriptNode {
 		this.branchUserLevel = branchUserLevel;
 	}
 
-	public int getTargetIndex(long routineId) {
-		if (target == null) {
-			switch (Opcode.forCode(opcode)) {
-				case ZEND_BRK:
-				case ZEND_CONT:
-				case ZEND_CATCH:
-					break;
-				default:
-					Log.error("Target missing for branch at %d with opcode 0x%x in 0x%x", index, opcode, routineId);
-			}
+	public int getTargetIndex() {
+		if (target == null)
 			return UNASSIGNED_BRANCH_TARGET_ID;
+		else
+			return target.index;
+	}
+
+	public boolean isConditional() {
+		switch (Opcode.forCode(opcode)) {
+			case ZEND_JMP:
+			case ZEND_BRK:
+			case ZEND_CONT:
+			case ZEND_FE_RESET:
+			case ZEND_FE_FETCH:
+				return false;
+			case ZEND_JMPZ:
+			case ZEND_JMPNZ:
+			case ZEND_JMPNZ_EX:
+			case ZEND_JMPZ_EX:
+			case ZEND_JMPZNZ:
+			case ZEND_CATCH:
+			default:
+				return true;
 		}
-		return target.index;
 	}
 
 	@Override

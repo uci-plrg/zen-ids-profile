@@ -16,8 +16,7 @@ class DictionaryRequestHandler {
 
 	enum Instruction {
 		GET_ADMIN_PROBABILITY((byte) 0),
-		ADD_ADMIN_ROUTINE((byte) 1),
-		ADD_ANONYMOUS_ROUTINE((byte) 2);
+		ADD_ROUTINE((byte) 1);
 
 		final byte opcode;
 
@@ -102,41 +101,39 @@ class DictionaryRequestHandler {
 						int anonymousOnlyWordCount = testSet.size();
 
 						if (hasHint) {
+							boolean predictsNothing = adminOnlyWordCount == anonymousOnlyWordCount;
 							boolean predictsAdmin = adminOnlyWordCount > anonymousOnlyWordCount;
 							Log.log("Request for routine 0x%x: %d admin-only words, %d anonymous-only words: %d %s (%s)",
 									hash, adminOnlyWordCount, anonymousOnlyWordCount, Math.abs(adminOnlyWordCount
-											- anonymousOnlyWordCount), predictsAdmin ? "admin" : "anonymous",
-									(isAdmin == predictsAdmin) ? "correct" : "wrong");
+											- anonymousOnlyWordCount), predictsNothing ? "dunno"
+											: predictsAdmin ? "admin" : "anonymous", predictsNothing ? "dunno"
+											: (isAdmin == predictsAdmin) ? "correct" : "wrong");
 						} else {
 							Log.log("Request for routine 0x%x: %d admin-only words, %d anonymous-only words: %d %s",
-									hash, adminOnlyWordCount, anonymousOnlyWordCount,
-									Math.abs(adminOnlyWordCount - anonymousOnlyWordCount),
-									(adminOnlyWordCount > anonymousOnlyWordCount) ? "admin" : "anonymous");
+									hash, adminOnlyWordCount, anonymousOnlyWordCount, Math.abs(adminOnlyWordCount
+											- anonymousOnlyWordCount),
+									(adminOnlyWordCount == anonymousOnlyWordCount) ? "dunno"
+											: (adminOnlyWordCount > anonymousOnlyWordCount) ? "admin" : "anonymous");
 						}
 					}
 						break;
-					case ADD_ADMIN_ROUTINE: {
-						List<String> words = routineLineMap.getWords(hash);
+					case ADD_ROUTINE: {
+						List<String> words = routineLineMap.getWords(hash, true);
 						for (String word : words) {
 							recordWordInstance(adminWords, word);
 							anonymousOnlyWords.remove(word);
 							if (!anonymousWords.containsKey(word))
 								adminOnlyWords.add(word);
 						}
-						adminRoutineCount++;
-						Log.log("Update admin routine 0x%x: %d total admin words", hash, adminWords.size());
-					}
-						break;
-					case ADD_ANONYMOUS_ROUTINE: {
-						List<String> words = routineLineMap.getWords(hash);
+						words = routineLineMap.getWords(hash, false);
 						for (String word : words) {
 							recordWordInstance(anonymousWords, word);
 							adminOnlyWords.remove(word);
 							if (!adminWords.containsKey(word))
 								anonymousOnlyWords.add(word);
 						}
-						anonymousRoutineCount++;
-						Log.log("Update anonymous routine 0x%x: %d total anonymous words", hash, anonymousWords.size());
+						Log.log("Update routine 0x%x: %d total admin words, %d total anonymous words", hash,
+								adminWords.size(), anonymousWords.size());
 					}
 						break;
 				}

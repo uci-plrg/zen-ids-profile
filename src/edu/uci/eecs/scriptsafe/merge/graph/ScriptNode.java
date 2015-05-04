@@ -179,6 +179,8 @@ public class ScriptNode {
 	public static final EnumSet<Opcode> CALL_INIT_OPCODES = EnumSet.of(Opcode.ZEND_INIT_FCALL,
 			Opcode.ZEND_INIT_FCALL_BY_NAME, Opcode.ZEND_INIT_METHOD_CALL, Opcode.ZEND_INIT_NS_FCALL_BY_NAME,
 			Opcode.ZEND_INIT_STATIC_METHOD_CALL, Opcode.ZEND_INIT_USER_CALL);
+	
+	public static final int USER_LEVEL_TOP = 0x3f;
 
 	public final int routineHash;
 	public final Type type;

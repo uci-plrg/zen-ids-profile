@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.StringTokenizer;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
@@ -131,37 +132,54 @@ public class RoutineLineMap {
 			if (lines.isEmpty())
 				return;
 
-			List<Integer> routineCoverage = new ArrayList<Integer>();
+			List<Integer> lineCoverage = new ArrayList<Integer>();
+			// List<Integer> Coverage = new ArrayList<Integer>();
 			for (int i = 0; i < (lines.size() + 1); i++)
-				routineCoverage.add(0);
+				lineCoverage.add(0);
 			for (Integer hash : routines) {
 				ScriptRoutineGraph routine = cfg.getRoutine(hash);
 
+				boolean isAnonymous = cfg.edges.getMinUserLevel(routine.hash) < 2;
+
 				for (ScriptNode node : routine.getNodes()) {
-					if (node.lineNumber > (routineCoverage.size() + 1)) {
+					if (node.lineNumber > (lineCoverage.size() + 1)) {
 						Log.error("Node with opcode 0x%x in 0x%x has line number %d, but the file only has %d lines",
-								node.opcode, routine.hash, node.lineNumber, routineCoverage.size());
+								node.opcode, routine.hash, node.lineNumber, lineCoverage.size());
 						continue;
 					}
 					if (node.opcode == 0)
 						continue; // there is no opcode zero
-					routineCoverage.set(Math.max(0, node.lineNumber - 1), routine.hash);
+
+					/*
+					 * if (node instanceof ScriptBranchNode) { ScriptBranchNode branch = (ScriptBranchNode) node; if
+					 * (isAnonymous) { if (branch.getBranchUserLevel() >= 2) {
+					 * Log.log(" === admin-only branch at index %d(%d) in anonymous routine 0x%x", node.index,
+					 * routine.getNodeCount(), routine.hash); } else { //
+					 * Log.log(" === anonymous branch at index %d(%d) in anonymous routine 0x%x", // node.index, //
+					 * routine.getNodeCount(), routine.hash); } } else { if (branch.getBranchUserLevel() >= 2) { //
+					 * Log.log(" === admin-only branch at index %d(%d) in admin routine 0x%x", node.index, //
+					 * routine.getNodeCount(), routine.hash); } else {
+					 * Log.log(" === anonymous branch at index %d(%d) in admin routine 0x%x", node.index,
+					 * routine.getNodeCount(), routine.hash); } } }
+					 */
+
+					lineCoverage.set(Math.max(0, node.lineNumber - 1), routine.hash);
 				}
 			}
 
 			int i = 0, hash, start, end = 0;
 			RoutineSpan currentSpan = null, nextSpan;
 			do {
-				hash = routineCoverage.get(i++);
-				if (i >= routineCoverage.size())
+				hash = lineCoverage.get(i++);
+				if (i >= lineCoverage.size())
 					return;
 			} while (hash == 0);
 			start = i - 1;
 			end = start + 1;
 			currentSpan = establishRoutineSpan(hash);
 
-			for (; i < routineCoverage.size(); i++) {
-				hash = routineCoverage.get(i);
+			for (; i < lineCoverage.size(); i++) {
+				hash = lineCoverage.get(i);
 				if (hash == 0)
 					continue;
 

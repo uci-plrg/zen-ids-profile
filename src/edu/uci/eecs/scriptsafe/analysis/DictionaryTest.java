@@ -87,23 +87,29 @@ public class DictionaryTest {
 			datasetLoader.loadDataset(datasetFile, dataset);
 
 			List<ScriptRoutineGraph> trainingRoutines = new ArrayList<ScriptRoutineGraph>();
+			List<ScriptRoutineGraph> testRoutines = new ArrayList<ScriptRoutineGraph>();
 			Random random = new Random(System.currentTimeMillis());
 			for (ScriptRoutineGraph routine : dataset.getRoutines()) {
 				if (random.nextInt() % 1000 < 700)
 					trainingRoutines.add(routine);
+				else
+					testRoutines.add(routine);
 			}
 
 			socket = new Socket(InetAddress.getLocalHost(), serverPort);
 			out = socket.getOutputStream();
 			try {
 				for (ScriptRoutineGraph routine : trainingRoutines) {
-					sendInstruction(Instruction.GET_ADMIN_WORD_RATIO, routine.hash);
-					sendInstruction(Instruction.GET_ANONYMOUS_WORD_RATIO, routine.hash);
+					sendInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash);
 					if (dataset.edges.getMinUserLevel(routine.hash) < 2) {
 						sendInstruction(Instruction.ADD_ANONYMOUS_ROUTINE, routine.hash);
 					} else {
 						sendInstruction(Instruction.ADD_ADMIN_ROUTINE, routine.hash);
 					}
+				}
+				for (ScriptRoutineGraph routine : testRoutines) {
+					sendInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash,
+							dataset.edges.getMinUserLevel(routine.hash) >= 2);
 				}
 			} finally {
 				out.close();
@@ -116,6 +122,13 @@ public class DictionaryTest {
 
 	private void sendInstruction(Instruction i, int hash) throws IOException {
 		byte instruction[] = Instruction.create(i, hash);
+		out.write(instruction);
+		out.flush();
+	}
+
+	private void sendInstruction(Instruction i, int hash, boolean isAdmin) throws IOException {
+		byte instruction[] = Instruction.create(i, hash);
+		instruction[0] |= (isAdmin ? 0x80 : 0x40);
 		out.write(instruction);
 		out.flush();
 	}

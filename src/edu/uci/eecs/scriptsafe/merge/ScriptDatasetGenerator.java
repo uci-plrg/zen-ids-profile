@@ -193,15 +193,17 @@ public class ScriptDatasetGenerator {
 					out.writeInt(0);
 					break;
 				case BRANCH:
-					targetIndex = ((ScriptBranchNode) node).getTargetIndex(routine.hash);
+					ScriptBranchNode branch = (ScriptBranchNode) node;
+					targetIndex = branch.getTargetIndex(routine.hash);
+					targetIndex |= (branch.getBranchUserLevel() << 26);
 					out.writeInt(targetIndex);
 					break;
 				case CALL:
 					calls.add(node);
 					out.writeInt(callTargetPtr);
 					if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {
-						Log.log("Reserved %d call targets for 0x%x %d at 0x%x",
-								dataSource.getOutgoingEdgeCount(node), routine.hash, node.index, callTargetPtr);
+						Log.log("Reserved %d call targets for 0x%x %d at 0x%x", dataSource.getOutgoingEdgeCount(node),
+								routine.hash, node.index, callTargetPtr);
 					}
 					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
 					break;

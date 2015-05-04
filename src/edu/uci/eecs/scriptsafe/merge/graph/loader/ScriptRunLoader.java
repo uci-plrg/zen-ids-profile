@@ -267,6 +267,10 @@ class ScriptRunLoader {
 
 					branchNode = (ScriptBranchNode) routine.getNode(edge.fromIndex);
 					branchNode.setTarget(routine.getNode(edge.toIndex));
+					branchNode.setBranchUserLevel(edge.userLevel);
+
+					Log.message("User level %d on %d->%d in routine 0x%x", branchNode.getBranchUserLevel(),
+							edge.fromIndex, edge.toIndex, routine.hash);
 
 					if (routine.getNode(edge.toIndex).index != edge.toIndex) {
 						throw new MergeException("Incorrect node index: expected %d but found %d", edge.toIndex,

@@ -1,29 +1,23 @@
 package edu.uci.eecs.scriptsafe.analysis;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
-import java.util.List;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
-import edu.uci.eecs.scriptsafe.analysis.RequestGraph.CallSite;
-import edu.uci.eecs.scriptsafe.analysis.RequestGraph.Edge;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
-import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetFiles;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetLoader;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles;
 
 public class DictionaryGenerator {
 
+	public static final OptionArgumentMap.StringOption port = OptionArgumentMap.createStringOption('p');
 	public static final OptionArgumentMap.StringOption datasetDir = OptionArgumentMap.createStringOption('d');
-	public static final OptionArgumentMap.StringOption phpDir = OptionArgumentMap.createStringOption('p');
-	// public static final OptionArgumentMap.StringOption outputDir = OptionArgumentMap.createStringOption('o');
+	public static final OptionArgumentMap.StringOption phpDir = OptionArgumentMap.createStringOption('s');
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());
 	public static final OptionArgumentMap.StringOption watchlistFile = OptionArgumentMap.createStringOption('w',
@@ -42,9 +36,11 @@ public class DictionaryGenerator {
 	private ScriptFlowGraph sourceGraph;
 	private File outputFile;
 
+	private int serverPort;
+
 	private DictionaryGenerator(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, datasetDir, phpDir, verbose, watchlistFile, watchlistCategories);
+		argMap = new OptionArgumentMap(args, port, datasetDir, phpDir, verbose, watchlistFile, watchlistCategories);
 	}
 
 	private void run() {
@@ -57,8 +53,14 @@ public class DictionaryGenerator {
 			Log.setLevel(Log.Level.values()[verbose.getValue()]);
 			System.out.println("Log level " + verbose.getValue());
 
-			if (!(datasetDir.hasValue() && phpDir.hasValue())) {
+			if (!(port.hasValue() && datasetDir.hasValue() && phpDir.hasValue())) {
 				printUsage();
+				return;
+			}
+
+			serverPort = Integer.parseInt(port.getValue());
+			if (serverPort < 0 || serverPort > Short.MAX_VALUE) {
+				Log.error("Port %d does not exist. Exiting now.", serverPort);
 				return;
 			}
 
@@ -74,16 +76,34 @@ public class DictionaryGenerator {
 			if (watchlistCategories.hasValue()) {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
-			
-			Log.log("%s", routineLineMap.toString());
+
+			// Log.log("%s", routineLineMap.toString());
+
+			startServer();
 
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}
 	}
 
+	private void startServer() throws IOException {
+		ServerSocket server = new ServerSocket(serverPort);
+		DictionaryRequestHandler requestHandler = new DictionaryRequestHandler(routineLineMap);
+		Socket request;
+
+		try {
+			while (true) {
+				request = server.accept();
+				requestHandler.respond(request);
+			}
+		} finally {
+			server.close();
+		}
+	}
+
 	private void printUsage() {
-		System.err.println(String.format("Usage: -d <dataset-dir> -p <php-src-dir>", getClass().getSimpleName()));
+		System.err.println(String.format("Usage: %s -p <server-port> -d <dataset-dir> -s <php-src-dir>", getClass()
+				.getSimpleName()));
 	}
 
 	public static void main(String[] args) {

@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,6 +52,11 @@ public class RoutineLineMap {
 			words = null;
 			for (int i = start; i < end; i++)
 				code.add(new CodeLine(i, codeLines.get(i)));
+		}
+
+		List<String> getWords() {
+			parseWords();
+			return words;
 		}
 
 		void parseWords() {
@@ -216,6 +222,14 @@ public class RoutineLineMap {
 
 		for (ApplicationFile appFile : catalog.values())
 			appFile.installRoutineSpans(cfg);
+	}
+
+	List<String> getWords(int hash) {
+		RoutineSpan span = routineSpans.get(hash);
+		if (span == null)
+			return Collections.EMPTY_LIST;
+		else
+			return span.getWords();
 	}
 
 	@Override

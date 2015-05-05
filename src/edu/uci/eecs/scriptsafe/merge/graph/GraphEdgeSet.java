@@ -44,11 +44,19 @@ public class GraphEdgeSet {
 		return (edges == null) ? 0 : edges.size();
 	}
 
+	public Iterable<RoutineEdge> getIncomingEdges(int routineHash) {
+		List<RoutineEdge> edges = incomingEdges.get(routineHash);
+		if (edges == null)
+			return Collections.emptyList();
+		else
+			return edges;
+	}
+
 	public int getMinUserLevel(int routineHash) {
 		int min = Integer.MAX_VALUE;
-		List<RoutineEdge> nodeIncoming = incomingEdges.get(routineHash);
-		if (nodeIncoming != null) {
-			for (RoutineEdge edge : nodeIncoming) {
+		List<RoutineEdge> edges = incomingEdges.get(routineHash);
+		if (edges != null) {
+			for (RoutineEdge edge : edges) {
 				if (edge.getUserLevel() < min)
 					min = edge.getUserLevel();
 			}

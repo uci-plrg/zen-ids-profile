@@ -27,42 +27,86 @@ public class SkewDictionary implements Dictionary {
 	public Evaluation evaluateRoutine(int hash, boolean hasHint, boolean hintAdmin) {
 		List<String> routineWords = routineLineMap.getWords(hash);
 
-		int minCount = allWords.size() / 10;
+		int minAdminMajority = (int) (8 * Math.log10(adminWords.size()));
+		int minAnonymousMajority = (int) (8 * Math.log10(anonymousWords.size()));
+		int maxAdminMinority = (int) (2 * Math.log10(adminWords.size()));
+		int maxAnonymousMinority = (int) (2 * Math.log10(anonymousWords.size()));
 		int adminCount, anonymousCount;
+		float adminScore, anonymousScore, normalizer;
 		int favorAdmin = 0, favorAnonymous = 0;
 		WordInstance adminInstance, anonymousInstance;
+
+		int adminOverMin = 0, anonymousOverMin = 0, adminSkew = 0, anonymousSkew = 0;
+
+		if (adminWords.size() < 50 || anonymousWords.size() < 50)
+			normalizer = 1f;
+		else
+			normalizer = (adminWords.size() / (float) anonymousWords.size());
+
 		for (String word : routineWords) {
 			adminInstance = adminWords.get(word);
-			if (adminInstance == null)
+			if (adminInstance == null) {
 				adminCount = 0;
-			else
+				adminScore = 0f;
+			} else {
 				adminCount = adminInstance.count;
+				adminScore = adminInstance.count / normalizer;
+			}
 
 			anonymousInstance = anonymousWords.get(word);
-			if (anonymousInstance == null)
+			if (anonymousInstance == null) {
 				anonymousCount = 0;
-			else
+				anonymousScore = 0f;
+			} else {
 				anonymousCount = anonymousInstance.count;
+				anonymousScore = anonymousInstance.count * normalizer;
+			}
 
-			if (anonymousCount > minCount && anonymousCount > (3 * adminCount))
+			if (anonymousCount > minAnonymousMajority)
+				anonymousOverMin++;
+			if (anonymousCount > (1.5 * adminCount))
+				anonymousSkew++;
+			if (adminCount > minAdminMajority)
+				adminOverMin++;
+			if (adminCount > (1.5 * anonymousCount))
+				adminSkew++;
+
+			if (anonymousCount > minAnonymousMajority || adminCount > minAdminMajority) {
+				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, minAdminMajority,
+						adminScore, anonymousCount, minAnonymousMajority, anonymousScore);
+			}
+
+			if (anonymousCount > minAnonymousMajority && adminCount < maxAdminMinority
+					&& anonymousScore > (3 * adminScore)) {
 				favorAnonymous++;
-			else if (adminCount > minCount && adminCount > (3 * anonymousCount))
+				Log.log("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, minAdminMajority, adminScore,
+						anonymousCount, minAnonymousMajority, anonymousScore);
+			} else if (adminCount > minAdminMajority && anonymousCount < maxAnonymousMinority
+					&& adminScore > (3 * anonymousScore)) {
 				favorAdmin++;
+				Log.log("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, minAdminMajority, adminScore,
+						anonymousCount, minAnonymousMajority, anonymousScore);
+			}
 		}
 
 		Evaluation evaluation = Evaluation.DUNNO;
-		if (favorAdmin > favorAnonymous)
-			evaluation = Evaluation.ADMIN;
-		else if (favorAnonymous > favorAdmin)
-			evaluation = Evaluation.ANONYMOUS;
+		// report strict domination only
+		if ((favorAdmin < 3 || favorAnonymous < 3) && (favorAdmin > 2 || favorAnonymous > 2)) {
+			if (favorAdmin > favorAnonymous)
+				evaluation = Evaluation.ADMIN;
+			else if (favorAnonymous > favorAdmin)
+				evaluation = Evaluation.ANONYMOUS;
+		}
 
 		if (hasHint) {
 			String correctness = evaluation.getCorrectnessString(hintAdmin);
-			Log.log("Request for routine 0x%x (%d): %d admin vs. %d anonymous: %s (%s)", hash, routineWords.size(),
-					favorAdmin, favorAnonymous, evaluation.toString().toLowerCase(), correctness);
+			Log.log("Request for routine 0x%x (%d): %d admin vs. %d anonymous: %s (%s) [%d,%d|%d,%d]", hash,
+					routineWords.size(), favorAdmin, favorAnonymous, evaluation.toString().toLowerCase(), correctness,
+					adminOverMin, adminSkew, anonymousOverMin, anonymousSkew);
 		} else {
-			Log.log("Request for routine 0x%x (%d): %d admin vs. %d anonymous: %s", hash, routineWords.size(),
-					favorAdmin, favorAnonymous, evaluation.toString().toLowerCase());
+			Log.log("Request for routine 0x%x (%d): %d admin vs. %d anonymous: %s [%d,%d|%d,%d]", hash,
+					routineWords.size(), favorAdmin, favorAnonymous, evaluation.toString().toLowerCase(), adminOverMin,
+					adminSkew, anonymousOverMin, anonymousSkew);
 		}
 
 		return evaluation;
@@ -76,6 +120,7 @@ public class SkewDictionary implements Dictionary {
 			DictionaryRequestHandler.recordWordInstance(adminWords, word);
 		}
 		words = routineLineMap.getWords(hash, false);
+		allWords.addAll(words);
 		for (String word : words) {
 			DictionaryRequestHandler.recordWordInstance(anonymousWords, word);
 		}
@@ -83,6 +128,7 @@ public class SkewDictionary implements Dictionary {
 
 	@Override
 	public void reportSummary() {
+		Log.log("Total admin words: %d. Total anonymous words: %d.", adminWords.size(), anonymousWords.size());
 	}
 
 	@Override

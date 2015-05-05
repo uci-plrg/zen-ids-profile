@@ -16,6 +16,7 @@ import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.scriptsafe.analysis.AnalysisException;
 import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.Instruction;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
@@ -87,14 +88,26 @@ public class DictionaryTest {
 			dataset = new ScriptFlowGraph(Type.DATASET, datasetFile.getAbsolutePath(), false);
 			datasetLoader.loadDataset(datasetFile, dataset);
 
+			int adminRoutineCount = 0, anonymousRoutineCount = 0;
 			List<ScriptRoutineGraph> trainingRoutines = new ArrayList<ScriptRoutineGraph>();
 			List<ScriptRoutineGraph> testRoutines = new ArrayList<ScriptRoutineGraph>();
 			Random random = new Random(System.currentTimeMillis());
 			for (ScriptRoutineGraph routine : dataset.getRoutines()) {
+				if (dataset.edges.getIncomingEdgeCount(routine.hash) == 0)
+					continue;
+
 				if (random.nextInt() % 1000 < 700)
 					trainingRoutines.add(routine);
 				else
 					testRoutines.add(routine);
+
+				if (dataset.edges.getMinUserLevel(routine.hash) < 2) {
+					anonymousRoutineCount++;
+					Log.log("Anonymous routine: 0x%x", routine.hash);
+				} else {
+					adminRoutineCount++;
+					Log.log("Admin routine: 0x%x", routine.hash);
+				}
 			}
 
 			socket = new Socket(InetAddress.getLocalHost(), serverPort);
@@ -109,11 +122,25 @@ public class DictionaryTest {
 					sendInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash,
 							dataset.edges.getMinUserLevel(routine.hash) >= 2);
 				}
-				// sendInstruction(Instruction.REPORT_SUMMARY);
+				sendInstruction(Instruction.REPORT_SUMMARY);
 			} finally {
 				out.close();
 				socket.close();
 			}
+
+			Log.log("Total admin routines: %d. Total anonymous routines: %d.", adminRoutineCount, anonymousRoutineCount);
+
+			int adminEdges = 0, anonymousEdges = 0;
+			for (List<RoutineEdge> edges : dataset.edges.getOutgoingEdges()) {
+				for (RoutineEdge edge : edges) {
+					if (edge.getUserLevel() < 2)
+						anonymousEdges++;
+					else if (edge.getUserLevel() < 60)
+						adminEdges++;
+				}
+			}
+			Log.log("Total admin edges: %d. Total anonymous edges: %d.", adminEdges, anonymousEdges);
+
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}

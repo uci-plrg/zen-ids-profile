@@ -1,4 +1,4 @@
-package edu.uci.eecs.scriptsafe.analysis;
+package edu.uci.eecs.scriptsafe.analysis.dictionary;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,9 +29,6 @@ public class DictionaryGenerator {
 	private final OptionArgumentMap argMap;
 
 	private final RoutineLineMap routineLineMap = new RoutineLineMap();
-
-	private final RequestGraph.Loader requestLoader = new RequestGraph.Loader();
-	private RequestGraph requestGraph;
 
 	private ScriptFlowGraph sourceGraph;
 	private File outputFile;

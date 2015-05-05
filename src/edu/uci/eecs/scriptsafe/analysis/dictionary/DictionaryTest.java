@@ -1,4 +1,4 @@
-package edu.uci.eecs.scriptsafe.analysis;
+package edu.uci.eecs.scriptsafe.analysis.dictionary;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,7 +13,8 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
-import edu.uci.eecs.scriptsafe.analysis.DictionaryRequestHandler.Instruction;
+import edu.uci.eecs.scriptsafe.analysis.AnalysisException;
+import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.Instruction;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
@@ -99,6 +100,7 @@ public class DictionaryTest {
 			socket = new Socket(InetAddress.getLocalHost(), serverPort);
 			out = socket.getOutputStream();
 			try {
+				sendInstruction(Instruction.RESET);
 				for (ScriptRoutineGraph routine : trainingRoutines) {
 					sendInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash);
 					sendInstruction(Instruction.ADD_ROUTINE, routine.hash);
@@ -107,6 +109,7 @@ public class DictionaryTest {
 					sendInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash,
 							dataset.edges.getMinUserLevel(routine.hash) >= 2);
 				}
+				// sendInstruction(Instruction.REPORT_SUMMARY);
 			} finally {
 				out.close();
 				socket.close();
@@ -114,6 +117,10 @@ public class DictionaryTest {
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}
+	}
+
+	private void sendInstruction(Instruction i) throws IOException {
+		sendInstruction(i, 0);
 	}
 
 	private void sendInstruction(Instruction i, int hash) throws IOException {

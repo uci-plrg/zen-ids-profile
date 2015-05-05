@@ -1,4 +1,4 @@
-package edu.uci.eecs.scriptsafe.analysis;
+package edu.uci.eecs.scriptsafe.analysis.dictionary;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.StringTokenizer;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.scriptsafe.analysis.AnalysisException;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
@@ -181,7 +182,10 @@ public class RoutineLineMap {
 					userLevelCoverage.set(getLineIndex(node), entryUserLevel);
 				}
 
+				int iteration = 0, maxIterations = 50;
 				while (changedUserLevel) {
+					if (++iteration > maxIterations)
+						break;
 					changedUserLevel = false;
 					for (int i = 0; i < userLevelPhi.size(); i++) {
 						int phi = userLevelPhi.get(i);
@@ -190,7 +194,7 @@ public class RoutineLineMap {
 								ScriptNode node = routine.getNode(j);
 								if (userLevelCoverage.get(getLineIndex(node)) != phi) {
 									userLevelCoverage.set(getLineIndex(node), phi);
-									Log.log("Changing user level on line %d of 0x%x to %d", node.lineNumber,
+									Log.message("Changing user level on line %d of 0x%x to %d", node.lineNumber,
 											routine.hash, phi);
 									changedUserLevel = true;
 								}

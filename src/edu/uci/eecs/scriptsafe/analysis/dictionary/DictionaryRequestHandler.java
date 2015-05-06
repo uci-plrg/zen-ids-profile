@@ -74,7 +74,7 @@ class DictionaryRequestHandler {
 	interface Dictionary {
 		Evaluation evaluateRoutine(int hash, boolean hasHint, boolean hintAdmin);
 
-		void addRoutine(int hash);
+		void addRoutine(int hash, boolean isAdmin);
 
 		void reportSummary();
 
@@ -101,37 +101,39 @@ class DictionaryRequestHandler {
 	}
 
 	void respond(Socket request) throws IOException {
-		int hash;
 		byte data[];
-		Instruction instruction;
 		DataInputStream in = new DataInputStream(request.getInputStream());
 		try {
 			do {
 				data = new byte[5];
 				in.readFully(data);
-				byte opcode = (byte) (data[0] & (byte) 0xf);
-				boolean hasHint = (data[0] & 0xf0) != 0;
-				boolean hintAdmin = (data[0] & (byte) 0x80) != 0;
-				instruction = Instruction.forByte(opcode);
-				hash = ByteBuffer.wrap(data, 1, 4).getInt();
-
-				switch (instruction) {
-					case GET_ADMIN_PROBABILITY:
-						dictionary.evaluateRoutine(hash, hasHint, hintAdmin);
-						break;
-					case ADD_ROUTINE:
-						dictionary.addRoutine(hash);
-						break;
-					case REPORT_SUMMARY:
-						dictionary.reportSummary();
-						break;
-					case RESET:
-						dictionary.reset();
-						break;
-				}
+				execute(data);
 			} while (in.available() > 0);
 		} finally {
 			in.close();
+		}
+	}
+
+	void execute(byte data[]) {
+		byte opcode = (byte) (data[0] & (byte) 0xf);
+		boolean hasHint = (data[0] & 0xf0) != 0;
+		boolean hintAdmin = (data[0] & (byte) 0x80) != 0;
+		Instruction instruction = Instruction.forByte(opcode);
+		int hash = ByteBuffer.wrap(data, 1, 4).getInt();
+
+		switch (instruction) {
+			case GET_ADMIN_PROBABILITY:
+				dictionary.evaluateRoutine(hash, hasHint, hintAdmin);
+				break;
+			case ADD_ROUTINE:
+				dictionary.addRoutine(hash, hintAdmin);
+				break;
+			case REPORT_SUMMARY:
+				dictionary.reportSummary();
+				break;
+			case RESET:
+				dictionary.reset();
+				break;
 		}
 	}
 }

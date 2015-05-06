@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -24,6 +25,8 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetLoader;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
 
 public class DictionaryTest {
+	public static final OptionArgumentMap.BooleanOption standaloneMode = OptionArgumentMap.createBooleanOption('1');
+	public static final OptionArgumentMap.StringOption phpDir = OptionArgumentMap.createStringOption('s');
 	public static final OptionArgumentMap.StringOption port = OptionArgumentMap.createStringOption('p');
 	public static final OptionArgumentMap.StringOption datasetDir = OptionArgumentMap.createStringOption('d');
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
@@ -47,9 +50,16 @@ public class DictionaryTest {
 	private Socket socket;
 	private OutputStream out;
 
+	private File datasetDirectory;
+
+	int adminRoutineCount = 0, anonymousRoutineCount = 0;
+	private List<ScriptRoutineGraph> trainingRoutines = new ArrayList<ScriptRoutineGraph>();
+	private List<ScriptRoutineGraph> testRoutines = new ArrayList<ScriptRoutineGraph>();
+
 	private DictionaryTest(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, port, datasetDir, verbose, watchlistFile, watchlistCategories);
+		argMap = new OptionArgumentMap(args, standaloneMode, phpDir, port, datasetDir, verbose, watchlistFile,
+				watchlistCategories);
 	}
 
 	private void run() {
@@ -62,14 +72,14 @@ public class DictionaryTest {
 			Log.setLevel(Log.Level.values()[verbose.getValue()]);
 			System.out.println("Log level " + verbose.getValue());
 
-			if (!(port.hasValue() && datasetDir.hasValue())) {
-				printUsage();
-				return;
-			}
+			boolean valid = datasetDir.hasValue();
+			if (standaloneMode.hasValue())
+				valid |= phpDir.hasValue();
+			else
+				valid |= port.hasValue();
 
-			serverPort = Integer.parseInt(port.getValue());
-			if (serverPort < 0 || serverPort > Short.MAX_VALUE) {
-				Log.error("Port %d does not exist. Exiting now.", serverPort);
+			if (!valid) {
+				printUsage();
 				return;
 			}
 
@@ -81,51 +91,34 @@ public class DictionaryTest {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
-			File datasetDirectory = new File(datasetDir.getValue());
+			datasetDirectory = new File(datasetDir.getValue());
 			File datasetFile = new File(datasetDirectory, "cfg.set");
 			if (!(datasetFile.exists() && datasetFile.isFile()))
 				throw new AnalysisException("Cannot find dataset file '%s'", datasetFile.getAbsolutePath());
 			dataset = new ScriptFlowGraph(Type.DATASET, datasetFile.getAbsolutePath(), false);
 			datasetLoader.loadDataset(datasetFile, dataset);
 
-			int adminRoutineCount = 0, anonymousRoutineCount = 0;
-			List<ScriptRoutineGraph> trainingRoutines = new ArrayList<ScriptRoutineGraph>();
-			List<ScriptRoutineGraph> testRoutines = new ArrayList<ScriptRoutineGraph>();
 			Random random = new Random(System.currentTimeMillis());
 			for (ScriptRoutineGraph routine : dataset.getRoutines()) {
 				if (dataset.edges.getIncomingEdgeCount(routine.hash) == 0)
 					continue;
 
-				if (random.nextInt() % 1000 < 700)
+				if (random.nextInt(1000) < 700)
 					trainingRoutines.add(routine);
 				else
 					testRoutines.add(routine);
 
 				if (dataset.edges.getMinUserLevel(routine.hash) < 2) {
 					anonymousRoutineCount++;
-					Log.log("Anonymous routine: 0x%x", routine.hash);
 				} else {
 					adminRoutineCount++;
-					Log.log("Admin routine: 0x%x", routine.hash);
 				}
 			}
 
-			socket = new Socket(InetAddress.getLocalHost(), serverPort);
-			out = socket.getOutputStream();
-			try {
-				sendInstruction(Instruction.RESET);
-				for (ScriptRoutineGraph routine : trainingRoutines) {
-					sendInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash);
-					sendInstruction(Instruction.ADD_ROUTINE, routine.hash);
-				}
-				for (ScriptRoutineGraph routine : testRoutines) {
-					sendInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash,
-							dataset.edges.getMinUserLevel(routine.hash) >= 2);
-				}
-				sendInstruction(Instruction.REPORT_SUMMARY);
-			} finally {
-				out.close();
-				socket.close();
+			if (standaloneMode.hasValue()) {
+				testStandalone();
+			} else {
+				testServer();
 			}
 
 			Log.log("Total admin routines: %d. Total anonymous routines: %d.", adminRoutineCount, anonymousRoutineCount);
@@ -146,25 +139,71 @@ public class DictionaryTest {
 		}
 	}
 
-	private void sendInstruction(Instruction i) throws IOException {
-		sendInstruction(i, 0);
+	private void testStandalone() throws NumberFormatException, IOException {
+		File phpDirectory = new File(phpDir.getValue());
+		routineLineMap.load(new File(datasetDirectory, "routine-catalog.tab"), phpDirectory, new File(datasetDirectory,
+				"cfg.set"));
+		DictionaryRequestHandler requestHandler = new DictionaryRequestHandler(routineLineMap);
+
+		for (ScriptRoutineGraph routine : trainingRoutines) {
+			requestHandler.execute(createInstruction(Instruction.ADD_ROUTINE, routine.hash,
+					dataset.edges.getMinUserLevel(routine.hash) >= 2));
+		}
+		for (ScriptRoutineGraph routine : testRoutines) {
+			requestHandler.execute(createInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash,
+					dataset.edges.getMinUserLevel(routine.hash) >= 2));
+		}
+		requestHandler.execute(createInstruction(Instruction.REPORT_SUMMARY));
 	}
 
-	private void sendInstruction(Instruction i, int hash) throws IOException {
-		byte instruction[] = Instruction.create(i, hash);
+	private void testServer() throws UnknownHostException, IOException {
+		serverPort = Integer.parseInt(port.getValue());
+		if (serverPort < 0 || serverPort > Short.MAX_VALUE) {
+			Log.error("Port %d does not exist. Exiting now.", serverPort);
+			return;
+		}
+
+		socket = new Socket(InetAddress.getLocalHost(), serverPort);
+		out = socket.getOutputStream();
+		try {
+			sendInstruction(createInstruction(Instruction.RESET));
+			for (ScriptRoutineGraph routine : trainingRoutines) {
+				sendInstruction(createInstruction(Instruction.ADD_ROUTINE, routine.hash));
+			}
+			for (ScriptRoutineGraph routine : testRoutines) {
+				sendInstruction(createInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash,
+						dataset.edges.getMinUserLevel(routine.hash) >= 2));
+			}
+			sendInstruction(createInstruction(Instruction.REPORT_SUMMARY));
+		} finally {
+			out.close();
+			socket.close();
+		}
+	}
+
+	private void sendInstruction(byte instruction[]) throws IOException {
 		out.write(instruction);
 		out.flush();
 	}
 
-	private void sendInstruction(Instruction i, int hash, boolean isAdmin) throws IOException {
+	private byte[] createInstruction(Instruction i) throws IOException {
+		return createInstruction(i, 0);
+	}
+
+	private byte[] createInstruction(Instruction i, int hash) throws IOException {
+		return Instruction.create(i, hash);
+	}
+
+	private byte[] createInstruction(Instruction i, int hash, boolean isAdmin) throws IOException {
 		byte instruction[] = Instruction.create(i, hash);
 		instruction[0] |= (isAdmin ? 0x80 : 0x40);
-		out.write(instruction);
-		out.flush();
+		return instruction;
 	}
 
 	private void printUsage() {
-		System.err.println(String.format("Usage: %s -p <server-port> -d <dataset-dir>", getClass().getSimpleName()));
+		System.err.println(String.format(
+				"Usage: %s -d <dataset-dir> [ -1 <standalone-mode> -s <php-src-dir> ] [ -p <server-port> ]", getClass()
+						.getSimpleName()));
 	}
 
 	public static void main(String[] args) {

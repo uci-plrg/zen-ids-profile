@@ -64,7 +64,7 @@ class ExclusiveDictionary implements Dictionary {
 	}
 
 	@Override
-	public void addRoutine(int hash) {
+	public void addRoutine(int hash, boolean isAdmin) {
 		List<String> words = routineLineMap.getWords(hash, true);
 		for (String word : words) {
 			DictionaryRequestHandler.recordWordInstance(adminWords, word);

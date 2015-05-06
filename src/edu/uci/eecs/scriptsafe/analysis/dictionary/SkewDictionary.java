@@ -1,10 +1,12 @@
 package edu.uci.eecs.scriptsafe.analysis.dictionary;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.Dictionary;
@@ -13,9 +15,62 @@ import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.Word
 
 public class SkewDictionary implements Dictionary {
 
+	private class EvaluationStatistics {
+		boolean isStale = true;
+
+		int minAdminMajority;
+		int minAnonymousMajority;
+		int maxAdminMinority;
+		int maxAnonymousMinority;
+
+		int adminTotalInstances;
+		float adminAverageInstances;
+		int anonymousTotalInstances;
+		float anonymousAverageInstances;
+
+		int adminRoutineCount = 0, anonymousRoutineCount = 0;
+
+		float normalizer;
+
+		void update() {
+			if (!isStale)
+				return;
+
+			minAdminMajority = (int) (4 * Math.log10(adminRoutineCount));
+			minAnonymousMajority = (int) (4 * Math.log10(anonymousRoutineCount));
+			maxAdminMinority = (int) (2 * Math.log10(adminRoutineCount));
+			maxAnonymousMinority = (int) (2 * Math.log10(anonymousRoutineCount));
+
+			adminTotalInstances = 0;
+			for (WordInstance i : adminWords.values()) {
+				adminTotalInstances += i.count;
+			}
+			adminAverageInstances = adminTotalInstances / (float) adminWords.size();
+
+			anonymousTotalInstances = 0;
+			for (WordInstance i : anonymousWords.values()) {
+				anonymousTotalInstances += i.count;
+			}
+			anonymousAverageInstances = anonymousTotalInstances / (float) anonymousWords.size();
+
+			if (adminWords.size() < 50 || anonymousWords.size() < 50)
+				normalizer = 1f;
+			else
+				normalizer = (anonymousTotalInstances / (float) adminTotalInstances);
+
+			Log.log("Updated normalizer to favor admin by %.3f", normalizer);
+
+			isStale = false;
+		}
+
+	}
+
+	private static final float SKEW_FACTOR = 2.5f;
+
 	private final Set<String> allWords = new HashSet<String>();
 	private final Map<String, WordInstance> adminWords = new HashMap<String, WordInstance>();
 	private final Map<String, WordInstance> anonymousWords = new HashMap<String, WordInstance>();
+	private final EvaluationStatistics stats = new EvaluationStatistics();
 
 	private final RoutineLineMap routineLineMap;
 
@@ -26,22 +81,14 @@ public class SkewDictionary implements Dictionary {
 	@Override
 	public Evaluation evaluateRoutine(int hash, boolean hasHint, boolean hintAdmin) {
 		List<String> routineWords = routineLineMap.getWords(hash);
+		stats.update();
 
-		int minAdminMajority = (int) (8 * Math.log10(adminWords.size()));
-		int minAnonymousMajority = (int) (8 * Math.log10(anonymousWords.size()));
-		int maxAdminMinority = (int) (2 * Math.log10(adminWords.size()));
-		int maxAnonymousMinority = (int) (2 * Math.log10(anonymousWords.size()));
 		int adminCount, anonymousCount;
-		float adminScore, anonymousScore, normalizer;
+		float adminScore, anonymousScore;
 		int favorAdmin = 0, favorAnonymous = 0;
 		WordInstance adminInstance, anonymousInstance;
 
 		int adminOverMin = 0, anonymousOverMin = 0, adminSkew = 0, anonymousSkew = 0;
-
-		if (adminWords.size() < 50 || anonymousWords.size() < 50)
-			normalizer = 1f;
-		else
-			normalizer = (adminWords.size() / (float) anonymousWords.size());
 
 		for (String word : routineWords) {
 			adminInstance = adminWords.get(word);
@@ -50,7 +97,8 @@ public class SkewDictionary implements Dictionary {
 				adminScore = 0f;
 			} else {
 				adminCount = adminInstance.count;
-				adminScore = adminInstance.count / normalizer;
+				// adminScore = adminInstance.count * stats.normalizer;
+				adminScore = (adminInstance.count / (float) stats.adminRoutineCount) * 100f;
 			}
 
 			anonymousInstance = anonymousWords.get(word);
@@ -59,39 +107,41 @@ public class SkewDictionary implements Dictionary {
 				anonymousScore = 0f;
 			} else {
 				anonymousCount = anonymousInstance.count;
-				anonymousScore = anonymousInstance.count * normalizer;
+				// anonymousScore = anonymousInstance.count / stats.normalizer;
+				anonymousScore = (anonymousInstance.count / (float) stats.anonymousRoutineCount) * 100f;
 			}
 
-			if (anonymousCount > minAnonymousMajority)
+			if (anonymousCount > stats.minAnonymousMajority)
 				anonymousOverMin++;
-			if (anonymousCount > (1.5 * adminCount))
+			if (anonymousCount > (SKEW_FACTOR * adminCount))
 				anonymousSkew++;
-			if (adminCount > minAdminMajority)
+			if (adminCount > stats.minAdminMajority)
 				adminOverMin++;
-			if (adminCount > (1.5 * anonymousCount))
+			if (adminCount > (SKEW_FACTOR * anonymousCount))
 				adminSkew++;
 
-			if (anonymousCount > minAnonymousMajority || adminCount > minAdminMajority) {
-				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, minAdminMajority,
-						adminScore, anonymousCount, minAnonymousMajority, anonymousScore);
+			if ((anonymousCount > stats.minAnonymousMajority /* && adminCount < stats.maxAdminMinority */)
+					|| (adminCount > stats.minAdminMajority /* && anonymousCount < stats.maxAnonymousMinority */)) {
+				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, stats.minAdminMajority,
+						adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore);
 			}
 
-			if (anonymousCount > minAnonymousMajority && adminCount < maxAdminMinority
-					&& anonymousScore > (3 * adminScore)) {
+			if (anonymousCount > stats.minAnonymousMajority /* && adminCount < stats.maxAdminMinority */
+					&& anonymousScore > (SKEW_FACTOR * adminScore)) {
 				favorAnonymous++;
-				Log.log("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, minAdminMajority, adminScore,
-						anonymousCount, minAnonymousMajority, anonymousScore);
-			} else if (adminCount > minAdminMajority && anonymousCount < maxAnonymousMinority
-					&& adminScore > (3 * anonymousScore)) {
+				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, stats.minAdminMajority,
+						adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore);
+			} else if (adminCount > stats.minAdminMajority /* && anonymousCount < stats.maxAnonymousMinority */
+					&& adminScore > (SKEW_FACTOR * anonymousScore)) {
 				favorAdmin++;
-				Log.log("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, minAdminMajority, adminScore,
-						anonymousCount, minAnonymousMajority, anonymousScore);
+				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, stats.minAdminMajority,
+						adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore);
 			}
 		}
 
 		Evaluation evaluation = Evaluation.DUNNO;
 		// report strict domination only
-		if ((favorAdmin < 3 || favorAnonymous < 3) && (favorAdmin > 2 || favorAnonymous > 2)) {
+		if ((favorAdmin < 4 || favorAnonymous < 4) && (favorAdmin > 3 || favorAnonymous > 3)) {
 			if (favorAdmin > favorAnonymous)
 				evaluation = Evaluation.ADMIN;
 			else if (favorAnonymous > favorAdmin)
@@ -113,7 +163,7 @@ public class SkewDictionary implements Dictionary {
 	}
 
 	@Override
-	public void addRoutine(int hash) {
+	public void addRoutine(int hash, boolean isAdmin) {
 		List<String> words = routineLineMap.getWords(hash, true);
 		allWords.addAll(words);
 		for (String word : words) {
@@ -124,11 +174,92 @@ public class SkewDictionary implements Dictionary {
 		for (String word : words) {
 			DictionaryRequestHandler.recordWordInstance(anonymousWords, word);
 		}
+		if (isAdmin)
+			stats.adminRoutineCount++;
+		else
+			stats.anonymousRoutineCount++;
+		stats.isStale = true;
+	}
+
+	private class Predictor {
+		float adminProbability;
+		float anonymousProbability;
+		float skewBase;
+		Evaluation evaluation;
+		String word;
+		float skew;
+		int adminCount;
+		int anonymousCount;
+
+		Predictor(WordInstance adminWord, WordInstance anonymousWord) {
+			adminProbability = (adminWord.count / (float) stats.adminRoutineCount) * 100f;
+			anonymousProbability = (anonymousWord.count / (float) stats.anonymousRoutineCount) * 100f;
+			skewBase = adminProbability + anonymousProbability;
+			word = adminWord.word;
+			if (adminProbability > anonymousProbability) {
+				evaluation = Evaluation.ADMIN;
+				skew = adminProbability / skewBase;
+			} else {
+				evaluation = Evaluation.ANONYMOUS;
+				skew = anonymousProbability / skewBase;
+			}
+
+			adminCount = adminWord.count;
+			anonymousCount = anonymousWord.count;
+		}
+
+		@Override
+		public int hashCode() {
+			return word.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			return (o instanceof Predictor && ((Predictor) o).word.equals(word));
+		}
+	}
+
+	private class PredictorSorter implements Comparator<Predictor> {
+		@Override
+		public int compare(Predictor first, Predictor second) {
+			return (int) ((second.skew * 1000) - (first.skew * 1000));
+		}
 	}
 
 	@Override
 	public void reportSummary() {
-		Log.log("Total admin words: %d. Total anonymous words: %d.", adminWords.size(), anonymousWords.size());
+		Log.log("Admin words: %d total, %d instances, %.2f avg. Anonymous words: %d total, %d instances, %.2f avg.",
+				adminWords.size(), stats.adminTotalInstances, stats.adminAverageInstances, anonymousWords.size(),
+				stats.anonymousTotalInstances, stats.anonymousAverageInstances);
+
+		Set<Predictor> predictors = new TreeSet<Predictor>(new PredictorSorter());
+		for (WordInstance adminWord : adminWords.values()) {
+			WordInstance anonymousWord = anonymousWords.get(adminWord.word);
+			if (anonymousWord == null)
+				continue;
+			if (adminWord.count < stats.minAdminMajority || anonymousWord.count < stats.minAnonymousMajority)
+				continue;
+
+			predictors.add(new Predictor(adminWord, anonymousWord));
+		}
+		for (WordInstance anonymousWord : anonymousWords.values()) {
+			WordInstance adminWord = adminWords.get(anonymousWord.word);
+			if (adminWord == null)
+				continue;
+			if (adminWord.count < stats.minAdminMajority || anonymousWord.count < stats.minAnonymousMajority)
+				continue;
+
+			predictors.add(new Predictor(adminWord, anonymousWord));
+		}
+
+		int i = 0;
+		for (Predictor predictor : predictors) {
+			Log.log("\t%s: %.3f %s:  %.3f(%d) admin, %.3f(%d) anonymous)", predictor.word, predictor.skew,
+					predictor.evaluation.toString().toLowerCase(), predictor.adminProbability, predictor.adminCount,
+					predictor.anonymousProbability, predictor.anonymousCount);
+			if (++i > 50)
+				break;
+		}
 	}
 
 	@Override

@@ -120,7 +120,7 @@ public class GraphExporter {
 	}
 
 	private void printUsage() {
-		System.err.println(String.format("Usage: %s <run-dir> [ <run-dir> ... ]", getClass().getSimpleName()));
+		System.err.println(String.format("Usage: %s -s <run-dir> -o <output-file>", getClass().getSimpleName()));
 	}
 
 	public static void main(String[] args) {

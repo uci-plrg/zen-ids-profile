@@ -221,7 +221,7 @@ public class SkewDictionary implements Dictionary {
 					skew = anonymousProbability / skewBase;
 				}
 			}
-			
+
 			if (evaluation == Evaluation.ANONYMOUS)
 				Log.log("Anonymous word: %s %.2f", word, skew);
 		}
@@ -257,16 +257,16 @@ public class SkewDictionary implements Dictionary {
 		Set<Predictor> predictors = new TreeSet<Predictor>(new PredictorSorter());
 		for (WordInstance adminWord : adminWords.values()) {
 			WordInstance anonymousWord = anonymousWords.get(adminWord.word);
-			if (adminWord.count < stats.minAdminMajority || anonymousWord == null
-					|| anonymousWord.count < stats.minAnonymousMajority)
+			if (adminWord.count < stats.minAdminMajority
+					&& (anonymousWord == null || anonymousWord.count < stats.minAnonymousMajority))
 				continue;
 
 			predictors.add(new Predictor(adminWord, anonymousWord));
 		}
 		for (WordInstance anonymousWord : anonymousWords.values()) {
 			WordInstance adminWord = adminWords.get(anonymousWord.word);
-			if (anonymousWord.count < stats.minAnonymousMajority || adminWord == null
-					|| adminWord.count < stats.minAdminMajority)
+			if (anonymousWord.count < stats.minAnonymousMajority
+					&& (adminWord == null || adminWord.count < stats.minAdminMajority))
 				continue;
 
 			predictors.add(new Predictor(adminWord, anonymousWord));
@@ -274,7 +274,7 @@ public class SkewDictionary implements Dictionary {
 
 		int i = 0;
 		for (Predictor predictor : predictors) {
-			Log.log("\t%s: %.3f %s:  %.3f(%d) admin, %.3f(%d) anonymous)", predictor.word, predictor.skew,
+			Log.log("\t%20s: %.3f %10s:  %02.3f(%d) admin, %02.3f(%d) anonymous)", predictor.word, predictor.skew,
 					predictor.evaluation.toString().toLowerCase(), predictor.adminProbability, predictor.adminCount,
 					predictor.anonymousProbability, predictor.anonymousCount);
 			if (++i > 50)

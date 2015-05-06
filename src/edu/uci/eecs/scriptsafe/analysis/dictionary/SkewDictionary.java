@@ -192,20 +192,38 @@ public class SkewDictionary implements Dictionary {
 		int anonymousCount;
 
 		Predictor(WordInstance adminWord, WordInstance anonymousWord) {
-			adminProbability = (adminWord.count / (float) stats.adminRoutineCount) * 100f;
-			anonymousProbability = (anonymousWord.count / (float) stats.anonymousRoutineCount) * 100f;
-			skewBase = adminProbability + anonymousProbability;
-			word = adminWord.word;
-			if (adminProbability > anonymousProbability) {
-				evaluation = Evaluation.ADMIN;
-				skew = adminProbability / skewBase;
-			} else {
+			if (adminWord == null) {
+				adminProbability = 0f;
 				evaluation = Evaluation.ANONYMOUS;
-				skew = anonymousProbability / skewBase;
+				skew = 1f;
+				adminCount = 0;
+			} else {
+				adminProbability = (adminWord.count / (float) stats.adminRoutineCount) * 100f;
+				adminCount = adminWord.count;
 			}
-
-			adminCount = adminWord.count;
-			anonymousCount = anonymousWord.count;
+			if (anonymousWord == null) {
+				anonymousProbability = 0f;
+				evaluation = Evaluation.ADMIN;
+				skew = 1f;
+				anonymousCount = 0;
+			} else {
+				anonymousProbability = (anonymousWord.count / (float) stats.anonymousRoutineCount) * 100f;
+				anonymousCount = anonymousWord.count;
+			}
+			skewBase = adminProbability + anonymousProbability;
+			word = (adminWord == null) ? anonymousWord.word : adminWord.word;
+			if (adminWord != null && anonymousWord != null) {
+				if (adminProbability > anonymousProbability) {
+					evaluation = Evaluation.ADMIN;
+					skew = adminProbability / skewBase;
+				} else {
+					evaluation = Evaluation.ANONYMOUS;
+					skew = anonymousProbability / skewBase;
+				}
+			}
+			
+			if (evaluation == Evaluation.ANONYMOUS)
+				Log.log("Anonymous word: %s %.2f", word, skew);
 		}
 
 		@Override
@@ -222,7 +240,11 @@ public class SkewDictionary implements Dictionary {
 	private class PredictorSorter implements Comparator<Predictor> {
 		@Override
 		public int compare(Predictor first, Predictor second) {
-			return (int) ((second.skew * 1000) - (first.skew * 1000));
+			int comparison = (int) ((second.skew * 1000) - (first.skew * 1000));
+			if (comparison != 0)
+				return comparison;
+			else
+				return first.word.compareTo(second.word);
 		}
 	}
 
@@ -235,18 +257,16 @@ public class SkewDictionary implements Dictionary {
 		Set<Predictor> predictors = new TreeSet<Predictor>(new PredictorSorter());
 		for (WordInstance adminWord : adminWords.values()) {
 			WordInstance anonymousWord = anonymousWords.get(adminWord.word);
-			if (anonymousWord == null)
-				continue;
-			if (adminWord.count < stats.minAdminMajority || anonymousWord.count < stats.minAnonymousMajority)
+			if (adminWord.count < stats.minAdminMajority || anonymousWord == null
+					|| anonymousWord.count < stats.minAnonymousMajority)
 				continue;
 
 			predictors.add(new Predictor(adminWord, anonymousWord));
 		}
 		for (WordInstance anonymousWord : anonymousWords.values()) {
 			WordInstance adminWord = adminWords.get(anonymousWord.word);
-			if (adminWord == null)
-				continue;
-			if (adminWord.count < stats.minAdminMajority || anonymousWord.count < stats.minAnonymousMajority)
+			if (anonymousWord.count < stats.minAnonymousMajority || adminWord == null
+					|| adminWord.count < stats.minAdminMajority)
 				continue;
 
 			predictors.add(new Predictor(adminWord, anonymousWord));

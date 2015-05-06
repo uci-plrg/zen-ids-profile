@@ -240,11 +240,20 @@ public class SkewDictionary implements Dictionary {
 	private class PredictorSorter implements Comparator<Predictor> {
 		@Override
 		public int compare(Predictor first, Predictor second) {
-			int comparison = (int) ((second.skew * 1000) - (first.skew * 1000));
-			if (comparison != 0)
+			int comparison = (int) ((second.skew * 10000) - (first.skew * 10000));
+			if (comparison != 0) {
 				return comparison;
-			else
-				return first.word.compareTo(second.word);
+			} else {
+				int firstProbability = (int) ((first.evaluation == Evaluation.ADMIN) ? first.adminProbability
+						: first.anonymousProbability) * 10000;
+				int secondProbability = (int) ((second.evaluation == Evaluation.ADMIN) ? second.adminProbability
+						: second.anonymousProbability) * 10000;
+				comparison = secondProbability - firstProbability;
+				if (comparison != 0)
+					return comparison;
+				else
+					return first.word.compareTo(second.word);
+			}
 		}
 	}
 
@@ -274,10 +283,10 @@ public class SkewDictionary implements Dictionary {
 
 		int i = 0;
 		for (Predictor predictor : predictors) {
-			Log.log("\t%20s: %.3f %10s:  %02.3f(%d) admin, %02.3f(%d) anonymous)", predictor.word, predictor.skew,
+			Log.log("\t%20s: %.3f %10s:  %02.3f(%02d) admin, %02.3f(%02d) anonymous)", predictor.word, predictor.skew,
 					predictor.evaluation.toString().toLowerCase(), predictor.adminProbability, predictor.adminCount,
 					predictor.anonymousProbability, predictor.anonymousCount);
-			if (++i > 50)
+			if (++i > 250)
 				break;
 		}
 	}

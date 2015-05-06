@@ -240,15 +240,15 @@ public class SkewDictionary implements Dictionary {
 	private class PredictorSorter implements Comparator<Predictor> {
 		@Override
 		public int compare(Predictor first, Predictor second) {
-			int comparison = (int) ((second.skew * 10000) - (first.skew * 10000));
+			int comparison = (int) Math.signum(second.skew - first.skew);
 			if (comparison != 0) {
 				return comparison;
 			} else {
-				int firstProbability = (int) ((first.evaluation == Evaluation.ADMIN) ? first.adminProbability
-						: first.anonymousProbability) * 10000;
-				int secondProbability = (int) ((second.evaluation == Evaluation.ADMIN) ? second.adminProbability
-						: second.anonymousProbability) * 10000;
-				comparison = secondProbability - firstProbability;
+				float firstProbability = (first.evaluation == Evaluation.ADMIN) ? first.adminProbability
+						: first.anonymousProbability;
+				float secondProbability = (second.evaluation == Evaluation.ADMIN) ? second.adminProbability
+						: second.anonymousProbability;
+				comparison = (int) Math.signum(secondProbability - firstProbability);
 				if (comparison != 0)
 					return comparison;
 				else

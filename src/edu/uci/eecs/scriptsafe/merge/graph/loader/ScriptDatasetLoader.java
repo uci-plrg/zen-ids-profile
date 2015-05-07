@@ -10,6 +10,7 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineId;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
@@ -35,7 +36,8 @@ public class ScriptDatasetLoader {
 
 	private LittleEndianInputStream in;
 
-	public void loadDataset(File datasetFile, ScriptFlowGraph graph) throws IOException {
+	public void loadDataset(File datasetFile, File routineCatalog, ScriptFlowGraph graph) throws IOException {
+		RoutineId.Cache.INSTANCE.load(routineCatalog);
 		in = new LittleEndianInputStream(datasetFile);
 
 		in.readInt(); // skip hashtable pointer
@@ -53,7 +55,8 @@ public class ScriptDatasetLoader {
 	private ScriptRoutineGraph loadNextRoutine(ScriptFlowGraph graph) throws IOException {
 		int routineHash = in.readInt();
 		int dynamicRoutineId, dynamicRoutineCount, targetNodeIndex, userLevel;
-		ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash, false);
+		ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash, RoutineId.Cache.INSTANCE.getId(routineHash),
+				false);
 
 		int nodeCount = in.readInt();
 		for (int i = 0; i < nodeCount; i++) {

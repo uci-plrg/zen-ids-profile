@@ -3,7 +3,6 @@ package edu.uci.eecs.scriptsafe.merge.graph;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
@@ -25,21 +24,23 @@ public class ScriptRoutineGraph {
 	}
 
 	public final int hash;
+	public final RoutineId id;
 	public final boolean isFragmentary;
 
 	private final List<ScriptNode> nodes = new ArrayList<ScriptNode>();
 
-	public ScriptRoutineGraph(int hash, boolean isFragmentary) {
+	public ScriptRoutineGraph(int hash, RoutineId id, boolean isFragmentary) {
 		this.hash = hash;
+		this.id = id;
 		this.isFragmentary = isFragmentary;
 	}
 
 	public ScriptRoutineGraph copy(boolean isFragmentary) {
-		return new ScriptRoutineGraph(hash, isFragmentary);
+		return new ScriptRoutineGraph(hash, id, isFragmentary);
 	}
 
-	public ScriptRoutineGraph renameDynamicRoutine(int routineIndex, boolean isFragmentary) {
-		ScriptRoutineGraph renamed = new ScriptRoutineGraph(ScriptRoutineGraph.constructDynamicHash(routineIndex),
+	public ScriptRoutineGraph renameDynamicRoutine(int routineIndex, RoutineId id, boolean isFragmentary) {
+		ScriptRoutineGraph renamed = new ScriptRoutineGraph(ScriptRoutineGraph.constructDynamicHash(routineIndex), id,
 				isFragmentary);
 		renamed.nodes.addAll(nodes);
 		return renamed;

@@ -8,14 +8,14 @@ import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.DatasetMerge;
+import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineId;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
 class ScriptRunLoader {
@@ -155,7 +155,8 @@ class ScriptRunLoader {
 
 		@Override
 		public ScriptRoutineGraph createRoutine(int routineHash) {
-			ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash, flowGraph.isFragmentary);
+			ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash,
+					RoutineId.Cache.INSTANCE.getId(routineHash), flowGraph.isFragmentary);
 			flowGraph.addRoutine(routine);
 			return routine;
 		}
@@ -200,6 +201,7 @@ class ScriptRunLoader {
 		loadOpcodeEdges(run);
 		loadRoutineEdges(run, graph);
 
+		RoutineId.Cache.INSTANCE.load(run.routineCatalog);
 		nodeLoadContext.setFlowGraph(graph);
 		nodeLoader.loadNodes(run.nodeFile);
 

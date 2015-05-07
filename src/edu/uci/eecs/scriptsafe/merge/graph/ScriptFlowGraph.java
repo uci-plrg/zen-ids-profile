@@ -8,7 +8,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles;
 
 public class ScriptFlowGraph {
 
-	private static ScriptRoutineGraph ENTRY_ROUTINE = new ScriptRoutineGraph(1, false);
+	private static ScriptRoutineGraph ENTRY_ROUTINE = new ScriptRoutineGraph(1, RoutineId.ENTRY_ID, false);
 
 	public final ScriptGraphDataFiles.Type dataSourceType;
 	public final String description;
@@ -37,7 +37,8 @@ public class ScriptFlowGraph {
 	}
 
 	public void appendDynamicRoutine(ScriptRoutineGraph dynamicRoutine) {
-		ScriptRoutineGraph append = dynamicRoutine.renameDynamicRoutine(maxDynamicRoutineIndex++, false);
+		ScriptRoutineGraph append = dynamicRoutine.renameDynamicRoutine(maxDynamicRoutineIndex++, dynamicRoutine.id,
+				false);
 		routines.put(append.hash, append);
 	}
 

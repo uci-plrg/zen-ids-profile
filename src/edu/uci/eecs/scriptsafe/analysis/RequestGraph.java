@@ -16,16 +16,16 @@ import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.scriptsafe.merge.DatasetMerge;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineId;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetLoader;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphLoader;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptNodeLoader;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptNodeLoader;
 
 public class RequestGraph {
+
 	private static class FileSet {
 
 		private final File requestFile;
@@ -63,7 +63,7 @@ public class RequestGraph {
 		}
 	}
 
-	static class Loader {
+	public static class Loader {
 		private class ScriptNodeLoadContext implements ScriptNodeLoader.LoadContext {
 			private final RequestGraph requestGraph;
 
@@ -78,14 +78,15 @@ public class RequestGraph {
 
 			@Override
 			public ScriptRoutineGraph createRoutine(int routineHash) {
-				ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash, false);
+				ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash,
+						RoutineId.Cache.INSTANCE.getId(routineHash), false);
 				requestGraph.routines.put(routine.hash, routine);
 				return routine;
 			}
 		}
 
 		private final List<Path> paths = new ArrayList<Path>();
-		private final Map<Integer, String> routineNames = new HashMap<Integer, String>();
+		private final Map<Integer, Path> routineFiles = new HashMap<Integer, Path>();
 
 		private ScriptNodeLoader nodeLoader;
 		private final ScriptDatasetLoader cfgLoader = new ScriptDatasetLoader();
@@ -115,6 +116,7 @@ public class RequestGraph {
 
 			RequestGraph requestGraph = this.requestGraph;
 			this.requestGraph = null;
+			requestGraph.setTotalRequests(totalRequests);
 			return requestGraph;
 		}
 
@@ -123,7 +125,7 @@ public class RequestGraph {
 				nodeLoader.loadNodes(fileSet.nodeFile);
 			} else {
 				ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, fileSet.datasetFile.getAbsolutePath(), false);
-				cfgLoader.loadDataset(fileSet.datasetFile, cfg);
+				cfgLoader.loadDataset(fileSet.datasetFile, fileSet.routineCatalog, cfg);
 				for (ScriptRoutineGraph routine : cfg.getRoutines())
 					requestGraph.routines.put(routine.hash, routine);
 			}
@@ -146,10 +148,11 @@ public class RequestGraph {
 					fromIndex = in.readInt();
 					userLevel = (fromIndex >>> 26);
 					fromIndex = (fromIndex & 0x3ffffff);
-					callSite = requestGraph.establishCallSite(getRoutineName(fileSet.routineCatalog, firstField),
-							firstField, fromIndex);
+					callSite = requestGraph.establishCallSite(
+							RoutineId.Cache.INSTANCE.getId(fileSet.routineCatalog, firstField), firstField, fromIndex);
 					toRoutineHash = in.readInt();
-					callSite.addEdge(getRoutineName(fileSet.routineCatalog, toRoutineHash), toRoutineHash, userLevel);
+					callSite.addEdge(RoutineId.Cache.INSTANCE.getId(fileSet.routineCatalog, toRoutineHash),
+							toRoutineHash, userLevel);
 
 					in.readInt();
 				}
@@ -161,30 +164,9 @@ public class RequestGraph {
 			}
 			return totalRequests;
 		}
-
-		String getRoutineName(File routineCatalog, int hash) throws IOException {
-			String name = routineNames.get(hash);
-			if (name == null) {
-				BufferedReader in = new BufferedReader(new FileReader(routineCatalog));
-				try {
-					String line;
-					int space;
-					while ((line = in.readLine()) != null) {
-						space = line.trim().indexOf(" ");
-						if (space < 0)
-							continue;
-						routineNames.put(Integer.parseInt(line.substring(2, space), 16), line.substring(space + 1));
-					}
-				} finally {
-					in.close();
-				}
-				name = routineNames.get(hash);
-			}
-			return name;
-		}
 	}
 
-	static class CallSiteKey {
+	public static class CallSiteKey {
 		final int routineHash;
 		final int nodeIndex;
 
@@ -219,31 +201,37 @@ public class RequestGraph {
 		}
 	}
 
-	class CallSite {
-		final String name;
+	public class CallSite {
+		final RoutineId id;
 		final ScriptRoutineGraph routine;
 		final ScriptNode node;
 		final List<Edge> edges = new ArrayList<Edge>();
 
 		double regularity = 0.0;
 
-		CallSite(String name, ScriptRoutineGraph routine, ScriptNode node) {
-			this.name = name;
+		CallSite(RoutineId id, ScriptRoutineGraph routine, ScriptNode node) {
+			this.id = id;
 			this.routine = routine;
 			this.node = node;
 		}
 
-		void addEdge(String calleeName, int calleeHash, int userLevel) {
+		void addEdge(RoutineId calleeId, int calleeHash, int userLevel) {
+			Edge edge = null;
 			ScriptRoutineGraph callee = routines.get(calleeHash);
-			boolean found = false;
-			for (Edge edge : edges) {
-				if (edge.matches(callee, userLevel)) {
-					edge.count++;
-					found = true;
+			for (Edge e : edges) {
+				if (e.matches(callee)) {
+					edge = e;
+					break;
 				}
 			}
-			if (!found)
-				edges.add(new Edge(this, calleeName, callee, userLevel));
+			if (edge == null) {
+				edge = new Edge(this, calleeId, callee);
+				edges.add(edge);
+			}
+			if (userLevel < 2)
+				edge.anonymousCount++;
+			else
+				edge.adminCount++;
 		}
 
 		void calculateRegularity() {
@@ -252,13 +240,14 @@ public class RequestGraph {
 				return;
 			}
 
-			int totalCalls = 0, maxCalls = 0, minCalls = Integer.MAX_VALUE;
+			int totalCalls = 0, maxCalls = 0, minCalls = Integer.MAX_VALUE, edgeCalls = 0;
 			for (Edge edge : edges) {
-				totalCalls += edge.count;
-				if (edge.count > maxCalls)
-					maxCalls = edge.count;
-				if (edge.count < minCalls)
-					minCalls = edge.count;
+				edgeCalls = (edge.adminCount + edge.anonymousCount);
+				totalCalls += edgeCalls;
+				if (edgeCalls > maxCalls)
+					maxCalls = edgeCalls;
+				if (edgeCalls < minCalls)
+					minCalls = edgeCalls;
 			}
 			regularity = (minCalls / (double) maxCalls);
 			if (regularity < 0.5) {
@@ -268,23 +257,22 @@ public class RequestGraph {
 		}
 	}
 
-	class Edge {
+	public class Edge {
 		final CallSite callSite;
-		final int userLevel;
-		final String calleeName;
+		final RoutineId calleeId;
 		final ScriptRoutineGraph callee;
 
-		int count = 1;
+		int adminCount = 0;
+		int anonymousCount = 0;
 
-		Edge(CallSite callSite, String calleeName, ScriptRoutineGraph callee, int userLevel) {
+		Edge(CallSite callSite, RoutineId calleeId, ScriptRoutineGraph callee) {
 			this.callSite = callSite;
-			this.userLevel = userLevel;
-			this.calleeName = calleeName;
+			this.calleeId = calleeId;
 			this.callee = callee;
 		}
 
-		boolean matches(ScriptRoutineGraph callee, int userLevel) {
-			return this.callee.hash == callee.hash && this.userLevel == userLevel;
+		boolean matches(ScriptRoutineGraph callee) {
+			return this.callee.hash == callee.hash;
 		}
 	}
 
@@ -292,17 +280,49 @@ public class RequestGraph {
 
 	private final List<FileSet> fileSets = new ArrayList<FileSet>();
 
-	final Map<Integer, ScriptRoutineGraph> routines = new HashMap<Integer, ScriptRoutineGraph>();
-	final Map<CallSiteKey, CallSite> callSites = new HashMap<CallSiteKey, CallSite>();
+	public final Map<Integer, ScriptRoutineGraph> routines = new HashMap<Integer, ScriptRoutineGraph>();
+	public final Map<CallSiteKey, CallSite> callSites = new HashMap<CallSiteKey, CallSite>();
+	public final Map<Integer, List<CallSite>> callSitesByRoutine = new HashMap<Integer, List<CallSite>>();
+	public final Map<Path, List<ScriptRoutineGraph>> routinesBySourceFile = new HashMap<Path, List<ScriptRoutineGraph>>();
 
-	private CallSite establishCallSite(String routineName, int routineHash, int nodeIndex) {
+	private int totalRequests;
+
+	public int getTotalRequests() {
+		return totalRequests;
+	}
+
+	public void setTotalRequests(int totalRequests) {
+		this.totalRequests = totalRequests;
+	}
+
+	private CallSite establishCallSite(RoutineId routineId, int routineHash, int nodeIndex) {
 		CallSiteKey key = new CallSiteKey(routineHash, nodeIndex);
 		CallSite site = callSites.get(key);
 		if (site == null) {
 			ScriptRoutineGraph routine = routines.get(routineHash);
-			site = new CallSite(routineName, routine, routine.getNode(nodeIndex));
+			site = new CallSite(routineId, routine, routine.getNode(nodeIndex));
 			callSites.put(key, site);
+			establishRoutineCallSites(routineHash).add(site);
+			establishFileRoutines(site.id.sourceFile);
 		}
 		return site;
+	}
+
+	private List<CallSite> establishRoutineCallSites(int routineHash) {
+		List<CallSite> sites = callSitesByRoutine.get(routineHash);
+		if (sites == null) {
+			sites = new ArrayList<CallSite>();
+			callSitesByRoutine.put(routineHash, sites);
+		}
+		return sites;
+	}
+
+	private List<ScriptRoutineGraph> establishFileRoutines(Path sourceFile) {
+		List<ScriptRoutineGraph> routines = routinesBySourceFile.get(sourceFile);
+		if (routines == null) {
+			routines = new ArrayList<ScriptRoutineGraph>();
+			routinesBySourceFile.put(sourceFile, routines);
+		}
+		return routines;
 	}
 }

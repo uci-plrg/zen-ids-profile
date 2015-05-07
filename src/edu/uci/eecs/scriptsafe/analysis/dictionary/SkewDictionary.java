@@ -65,7 +65,7 @@ public class SkewDictionary implements Dictionary {
 
 	}
 
-	private static final float SKEW_FACTOR = 2.5f;
+	private static final float SKEW_FACTOR = 4f;
 
 	private final Set<String> allWords = new HashSet<String>();
 	private final Map<String, WordInstance> adminWords = new HashMap<String, WordInstance>();
@@ -129,19 +129,21 @@ public class SkewDictionary implements Dictionary {
 			if (anonymousCount > stats.minAnonymousMajority /* && adminCount < stats.maxAdminMinority */
 					&& anonymousScore > (SKEW_FACTOR * adminScore)) {
 				favorAnonymous++;
-				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, stats.minAdminMajority,
-						adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore);
+				Log.log("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f [anonymous %.3f]", word, adminCount,
+						stats.minAdminMajority, adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore,
+						anonymousScore / (anonymousScore + adminScore));
 			} else if (adminCount > stats.minAdminMajority /* && anonymousCount < stats.maxAnonymousMinority */
 					&& adminScore > (SKEW_FACTOR * anonymousScore)) {
 				favorAdmin++;
-				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, stats.minAdminMajority,
-						adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore);
+				Log.log("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f [admin %.3f]", word, adminCount,
+						stats.minAdminMajority, adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore,
+						adminScore / (anonymousScore + adminScore));
 			}
 		}
 
 		Evaluation evaluation = Evaluation.DUNNO;
 		// report strict domination only
-		if ((favorAdmin < 4 || favorAnonymous < 4) && (favorAdmin > 3 || favorAnonymous > 3)) {
+		if (Math.abs(favorAdmin - favorAnonymous) > 5) {
 			if (favorAdmin > favorAnonymous)
 				evaluation = Evaluation.ADMIN;
 			else if (favorAnonymous > favorAdmin)
@@ -164,20 +166,25 @@ public class SkewDictionary implements Dictionary {
 
 	@Override
 	public void addRoutine(int hash, boolean isAdmin) {
+		boolean isEmpty = true;
 		List<String> words = routineLineMap.getWords(hash, true);
+		isEmpty &= words.isEmpty();
 		allWords.addAll(words);
 		for (String word : words) {
 			DictionaryRequestHandler.recordWordInstance(adminWords, word);
 		}
 		words = routineLineMap.getWords(hash, false);
+		isEmpty &= words.isEmpty();
 		allWords.addAll(words);
 		for (String word : words) {
 			DictionaryRequestHandler.recordWordInstance(anonymousWords, word);
 		}
-		if (isAdmin)
-			stats.adminRoutineCount++;
-		else
-			stats.anonymousRoutineCount++;
+		if (!isEmpty) {
+			if (isAdmin)
+				stats.adminRoutineCount++;
+			else
+				stats.anonymousRoutineCount++;
+		}
 		stats.isStale = true;
 	}
 

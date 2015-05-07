@@ -3,7 +3,9 @@ package edu.uci.eecs.scriptsafe.analysis;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
@@ -12,12 +14,8 @@ import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.scriptsafe.analysis.RequestGraph.CallSite;
 import edu.uci.eecs.scriptsafe.analysis.RequestGraph.Edge;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
-import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetFiles;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetLoader;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles;
 
 public class GraphExporter {
 
@@ -36,6 +34,34 @@ public class GraphExporter {
 				return ANONYMOUS;
 			else
 				return ADMIN;
+		}
+	}
+
+	private static class TabbedFormatter {
+		private static final int INDENTATION = 2;
+
+		private final PrintWriter out;
+
+		private char indent[] = new char[0];
+
+		TabbedFormatter(PrintWriter out) {
+			this.out = out;
+		}
+
+		void indent(int count) {
+			indent = new char[indent.length + (count * INDENTATION)];
+			Arrays.fill(indent, ' ');
+		}
+
+		void unindent(int count) {
+			indent = new char[Math.max(0, indent.length - (count * INDENTATION))];
+			Arrays.fill(indent, ' ');
+		}
+
+		void println(String format, Object... args) {
+			out.print(indent);
+			out.format(format, args);
+			out.println();
 		}
 	}
 
@@ -100,24 +126,60 @@ public class GraphExporter {
 	}
 
 	private void generateGraph() throws FileNotFoundException {
-		PrintWriter out = new PrintWriter(outputFile);
+		TabbedFormatter out = new TabbedFormatter(new PrintWriter(outputFile));
 		try {
-			out.println("digraph g {");
-			out.println("  node [shape=point]");
+			out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+			out.println("<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\"");
+			out.indent(2);
+			out.println("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
+			out.println("xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns");
+			out.println("http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd\">");
+			out.unindent(1);
+			out.println("<graph id=\"G\" edgedefault=\"directed\">");
+			out.indent(1);
 
+			String previousId;
+			for (Map.Entry<Integer, List<CallSite>> entry : requestGraph.callSitesByRoutine.entrySet()) {
+				out.println("<node id=\"0x%x\">", entry.getKey());
+				out.indent(1);
+				out.println("<graph id=\"0x%x:\" edgedefault=\"directed\">", entry.getKey());
+				out.indent(1);
+				previousId = String.format("0x%x", entry.getKey());
+				for (CallSite site : entry.getValue()) {
+					out.println("<node id=\"0x%x:%d\"/>", site.routine.hash, site.node.index);
+					out.println("<edge source=\"%s\" target=\"0x%x:%d\"/>", previousId, site.routine.hash,
+							site.node.index);
+					previousId = String.format("0x%x:%d", site.routine.hash, site.node.index);
+				}
+				out.unindent(1);
+				out.println("</graph>");
+				out.unindent(1);
+				out.println("</node>");
+			}
 			for (CallSite callSite : requestGraph.callSites.values()) {
 				for (Edge edge : callSite.edges) {
-					out.format("  \"0x%x:%d\" -> \"0x%x\" [color=%s weight=%d]\n", callSite.routine.hash,
-							callSite.node.lineNumber, edge.callee.hash, Color.forUserLevel(edge.userLevel).name,
-							edge.count);
+					out.println(
+							"<edge source=\"0x%x:%d\" target=\"0x%x\" admin-weight=\"%d\" anonymous-weight=\"%d\"/>",
+							callSite.routine.hash, callSite.node.lineNumber, edge.callee.hash, edge.adminCount,
+							edge.anonymousCount);
 				}
 			}
-			out.println("}");
+			out.unindent(1);
+			out.println("</graph>");
+			out.unindent(1);
+			out.println("</graphml>");
 		} finally {
-			out.flush();
-			out.close();
+			out.out.flush();
+			out.out.close();
 		}
 	}
+
+	/*
+	 * <?xml version="1.0" encoding="UTF-8"?> <graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+	 * xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+	 * http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"> <graph id="G" edgedefault="undirected"> <node id="n0"/>
+	 * <node id="n2"/> <edge source="n0" target="n2"/> </graph> </graphml>
+	 */
 
 	private void printUsage() {
 		System.err.println(String.format("Usage: %s -s <run-dir> -o <output-file>", getClass().getSimpleName()));

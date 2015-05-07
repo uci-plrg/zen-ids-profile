@@ -20,7 +20,7 @@ public class EdgeRegularityAnalysis {
 	private static class RegularitySorter implements Comparator<CallSite> {
 		@Override
 		public int compare(CallSite first, CallSite second) {
-			return ((int) (100000 * first.regularity)) - ((int) (100000 * second.regularity));
+			return (int) Math.signum(first.regularity - second.regularity);
 		}
 	}
 
@@ -81,10 +81,19 @@ public class EdgeRegularityAnalysis {
 			for (CallSite callSite : callSitesByRegularity) {
 				if (callSite.regularity > 0.5)
 					break;
-				Log.log("%02.03f%% %s (0x%x):%d", callSite.regularity * 100, callSite.name, callSite.routine.hash,
+				Log.log("%02.03f%% %s (0x%x):%d", callSite.regularity * 100, callSite.id, callSite.routine.hash,
 						callSite.node.lineNumber);
-				for (Edge edge : callSite.edges)
-					Log.log("\t%04d: -%02d-> %s (0x%x)", edge.count, edge.userLevel, edge.calleeName, edge.callee.hash);
+				String majorityUserLevel;
+				for (Edge edge : callSite.edges) {
+					if (edge.adminCount > edge.anonymousCount)
+						majorityUserLevel = "ad";
+					else if (edge.adminCount < edge.anonymousCount)
+						majorityUserLevel = "an";
+					else
+						majorityUserLevel = "eq";
+					Log.log("\t%04d: -%s-> %s (0x%x)", (edge.adminCount + edge.anonymousCount), majorityUserLevel,
+							edge.calleeId.id, edge.callee.hash);
+				}
 			}
 		} catch (Throwable t) {
 			t.printStackTrace();

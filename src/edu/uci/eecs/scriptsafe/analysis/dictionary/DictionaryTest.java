@@ -95,8 +95,12 @@ public class DictionaryTest {
 			File datasetFile = new File(datasetDirectory, "cfg.set");
 			if (!(datasetFile.exists() && datasetFile.isFile()))
 				throw new AnalysisException("Cannot find dataset file '%s'", datasetFile.getAbsolutePath());
+			File routineCatalogFile = new File(datasetDirectory, "routine-catalog.tab");
+			if (!(routineCatalogFile.exists() && routineCatalogFile.isFile()))
+				throw new AnalysisException("Cannot find routine catalog file '%s'",
+						routineCatalogFile.getAbsolutePath());
 			dataset = new ScriptFlowGraph(Type.DATASET, datasetFile.getAbsolutePath(), false);
-			datasetLoader.loadDataset(datasetFile, dataset);
+			datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset);
 
 			Random random = new Random(System.currentTimeMillis());
 			for (ScriptRoutineGraph routine : dataset.getRoutines()) {
@@ -211,5 +215,4 @@ public class DictionaryTest {
 		DictionaryTest test = new DictionaryTest(stack);
 		test.run();
 	}
-
 }

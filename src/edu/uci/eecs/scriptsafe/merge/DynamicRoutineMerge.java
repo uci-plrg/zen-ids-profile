@@ -24,7 +24,7 @@ public abstract class DynamicRoutineMerge {
 				return;
 			}
 		}
-		mergedGraphs.add(routine.renameDynamicRoutine(mergedGraphs.size(), false));
+		mergedGraphs.add(routine.renameDynamicRoutine(mergedGraphs.size(), routine.id, false));
 	}
 
 	public Iterable<ScriptRoutineGraph> getMergedGraphs() {

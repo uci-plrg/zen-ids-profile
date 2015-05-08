@@ -138,23 +138,13 @@ public class GraphExporter {
 			out.println("<graph id=\"G\" edgedefault=\"directed\">");
 			out.indent(1);
 
-			String previousId;
 			for (Map.Entry<Integer, List<CallSite>> entry : requestGraph.callSitesByRoutine.entrySet()) {
-				out.println("<node id=\"0x%x\">", entry.getKey());
-				out.indent(1);
-				out.println("<graph id=\"0x%x:\" edgedefault=\"directed\">", entry.getKey());
-				out.indent(1);
-				previousId = String.format("0x%x", entry.getKey());
+				out.println("<node id=\"0x%x\"/>", entry.getKey());
 				for (CallSite site : entry.getValue()) {
 					out.println("<node id=\"0x%x:%d\"/>", site.routine.hash, site.node.index);
-					out.println("<edge source=\"%s\" target=\"0x%x:%d\"/>", previousId, site.routine.hash,
+					out.println("<edge source=\"0x%x\" target=\"0x%x:%d\"/>", entry.getKey(), site.routine.hash,
 							site.node.index);
-					previousId = String.format("0x%x:%d", site.routine.hash, site.node.index);
 				}
-				out.unindent(1);
-				out.println("</graph>");
-				out.unindent(1);
-				out.println("</node>");
 			}
 			for (CallSite callSite : requestGraph.callSites.values()) {
 				for (Edge edge : callSite.edges) {
@@ -173,13 +163,6 @@ public class GraphExporter {
 			out.out.close();
 		}
 	}
-
-	/*
-	 * <?xml version="1.0" encoding="UTF-8"?> <graphml xmlns="http://graphml.graphdrawing.org/xmlns"
-	 * xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
-	 * http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"> <graph id="G" edgedefault="undirected"> <node id="n0"/>
-	 * <node id="n2"/> <edge source="n0" target="n2"/> </graph> </graphml>
-	 */
 
 	private void printUsage() {
 		System.err.println(String.format("Usage: %s -s <run-dir> -o <output-file>", getClass().getSimpleName()));

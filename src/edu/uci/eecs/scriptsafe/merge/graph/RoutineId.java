@@ -23,6 +23,7 @@ public class RoutineId {
 		private final Map<Path, List<Integer>> routinesBySourceFile = new TreeMap<Path, List<Integer>>();
 
 		private Cache() {
+			routineIds.put(1, ENTRY_ID);
 		}
 
 		public RoutineId getId(int routineHash) {

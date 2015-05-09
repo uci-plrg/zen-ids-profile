@@ -91,7 +91,9 @@ public class EdgeRoleAnalysis {
 							adminEdges++;
 					}
 					if (adminEdges > 0 || anonymousEdges > 0)
-						Log.log("\t%03d/%03d %s", adminEdges, anonymousEdges, routine.id.name);
+						Log.log("\t%03d/%03d 0x%x %s", adminEdges, anonymousEdges, routine.hash, routine.id.name);
+					else
+						Log.log("\t---/--- 0x%x %s", routine.hash, routine.id.name);
 				}
 			}
 

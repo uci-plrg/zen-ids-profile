@@ -20,36 +20,41 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 public class ReachabilityAnalysis {
 
 	private class EdgeSet {
-		int entryPointHack;
 		final Map<Integer, List<Integer>> edges = new HashMap<Integer, List<Integer>>();
+		final Set<Integer> unauthorizedTargets = new HashSet<Integer>();
 		final Set<Integer> unreachedNodes = new HashSet<Integer>();
 		final Set<Integer> localEntry = new HashSet<Integer>(); /* nodes having some incoming edge */
 
+		final int maxUserLevel;
 		final LinkedList<Integer> queue = new LinkedList<Integer>();
 
-		void reset() {
-			edges.clear();
-			unreachedNodes.clear();
-			localEntry.clear();
-			queue.clear();
+		EdgeSet(int maxUserLevel) {
+			this.maxUserLevel = maxUserLevel;
 		}
 
-		void addEdge(int from, int to) {
-			List<Integer> source = edges.get(from);
-			if (source == null) {
-				source = new ArrayList<Integer>();
-				edges.put(from, source);
+		void initialize() {
+			queue.clear();
+
+			edges.clear();
+			unauthorizedTargets.clear();
+			unreachedNodes.clear();
+			localEntry.clear();
+		}
+
+		void addEdge(int from, int to, int userLevel) {
+			if (userLevel > maxUserLevel) {
+				unauthorizedTargets.add(to);
+				// Log.log("\t0x%x -> 0x%x (unauthorized edge)", from, to);
+			} else {
+				localEntry.add(to);
+				unreachedNodes.add(from);
+				unreachedNodes.add(to);
+				List<Integer> targets = getTargetList(edges, from);
+				targets.add(to);
 			}
-			source.add(to);
-			unreachedNodes.add(from);
-			unreachedNodes.add(to);
-			localEntry.add(to);
 		}
 
 		void checkReachability(int requestId, String role) {
-			// List<Integer> e = edges.get(ENTRY_POINT_HASH);
-			queue.add(entryPointHack);
-			unreachedNodes.remove(entryPointHack);
 			queue.add(ENTRY_POINT_HASH);
 			unreachedNodes.remove(ENTRY_POINT_HASH);
 			Integer node;
@@ -69,9 +74,23 @@ public class ReachabilityAnalysis {
 				Log.log("Request #%d is fully reachable for %s", requestId, role);
 			} else {
 				Log.log("Request #%d has %d unreachable nodes for %s:", requestId, unreachedNodes.size(), role);
-				for (Integer unreachedNode : unreachedNodes)
-					Log.log("\t0x%x %s", unreachedNode, localEntry.contains(unreachedNode) ? "" : "(disconnected)");
+				for (Integer unreachedNode : unreachedNodes) {
+					if (unauthorizedTargets.contains(unreachedNode))
+						Log.log("\t0x%x %s", unreachedNode, localEntry.contains(unreachedNode) ? ""
+								: "(user level re-entry)");
+					else
+						Log.log("\t0x%x %s", unreachedNode, localEntry.contains(unreachedNode) ? "" : "(disconnected)");
+				}
 			}
+		}
+
+		private List<Integer> getTargetList(Map<Integer, List<Integer>> edgeSet, Integer source) {
+			List<Integer> targets = edgeSet.get(source);
+			if (targets == null) {
+				targets = new ArrayList<Integer>();
+				edgeSet.put(source, targets);
+			}
+			return targets;
 		}
 	}
 
@@ -124,10 +143,10 @@ public class ReachabilityAnalysis {
 			LittleEndianInputStream in = new LittleEndianInputStream(requestFile);
 			int fromIndex, toRoutineHash, userLevel, requestId = -1;
 
-			boolean isNewRequest = false;
+			boolean isNewRequest = false; // hack
 
-			EdgeSet anonymousEdges = new EdgeSet();
-			EdgeSet adminEdges = new EdgeSet();
+			EdgeSet anonymousEdges = new EdgeSet(1);
+			EdgeSet adminEdges = new EdgeSet(Integer.MAX_VALUE);
 			try {
 				int firstField;
 				while (in.ready(0x10)) {
@@ -135,6 +154,8 @@ public class ReachabilityAnalysis {
 					if (firstField == REQUEST_HEADER_TAG) {
 						anonymousEdges.checkReachability(requestId, "anonymous");
 						adminEdges.checkReachability(requestId, "admin");
+						anonymousEdges.initialize();
+						adminEdges.initialize();
 
 						requestId = in.readInt();
 						in.readInt();
@@ -148,14 +169,13 @@ public class ReachabilityAnalysis {
 
 					if (isNewRequest) {
 						isNewRequest = false;
-						adminEdges.entryPointHack = firstField;
+						adminEdges.addEdge(ENTRY_POINT_HASH, firstField, userLevel);
 						if (userLevel < 2)
-							anonymousEdges.entryPointHack = firstField;
+							anonymousEdges.addEdge(ENTRY_POINT_HASH, firstField, userLevel);
 					}
 
-					adminEdges.addEdge(firstField, toRoutineHash);
-					if (userLevel < 2)
-						anonymousEdges.addEdge(firstField, toRoutineHash);
+					adminEdges.addEdge(firstField, toRoutineHash, userLevel);
+					anonymousEdges.addEdge(firstField, toRoutineHash, userLevel);
 
 					in.readInt();
 				}

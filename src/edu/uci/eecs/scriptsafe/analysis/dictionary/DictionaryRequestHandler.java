@@ -76,7 +76,7 @@ class DictionaryRequestHandler {
 
 		void addRoutine(int hash, boolean isAdmin);
 
-		void reportSummary();
+		void reportSummary(int predictorCount);
 
 		void reset();
 	}
@@ -119,17 +119,17 @@ class DictionaryRequestHandler {
 		boolean hasHint = (data[0] & 0xf0) != 0;
 		boolean hintAdmin = (data[0] & (byte) 0x80) != 0;
 		Instruction instruction = Instruction.forByte(opcode);
-		int hash = ByteBuffer.wrap(data, 1, 4).getInt();
+		int payload = ByteBuffer.wrap(data, 1, 4).getInt();
 
 		switch (instruction) {
 			case GET_ADMIN_PROBABILITY:
-				dictionary.evaluateRoutine(hash, hasHint, hintAdmin);
+				dictionary.evaluateRoutine(payload, hasHint, hintAdmin);
 				break;
 			case ADD_ROUTINE:
-				dictionary.addRoutine(hash, hintAdmin);
+				dictionary.addRoutine(payload, hintAdmin);
 				break;
 			case REPORT_SUMMARY:
-				dictionary.reportSummary();
+				dictionary.reportSummary(payload);
 				break;
 			case RESET:
 				dictionary.reset();

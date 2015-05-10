@@ -2,6 +2,7 @@ package edu.uci.eecs.scriptsafe.analysis.dictionary;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -84,9 +85,18 @@ class ExclusiveDictionary implements Dictionary {
 	}
 
 	@Override
-	public void reportSummary() {
-		Log.log("Admin-only words: %s", adminOnlyWords);
-		Log.log("Anonymous-only words: %s", anonymousOnlyWords);
+	public void reportSummary(int predictorCount) {
+		if (predictorCount > 0) {
+			int limit = (predictorCount == -1) ? Integer.MAX_VALUE : predictorCount;
+			Log.log("Admin-only words:");
+			Iterator<String> w = adminOnlyWords.iterator();
+			for (int i = 0; i < limit && w.hasNext(); i++)
+				Log.log("\t%s", w.next());
+			Log.log("Anonymous-only words:");
+			w = anonymousOnlyWords.iterator();
+			for (int i = 0; i < limit && w.hasNext(); i++)
+				Log.log("\t%s", w.next());
+		}
 	}
 
 	@Override

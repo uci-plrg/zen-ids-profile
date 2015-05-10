@@ -65,7 +65,7 @@ public class GraphExporter {
 		}
 	}
 
-	public static final OptionArgumentMap.StringOption sourceGraphDir = OptionArgumentMap.createStringOption('s');
+	public static final OptionArgumentMap.StringOption sourceGraphDir = OptionArgumentMap.createStringOption('d');
 	public static final OptionArgumentMap.StringOption outputFilePath = OptionArgumentMap.createStringOption('o');
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());

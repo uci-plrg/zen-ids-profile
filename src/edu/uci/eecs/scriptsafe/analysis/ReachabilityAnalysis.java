@@ -165,8 +165,6 @@ public class ReachabilityAnalysis {
 			LittleEndianInputStream in = new LittleEndianInputStream(requestFile);
 			int fromIndex, toRoutineHash, userLevel, requestId = -1;
 
-			boolean isNewRequest = false; // hack
-
 			EdgeSet anonymousEdges = new EdgeSet(1);
 			EdgeSet adminEdges = new EdgeSet(Integer.MAX_VALUE);
 			try {
@@ -182,19 +180,11 @@ public class ReachabilityAnalysis {
 						requestId = in.readInt();
 						in.readInt();
 						in.readInt();
-						isNewRequest = true;
 						continue;
 					}
 					fromIndex = in.readInt();
 					userLevel = (fromIndex >>> 26);
 					toRoutineHash = in.readInt();
-
-					if (isNewRequest) {
-						isNewRequest = false;
-						adminEdges.addEdge(ENTRY_POINT_HASH, firstField, userLevel);
-						if (userLevel < 2)
-							anonymousEdges.addEdge(ENTRY_POINT_HASH, firstField, userLevel);
-					}
 
 					adminEdges.addEdge(firstField, toRoutineHash, userLevel);
 					anonymousEdges.addEdge(firstField, toRoutineHash, userLevel);

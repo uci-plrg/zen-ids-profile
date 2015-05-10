@@ -25,10 +25,24 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetLoader;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
 
 public class DictionaryTest {
+
+	private class TestSelector {
+		final Random random = new Random(System.currentTimeMillis());
+
+		boolean useForTraining(ScriptRoutineGraph routine) {
+			if (trainTest.getValue())
+				return random.nextInt(1000) > 700;
+			else
+				return true;
+		}
+	}
+
 	public static final OptionArgumentMap.BooleanOption standaloneMode = OptionArgumentMap.createBooleanOption('1');
 	public static final OptionArgumentMap.StringOption phpDir = OptionArgumentMap.createStringOption('s');
 	public static final OptionArgumentMap.StringOption port = OptionArgumentMap.createStringOption('p');
 	public static final OptionArgumentMap.StringOption datasetDir = OptionArgumentMap.createStringOption('d');
+	public static final OptionArgumentMap.IntegerOption predictorCount = OptionArgumentMap.createIntegerOption('n', 0);
+	public static final OptionArgumentMap.BooleanOption trainTest = OptionArgumentMap.createBooleanOption('t', false);
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());
 	public static final OptionArgumentMap.StringOption watchlistFile = OptionArgumentMap.createStringOption('w',
@@ -40,6 +54,7 @@ public class DictionaryTest {
 	private final OptionArgumentMap argMap;
 
 	private final RoutineLineMap routineLineMap = new RoutineLineMap();
+	private final TestSelector testSelector = new TestSelector();
 
 	private final ScriptDatasetLoader datasetLoader = new ScriptDatasetLoader();
 	private ScriptFlowGraph dataset;
@@ -58,8 +73,8 @@ public class DictionaryTest {
 
 	private DictionaryTest(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, standaloneMode, phpDir, port, datasetDir, verbose, watchlistFile,
-				watchlistCategories);
+		argMap = new OptionArgumentMap(args, standaloneMode, phpDir, port, datasetDir, predictorCount, trainTest,
+				verbose, watchlistFile, watchlistCategories);
 	}
 
 	private void run() {
@@ -102,12 +117,11 @@ public class DictionaryTest {
 			dataset = new ScriptFlowGraph(Type.DATASET, datasetFile.getAbsolutePath(), false);
 			datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset);
 
-			Random random = new Random(System.currentTimeMillis());
 			for (ScriptRoutineGraph routine : dataset.getRoutines()) {
 				if (dataset.edges.getIncomingEdgeCount(routine.hash) == 0)
 					continue;
 
-				if (random.nextInt(1000) < 700)
+				if (testSelector.useForTraining(routine))
 					trainingRoutines.add(routine);
 				else
 					testRoutines.add(routine);
@@ -157,7 +171,7 @@ public class DictionaryTest {
 			requestHandler.execute(createInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash,
 					dataset.edges.getMinUserLevel(routine.hash) >= 2));
 		}
-		requestHandler.execute(createInstruction(Instruction.REPORT_SUMMARY));
+		requestHandler.execute(createInstruction(Instruction.REPORT_SUMMARY, predictorCount.getValue()));
 	}
 
 	private void testServer() throws UnknownHostException, IOException {
@@ -178,7 +192,7 @@ public class DictionaryTest {
 				sendInstruction(createInstruction(Instruction.GET_ADMIN_PROBABILITY, routine.hash,
 						dataset.edges.getMinUserLevel(routine.hash) >= 2));
 			}
-			sendInstruction(createInstruction(Instruction.REPORT_SUMMARY));
+			sendInstruction(createInstruction(Instruction.REPORT_SUMMARY, predictorCount.getValue()));
 		} finally {
 			out.close();
 			socket.close();

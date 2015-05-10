@@ -3,6 +3,7 @@ package edu.uci.eecs.scriptsafe.analysis.dictionary;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,10 +37,10 @@ public class SkewDictionary implements Dictionary {
 			if (!isStale)
 				return;
 
-			minAdminMajority = (int) (4 * Math.log10(adminRoutineCount));
-			minAnonymousMajority = (int) (4 * Math.log10(anonymousRoutineCount));
-			maxAdminMinority = (int) (2 * Math.log10(adminRoutineCount));
-			maxAnonymousMinority = (int) (2 * Math.log10(anonymousRoutineCount));
+			minAdminMajority = 1; // (int) (4 * Math.log10(adminRoutineCount));
+			minAnonymousMajority = 1; // (int) (4 * Math.log10(anonymousRoutineCount));
+			maxAdminMinority = 1; // (int) (2 * Math.log10(adminRoutineCount));
+			maxAnonymousMinority = 1; // (int) (2 * Math.log10(anonymousRoutineCount));
 
 			adminTotalInstances = 0;
 			for (WordInstance i : adminWords.values()) {
@@ -129,13 +130,13 @@ public class SkewDictionary implements Dictionary {
 			if (anonymousCount > stats.minAnonymousMajority /* && adminCount < stats.maxAdminMinority */
 					&& anonymousScore > (SKEW_FACTOR * adminScore)) {
 				favorAnonymous++;
-				Log.log("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f [anonymous %.3f]", word, adminCount,
+				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f [anonymous %.3f]", word, adminCount,
 						stats.minAdminMajority, adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore,
 						anonymousScore / (anonymousScore + adminScore));
 			} else if (adminCount > stats.minAdminMajority /* && anonymousCount < stats.maxAnonymousMinority */
 					&& adminScore > (SKEW_FACTOR * anonymousScore)) {
 				favorAdmin++;
-				Log.log("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f [admin %.3f]", word, adminCount,
+				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f [admin %.3f]", word, adminCount,
 						stats.minAdminMajority, adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore,
 						adminScore / (anonymousScore + adminScore));
 			}
@@ -228,9 +229,6 @@ public class SkewDictionary implements Dictionary {
 					skew = anonymousProbability / skewBase;
 				}
 			}
-
-			if (evaluation == Evaluation.ANONYMOUS)
-				Log.log("Anonymous word: %s %.2f", word, skew);
 		}
 
 		@Override
@@ -265,7 +263,7 @@ public class SkewDictionary implements Dictionary {
 	}
 
 	@Override
-	public void reportSummary() {
+	public void reportSummary(int predictorCount) {
 		Log.log("Admin words: %d total, %d instances, %.2f avg. Anonymous words: %d total, %d instances, %.2f avg.",
 				adminWords.size(), stats.adminTotalInstances, stats.adminAverageInstances, anonymousWords.size(),
 				stats.anonymousTotalInstances, stats.anonymousAverageInstances);
@@ -288,13 +286,13 @@ public class SkewDictionary implements Dictionary {
 			predictors.add(new Predictor(adminWord, anonymousWord));
 		}
 
-		int i = 0;
-		for (Predictor predictor : predictors) {
+		int limit = (predictorCount == -1) ? Integer.MAX_VALUE : predictorCount;
+		Iterator<Predictor> p = predictors.iterator();
+		for (int i = 0; i < limit && p.hasNext(); i++) {
+			Predictor predictor = p.next();
 			Log.log("\t%20s: %.3f %10s:  %02.3f(%02d) admin, %02.3f(%02d) anonymous)", predictor.word, predictor.skew,
 					predictor.evaluation.toString().toLowerCase(), predictor.adminProbability, predictor.adminCount,
 					predictor.anonymousProbability, predictor.anonymousCount);
-			if (++i > 250)
-				break;
 		}
 	}
 

@@ -55,8 +55,43 @@ public class ReachabilityAnalysis {
 		}
 
 		void checkReachability(int requestId, String role) {
-			queue.add(ENTRY_POINT_HASH);
-			unreachedNodes.remove(ENTRY_POINT_HASH);
+			if (unreachedNodes.isEmpty())
+				return;
+
+			checkReachability(ENTRY_POINT_HASH);
+
+			if (unreachedNodes.isEmpty()) {
+				Log.log("Request #%d is fully reachable for %s", requestId, role);
+			} else {
+				Integer subgraphEntry;
+				do {
+					subgraphEntry = null;
+					for (Integer unreachedNode : unreachedNodes) {
+						if (unauthorizedTargets.contains(unreachedNode) && !localEntry.contains(unreachedNode)) {
+							Log.log("\t0x%x (user level re-entry)", unreachedNode);
+							subgraphEntry = unreachedNode;
+							break;
+						}
+					}
+					if (subgraphEntry != null)
+						checkReachability(subgraphEntry);
+				} while (subgraphEntry != null);
+
+				Log.log("Request #%d has %d unreachable nodes for %s:", requestId, unreachedNodes.size(), role);
+				for (Integer unreachedNode : unreachedNodes) {
+					if (unauthorizedTargets.contains(unreachedNode)) {
+						if (localEntry.contains(unreachedNode))
+							Log.log("\t0x%x", unreachedNode);
+					} else {
+						Log.log("\t0x%x %s", unreachedNode, localEntry.contains(unreachedNode) ? "" : "(disconnected)");
+					}
+				}
+			}
+		}
+
+		void checkReachability(int entryPoint) {
+			queue.add(entryPoint);
+			unreachedNodes.remove(entryPoint);
 			Integer node;
 			List<Integer> neighbors;
 			do {
@@ -69,19 +104,6 @@ public class ReachabilityAnalysis {
 						queue.addFirst(neighbor);
 				}
 			} while (!queue.isEmpty());
-
-			if (unreachedNodes.isEmpty()) {
-				Log.log("Request #%d is fully reachable for %s", requestId, role);
-			} else {
-				Log.log("Request #%d has %d unreachable nodes for %s:", requestId, unreachedNodes.size(), role);
-				for (Integer unreachedNode : unreachedNodes) {
-					if (unauthorizedTargets.contains(unreachedNode))
-						Log.log("\t0x%x %s", unreachedNode, localEntry.contains(unreachedNode) ? ""
-								: "(user level re-entry)");
-					else
-						Log.log("\t0x%x %s", unreachedNode, localEntry.contains(unreachedNode) ? "" : "(disconnected)");
-				}
-			}
 		}
 
 		private List<Integer> getTargetList(Map<Integer, List<Integer>> edgeSet, Integer source) {

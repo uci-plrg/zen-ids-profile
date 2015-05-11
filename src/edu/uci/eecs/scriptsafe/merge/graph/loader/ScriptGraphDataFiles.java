@@ -3,6 +3,8 @@ package edu.uci.eecs.scriptsafe.merge.graph.loader;
 import java.io.File;
 import java.io.IOException;
 
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptDataFilename;
+
 public interface ScriptGraphDataFiles {
 
 	String getDescription();
@@ -28,9 +30,9 @@ public interface ScriptGraphDataFiles {
 			if (!path.isDirectory())
 				throw new IllegalArgumentException("Invalid script data source: " + path + " is not a directory");
 
-			if (new File(path, "node.run").exists())
+			if (ScriptDataFilename.NODE.getFile(path).exists())
 				return new ScriptRunFiles(path);
-			else if (new File(path, "cfg.set").exists())
+			else if (ScriptDataFilename.CFG.getFile(path).exists())
 				return new ScriptDatasetFiles(path);
 			else
 				throw new IllegalArgumentException("Invalid script data source: " + path + " contains no data");

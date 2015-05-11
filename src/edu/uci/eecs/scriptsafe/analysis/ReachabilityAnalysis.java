@@ -15,6 +15,7 @@ import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptDataFilename;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 
 public class ReachabilityAnalysis {
@@ -161,7 +162,7 @@ public class ReachabilityAnalysis {
 			}
 
 			datasetDirectory = new File(datasetDir.getValue());
-			File requestFile = new File(datasetDirectory, "request-edge.run");
+			File requestFile = ScriptDataFilename.REQUEST_GRAPH.requireFile(datasetDirectory);
 			LittleEndianInputStream in = new LittleEndianInputStream(requestFile);
 			int fromIndex, toRoutineHash, userLevel, requestId = -1;
 

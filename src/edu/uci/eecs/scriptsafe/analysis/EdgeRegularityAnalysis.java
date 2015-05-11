@@ -10,17 +10,19 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
-import edu.uci.eecs.scriptsafe.analysis.RequestGraph.CallSite;
-import edu.uci.eecs.scriptsafe.analysis.RequestGraph.Edge;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestCallSiteSummary;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestEdgeSummary;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestGraph;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestGraphLoader;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 
 public class EdgeRegularityAnalysis {
 
-	private static class RegularitySorter implements Comparator<CallSite> {
+	private static class RegularitySorter implements Comparator<RequestCallSiteSummary> {
 		@Override
-		public int compare(CallSite first, CallSite second) {
-			return (int) Math.signum(first.regularity - second.regularity);
+		public int compare(RequestCallSiteSummary first, RequestCallSiteSummary second) {
+			return (int) Math.signum(first.getRegularity() - second.getRegularity());
 		}
 	}
 
@@ -34,7 +36,7 @@ public class EdgeRegularityAnalysis {
 	private final ArgumentStack args;
 	private final OptionArgumentMap argMap;
 
-	private final RequestGraph.Loader requestLoader = new RequestGraph.Loader();
+	private final RequestGraphLoader requestLoader = new RequestGraphLoader();
 	private RequestGraph requestGraph;
 
 	private EdgeRegularityAnalysis(ArgumentStack args) {
@@ -72,26 +74,26 @@ public class EdgeRegularityAnalysis {
 
 			requestGraph = requestLoader.load();
 
-			List<CallSite> callSitesByRegularity = new ArrayList<CallSite>();
-			for (CallSite callSite : requestGraph.callSites.values()) {
+			List<RequestCallSiteSummary> callSitesByRegularity = new ArrayList<RequestCallSiteSummary>();
+			for (RequestCallSiteSummary callSite : requestGraph.callSites.values()) {
 				callSite.calculateRegularity();
 				callSitesByRegularity.add(callSite);
 			}
 			Collections.sort(callSitesByRegularity, new RegularitySorter());
-			for (CallSite callSite : callSitesByRegularity) {
-				if (callSite.regularity > 0.5)
+			for (RequestCallSiteSummary callSite : callSitesByRegularity) {
+				if (callSite.getRegularity() > 0.5)
 					break;
-				Log.log("%02.03f%% %s (0x%x):%d", callSite.regularity * 100, callSite.id, callSite.routine.hash,
+				Log.log("%02.03f%% %s (0x%x):%d", callSite.getRegularity() * 100, callSite.id, callSite.routine.hash,
 						callSite.node.lineNumber);
 				String majorityUserLevel;
-				for (Edge edge : callSite.edges) {
-					if (edge.adminCount > edge.anonymousCount)
+				for (RequestEdgeSummary edge : callSite.getEdges()) {
+					if (edge.getAdminCount() > edge.getAnonymousCount())
 						majorityUserLevel = "ad";
-					else if (edge.adminCount < edge.anonymousCount)
+					else if (edge.getAdminCount() < edge.getAnonymousCount())
 						majorityUserLevel = "an";
 					else
 						majorityUserLevel = "eq";
-					Log.log("\t%04d: -%s-> %s (0x%x)", (edge.adminCount + edge.anonymousCount), majorityUserLevel,
+					Log.log("\t%04d: -%s-> %s (0x%x)", (edge.getAdminCount() + edge.getAnonymousCount()), majorityUserLevel,
 							edge.calleeId.id, edge.callee.hash);
 				}
 			}

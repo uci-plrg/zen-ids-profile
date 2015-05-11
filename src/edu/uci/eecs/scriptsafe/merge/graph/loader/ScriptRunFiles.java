@@ -2,6 +2,8 @@ package edu.uci.eecs.scriptsafe.merge.graph.loader;
 
 import java.io.File;
 
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptDataFilename;
+
 public class ScriptRunFiles implements ScriptGraphDataFiles {
 
 	public final File nodeFile;
@@ -12,12 +14,12 @@ public class ScriptRunFiles implements ScriptGraphDataFiles {
 	public final File requestEdge;
 
 	ScriptRunFiles(File directory) {
-		nodeFile = new File(directory, "node.run");
-		opcodeEdgeFile = new File(directory, "op-edge.run");
-		routineEdgeFile = new File(directory, "routine-edge.run");
-		routineCatalog = new File(directory, "routine-catalog.tab");
-		request = new File(directory, "request.tab");
-		requestEdge = new File(directory, "request-edge.run");
+		nodeFile = ScriptDataFilename.NODE.getFile(directory);
+		opcodeEdgeFile = ScriptDataFilename.OPCODE_EDGE.getFile(directory);
+		routineEdgeFile = ScriptDataFilename.ROUTINE_EDGE.getFile(directory);
+		routineCatalog = ScriptDataFilename.ROUTINE_CATALOG.getFile(directory);
+		request = ScriptDataFilename.REQUEST_FIELDS.getFile(directory);
+		requestEdge = ScriptDataFilename.REQUEST_GRAPH.getFile(directory);
 
 		if (!nodeFile.exists())
 			throw new IllegalArgumentException("Invalid script run directory: node file " + nodeFile.getAbsolutePath()

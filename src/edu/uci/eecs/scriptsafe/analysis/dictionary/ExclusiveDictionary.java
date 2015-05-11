@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.Dictionary;
-import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.Evaluation;
 import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.WordInstance;
 
 class ExclusiveDictionary implements Dictionary {

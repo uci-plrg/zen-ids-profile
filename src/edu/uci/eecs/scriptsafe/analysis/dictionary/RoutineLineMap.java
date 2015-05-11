@@ -314,7 +314,7 @@ public class RoutineLineMap {
 
 	private final Map<ColoredRoutineSpan, RoutineSpan> routineSpans = new HashMap<ColoredRoutineSpan, RoutineSpan>();
 
-	void load(File routineCatalog, File phpSourceDir, File dataset) throws NumberFormatException, IOException {
+	public void load(File routineCatalog, File phpSourceDir, File dataset) throws NumberFormatException, IOException {
 		if (!(routineCatalog.exists() && routineCatalog.isFile()))
 			throw new AnalysisException("Cannot find routine catalog '%s'", routineCatalog.getAbsolutePath());
 		if (!(phpSourceDir.exists() && phpSourceDir.isDirectory()))

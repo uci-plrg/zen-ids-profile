@@ -11,8 +11,10 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
-import edu.uci.eecs.scriptsafe.analysis.RequestGraph.CallSite;
-import edu.uci.eecs.scriptsafe.analysis.RequestGraph.Edge;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestCallSiteSummary;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestEdgeSummary;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestGraph;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestGraphLoader;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
@@ -77,7 +79,7 @@ public class GraphExporter {
 	private final ArgumentStack args;
 	private final OptionArgumentMap argMap;
 
-	private final RequestGraph.Loader requestLoader = new RequestGraph.Loader();
+	private final RequestGraphLoader requestLoader = new RequestGraphLoader();
 	private RequestGraph requestGraph;
 
 	private ScriptFlowGraph sourceGraph;
@@ -138,20 +140,20 @@ public class GraphExporter {
 			out.println("<graph id=\"G\" edgedefault=\"directed\">");
 			out.indent(1);
 
-			for (Map.Entry<Integer, List<CallSite>> entry : requestGraph.callSitesByRoutine.entrySet()) {
+			for (Map.Entry<Integer, List<RequestCallSiteSummary>> entry : requestGraph.callSitesByRoutine.entrySet()) {
 				out.println("<node id=\"0x%x\"/>", entry.getKey());
-				for (CallSite site : entry.getValue()) {
+				for (RequestCallSiteSummary site : entry.getValue()) {
 					out.println("<node id=\"0x%x:%d\"/>", site.routine.hash, site.node.index);
 					out.println("<edge source=\"0x%x\" target=\"0x%x:%d\"/>", entry.getKey(), site.routine.hash,
 							site.node.index);
 				}
 			}
-			for (CallSite callSite : requestGraph.callSites.values()) {
-				for (Edge edge : callSite.edges) {
+			for (RequestCallSiteSummary callSite : requestGraph.callSites.values()) {
+				for (RequestEdgeSummary edge : callSite.getEdges()) {
 					out.println(
 							"<edge source=\"0x%x:%d\" target=\"0x%x\" admin-weight=\"%d\" anonymous-weight=\"%d\"/>",
-							callSite.routine.hash, callSite.node.lineNumber, edge.callee.hash, edge.adminCount,
-							edge.anonymousCount);
+							callSite.routine.hash, callSite.node.index, edge.callee.hash, edge.getAdminCount(),
+							edge.getAnonymousCount());
 				}
 			}
 			out.unindent(1);

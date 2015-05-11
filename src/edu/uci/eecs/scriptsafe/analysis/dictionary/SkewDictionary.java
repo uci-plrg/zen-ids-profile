@@ -10,8 +10,6 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.Dictionary;
-import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.Evaluation;
 import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.WordInstance;
 
 public class SkewDictionary implements Dictionary {
@@ -75,7 +73,7 @@ public class SkewDictionary implements Dictionary {
 
 	private final RoutineLineMap routineLineMap;
 
-	SkewDictionary(RoutineLineMap routineLineMap) {
+	public SkewDictionary(RoutineLineMap routineLineMap) {
 		this.routineLineMap = routineLineMap;
 	}
 

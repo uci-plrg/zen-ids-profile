@@ -10,6 +10,7 @@ import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptDataFilename;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 
@@ -41,15 +42,15 @@ public class DictionaryGenerator {
 	}
 
 	private void run() {
+		ScriptNode.init();
+
+		argMap.parseOptions();
+
+		Log.addOutput(System.out);
+		Log.setLevel(Log.Level.values()[verbose.getValue()]);
+		System.out.println("Log level " + verbose.getValue());
+
 		try {
-			ScriptNode.init();
-
-			argMap.parseOptions();
-
-			Log.addOutput(System.out);
-			Log.setLevel(Log.Level.values()[verbose.getValue()]);
-			System.out.println("Log level " + verbose.getValue());
-
 			if (!(port.hasValue() && datasetDir.hasValue() && phpDir.hasValue())) {
 				printUsage();
 				return;
@@ -63,8 +64,8 @@ public class DictionaryGenerator {
 
 			File datasetDirectory = new File(datasetDir.getValue());
 			File phpDirectory = new File(phpDir.getValue());
-			routineLineMap.load(new File(datasetDirectory, "routine-catalog.tab"), phpDirectory, new File(
-					datasetDirectory, "cfg.set"));
+			routineLineMap.load(ScriptDataFilename.ROUTINE_CATALOG.requireFile(datasetDirectory), phpDirectory,
+					ScriptDataFilename.CFG.requireFile(datasetDirectory));
 
 			if (watchlistFile.hasValue()) {
 				File watchlist = new File(watchlistFile.getValue());
@@ -79,7 +80,8 @@ public class DictionaryGenerator {
 			startServer();
 
 		} catch (Throwable t) {
-			t.printStackTrace();
+			Log.error("Uncaught %s exception:", t.getClass().getSimpleName());
+			Log.log(t);
 		}
 	}
 
@@ -104,8 +106,12 @@ public class DictionaryGenerator {
 	}
 
 	public static void main(String[] args) {
-		ArgumentStack stack = new ArgumentStack(args);
-		DictionaryGenerator exporter = new DictionaryGenerator(stack);
-		exporter.run();
+		try {
+			ArgumentStack stack = new ArgumentStack(args);
+			DictionaryGenerator exporter = new DictionaryGenerator(stack);
+			exporter.run();
+		} catch (Throwable t) {
+			t.printStackTrace();
+		}
 	}
 }

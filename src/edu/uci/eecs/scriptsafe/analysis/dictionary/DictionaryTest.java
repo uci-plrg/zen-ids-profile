@@ -18,6 +18,7 @@ import edu.uci.eecs.scriptsafe.analysis.AnalysisException;
 import edu.uci.eecs.scriptsafe.analysis.dictionary.DictionaryRequestHandler.Instruction;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptDataFilename;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
@@ -107,13 +108,8 @@ public class DictionaryTest {
 			}
 
 			datasetDirectory = new File(datasetDir.getValue());
-			File datasetFile = new File(datasetDirectory, "cfg.set");
-			if (!(datasetFile.exists() && datasetFile.isFile()))
-				throw new AnalysisException("Cannot find dataset file '%s'", datasetFile.getAbsolutePath());
-			File routineCatalogFile = new File(datasetDirectory, "routine-catalog.tab");
-			if (!(routineCatalogFile.exists() && routineCatalogFile.isFile()))
-				throw new AnalysisException("Cannot find routine catalog file '%s'",
-						routineCatalogFile.getAbsolutePath());
+			File datasetFile = ScriptDataFilename.CFG.requireFile(datasetDirectory);
+			File routineCatalogFile = ScriptDataFilename.ROUTINE_CATALOG.requireFile(datasetDirectory);
 			dataset = new ScriptFlowGraph(Type.DATASET, datasetFile.getAbsolutePath(), false);
 			datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset);
 
@@ -159,8 +155,8 @@ public class DictionaryTest {
 
 	private void testStandalone() throws NumberFormatException, IOException {
 		File phpDirectory = new File(phpDir.getValue());
-		routineLineMap.load(new File(datasetDirectory, "routine-catalog.tab"), phpDirectory, new File(datasetDirectory,
-				"cfg.set"));
+		routineLineMap.load(ScriptDataFilename.ROUTINE_CATALOG.requireFile(datasetDirectory), phpDirectory,
+				ScriptDataFilename.CFG.requireFile(datasetDirectory));
 		DictionaryRequestHandler requestHandler = new DictionaryRequestHandler(routineLineMap);
 
 		for (ScriptRoutineGraph routine : trainingRoutines) {

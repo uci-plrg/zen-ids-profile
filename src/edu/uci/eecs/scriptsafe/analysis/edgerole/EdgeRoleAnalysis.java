@@ -11,6 +11,7 @@ import edu.uci.eecs.scriptsafe.analysis.AnalysisException;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineId;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptDataFilename;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
@@ -69,13 +70,8 @@ public class EdgeRoleAnalysis {
 			// RequestGraph graph = requestLoader.load();
 
 			datasetDirectory = new File(datasetDir.getValue());
-			File datasetFile = new File(datasetDirectory, "cfg.set");
-			if (!(datasetFile.exists() && datasetFile.isFile()))
-				throw new AnalysisException("Cannot find dataset file '%s'", datasetFile.getAbsolutePath());
-			File routineCatalogFile = new File(datasetDirectory, "routine-catalog.tab");
-			if (!(routineCatalogFile.exists() && routineCatalogFile.isFile()))
-				throw new AnalysisException("Cannot find routine catalog file '%s'",
-						routineCatalogFile.getAbsolutePath());
+			File datasetFile = ScriptDataFilename.CFG.requireFile(datasetDirectory);
+			File routineCatalogFile = ScriptDataFilename.ROUTINE_CATALOG.requireFile(datasetDirectory);
 			dataset = new ScriptFlowGraph(Type.DATASET, datasetFile.getAbsolutePath(), false);
 			datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset);
 

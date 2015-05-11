@@ -21,8 +21,6 @@ public class ScriptFlowGraph {
 		this.dataSourceType = dataSourceType;
 		this.description = description;
 		this.isFragmentary = isFragmentary;
-
-		// routines.put(1, ENTRY_ROUTINE);
 	}
 
 	public void addRoutine(ScriptRoutineGraph routine) {
@@ -60,8 +58,5 @@ public class ScriptFlowGraph {
 
 	public int getMaxDynamicRoutineIndex() {
 		return maxDynamicRoutineIndex;
-	}
-
-	public void checkIntegrity() {
 	}
 }

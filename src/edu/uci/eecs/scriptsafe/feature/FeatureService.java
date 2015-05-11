@@ -11,40 +11,10 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
-import edu.uci.eecs.scriptsafe.analysis.AnalysisException;
-import edu.uci.eecs.scriptsafe.analysis.dictionary.Dictionary;
-import edu.uci.eecs.scriptsafe.analysis.dictionary.RoutineLineMap;
-import edu.uci.eecs.scriptsafe.analysis.dictionary.SkewDictionary;
-import edu.uci.eecs.scriptsafe.analysis.request.RequestCallSiteSummary;
-import edu.uci.eecs.scriptsafe.analysis.request.RequestEdgeSummary;
-import edu.uci.eecs.scriptsafe.analysis.request.RequestGraph;
-import edu.uci.eecs.scriptsafe.analysis.request.RequestGraphLoader;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
-import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptDataFilename;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptDatasetLoader;
-import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
 
 public class FeatureService {
-
-	private static class RoleCounts {
-		int adminCount = 0;
-		int anonymousCount = 0;
-
-		void addCounts(RequestEdgeSummary edge) {
-			if (edge != null) {
-				adminCount += edge.getAdminCount();
-				anonymousCount += edge.getAnonymousCount();
-			}
-		}
-
-		void write(ByteBuffer buffer) {
-			buffer.putInt(adminCount);
-			buffer.putInt(anonymousCount);
-		}
-	}
 
 	public static final OptionArgumentMap.StringOption port = OptionArgumentMap.createStringOption('p');
 	public static final OptionArgumentMap.StringOption datasetDir = OptionArgumentMap.createStringOption('d');
@@ -56,19 +26,14 @@ public class FeatureService {
 	public static final OptionArgumentMap.StringOption watchlistCategories = OptionArgumentMap.createStringOption('c',
 			OptionMode.OPTIONAL);
 
-	private static final ByteBuffer intBuffer = ByteBuffer.allocate(4);
-
 	private final ArgumentStack args;
 	private final OptionArgumentMap argMap;
 
-	private final RoutineLineMap routineLineMap = new RoutineLineMap();
-	private final RequestGraphLoader requestLoader = new RequestGraphLoader();
-	private RequestGraph requestGraph;
-	private final ScriptDatasetLoader datasetLoader = new ScriptDatasetLoader();
-	private ScriptFlowGraph dataset;
-
 	private int serverPort;
-	private Dictionary dictionary;
+
+	private FeatureDataSource dataSource;
+	private final EdgeFeatureCollector edgeCollector = new EdgeFeatureCollector();
+	private final ByteBuffer reader = ByteBuffer.allocate(FeatureOperation.OPERATION_BYTE_COUNT);
 
 	private FeatureService(ArgumentStack args) {
 		this.args = args;
@@ -96,9 +61,6 @@ public class FeatureService {
 				return;
 			}
 
-			File datasetDirectory = new File(datasetDir.getValue());
-			File phpDirectory = new File(phpDir.getValue());
-
 			if (watchlistFile.hasValue()) {
 				File watchlist = new File(watchlistFile.getValue());
 				ScriptMergeWatchList.getInstance().loadFromFile(watchlist);
@@ -107,15 +69,8 @@ public class FeatureService {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
-			datasetDirectory = new File(datasetDir.getValue());
-			File datasetFile = ScriptDataFilename.CFG.requireFile(datasetDirectory);
-			File routineCatalogFile = ScriptDataFilename.ROUTINE_CATALOG.requireFile(datasetDirectory);
-			dataset = new ScriptFlowGraph(Type.DATASET, datasetFile.getAbsolutePath(), false);
-			datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset);
-			routineLineMap.load(routineCatalogFile, phpDirectory, datasetFile);
-			dictionary = new SkewDictionary(routineLineMap);
-			requestLoader.addPath(datasetDirectory.toPath());
-			requestGraph = requestLoader.load();
+			dataSource = new FeatureDataSource(datasetDir.getValue(), phpDir.getValue());
+			edgeCollector.setDataSource(dataSource);
 
 			listen();
 
@@ -134,8 +89,6 @@ public class FeatureService {
 			respond(client);
 		}
 	}
-
-	private static final ByteBuffer reader = ByteBuffer.allocate(FeatureOperation.OPERATION_BYTE_COUNT);
 
 	void respond(SocketChannel client) throws IOException {
 		try {
@@ -162,7 +115,7 @@ public class FeatureService {
 
 		switch (op) {
 			case GET_FEATURES:
-				response = getFeatures(fromRoutineHash, fromOpcode, toRoutineHash);
+				response = edgeCollector.getFeatures(fromRoutineHash, fromOpcode, toRoutineHash);
 				break;
 			case GET_EDGE_LABEL:
 				response = getEdgeLabel(fromRoutineHash, fromOpcode, toRoutineHash);
@@ -174,27 +127,6 @@ public class FeatureService {
 				response = ByteBuffer.allocate(1).put((byte) 0);
 				break;
 		}
-		return response;
-	}
-
-	// feature data: { site <role-counts>, calling sites <role-counts>, target <role-counts>,
-	// target file <role-counts>, target directory <role-counts>,
-	// <role-counts>*, word* }
-	private ByteBuffer getFeatures(int fromRoutineHash, int fromOpcode, int toRoutineHash) {
-		RoleCounts callSiteCounts = new RoleCounts();
-		RequestCallSiteSummary callSite = requestGraph.getCallSite(fromRoutineHash, fromOpcode);
-		for (RequestEdgeSummary edge : callSite.getEdges())
-			callSiteCounts.addCounts(edge);
-
-		RoleCounts callingSiteCounts = new RoleCounts();
-		for (RoutineEdge edge : dataset.edges.getIncomingEdges(toRoutineHash)) {
-			callingSiteCounts.addCounts(requestGraph.getEdge(edge.getFromRoutineHash(), edge.getFromRoutineIndex(),
-					toRoutineHash));
-		}
-
-		ByteBuffer response = ByteBuffer.allocate(999);
-		callSiteCounts.write(response);
-		callingSiteCounts.write(response);
 		return response;
 	}
 

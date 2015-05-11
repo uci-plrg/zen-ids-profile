@@ -19,8 +19,6 @@ public class SkewDictionary implements Dictionary {
 
 		int minAdminMajority;
 		int minAnonymousMajority;
-		int maxAdminMinority;
-		int maxAnonymousMinority;
 
 		int adminTotalInstances;
 		float adminAverageInstances;
@@ -37,8 +35,6 @@ public class SkewDictionary implements Dictionary {
 
 			minAdminMajority = 1; // (int) (4 * Math.log10(adminRoutineCount));
 			minAnonymousMajority = 1; // (int) (4 * Math.log10(anonymousRoutineCount));
-			maxAdminMinority = 1; // (int) (2 * Math.log10(adminRoutineCount));
-			maxAnonymousMinority = 1; // (int) (2 * Math.log10(anonymousRoutineCount));
 
 			adminTotalInstances = 0;
 			for (WordInstance i : adminWords.values()) {
@@ -119,20 +115,17 @@ public class SkewDictionary implements Dictionary {
 			if (adminCount > (SKEW_FACTOR * anonymousCount))
 				adminSkew++;
 
-			if ((anonymousCount > stats.minAnonymousMajority /* && adminCount < stats.maxAdminMinority */)
-					|| (adminCount > stats.minAdminMajority /* && anonymousCount < stats.maxAnonymousMinority */)) {
+			if ((anonymousCount > stats.minAnonymousMajority) || (adminCount > stats.minAdminMajority)) {
 				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f", word, adminCount, stats.minAdminMajority,
 						adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore);
 			}
 
-			if (anonymousCount > stats.minAnonymousMajority /* && adminCount < stats.maxAdminMinority */
-					&& anonymousScore > (SKEW_FACTOR * adminScore)) {
+			if (anonymousCount > stats.minAnonymousMajority && anonymousScore > (SKEW_FACTOR * adminScore)) {
 				favorAnonymous++;
 				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f [anonymous %.3f]", word, adminCount,
 						stats.minAdminMajority, adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore,
 						anonymousScore / (anonymousScore + adminScore));
-			} else if (adminCount > stats.minAdminMajority /* && anonymousCount < stats.maxAnonymousMinority */
-					&& adminScore > (SKEW_FACTOR * anonymousScore)) {
+			} else if (adminCount > stats.minAdminMajority && adminScore > (SKEW_FACTOR * anonymousScore)) {
 				favorAdmin++;
 				Log.message("\t%s: admin %d/%d %.2f, anonymous %d/%d %.2f [admin %.3f]", word, adminCount,
 						stats.minAdminMajority, adminScore, anonymousCount, stats.minAnonymousMajority, anonymousScore,
@@ -271,7 +264,7 @@ public class SkewDictionary implements Dictionary {
 			WordInstance anonymousWord = anonymousWords.get(adminWord.word);
 			if (adminWord.count < stats.minAdminMajority
 					&& (anonymousWord == null || anonymousWord.count < stats.minAnonymousMajority))
-				continue;
+				continue; // skip if both below the threshold
 
 			predictors.add(new Predictor(adminWord, anonymousWord));
 		}
@@ -279,7 +272,7 @@ public class SkewDictionary implements Dictionary {
 			WordInstance adminWord = adminWords.get(anonymousWord.word);
 			if (anonymousWord.count < stats.minAnonymousMajority
 					&& (adminWord == null || adminWord.count < stats.minAdminMajority))
-				continue;
+				continue; // skip if both below the threshold
 
 			predictors.add(new Predictor(adminWord, anonymousWord));
 		}

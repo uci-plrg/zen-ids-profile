@@ -21,6 +21,7 @@ public class RoutineId {
 
 		private final Map<Integer, RoutineId> routineIds = new HashMap<Integer, RoutineId>();
 		private final Map<Path, List<Integer>> routinesBySourceFile = new TreeMap<Path, List<Integer>>();
+		private final Map<Path, List<Path>> sourceFilesByDirectory = new HashMap<Path, List<Path>>();
 
 		private Cache() {
 			routineIds.put(1, ENTRY_ID);
@@ -34,6 +35,10 @@ public class RoutineId {
 
 		public List<Integer> getRoutinesInFile(Path file) {
 			return routinesBySourceFile.get(file);
+		}
+		
+		public List<Path> getFilesInDirectory(Path directory) {
+			return sourceFilesByDirectory.get(directory);
 		}
 
 		public Iterable<Path> getAllKnownFiles() {
@@ -72,6 +77,7 @@ public class RoutineId {
 					String name = id.substring(pipeIndex + 1);
 					routineIds.put(hash, new RoutineId(id, name, file));
 					establishFileRoutines(file).add(hash);
+					establishDirectoryFiles(file.getParent()).add(file);
 				}
 			} finally {
 				in.close();
@@ -85,6 +91,15 @@ public class RoutineId {
 				routinesBySourceFile.put(sourceFile, routines);
 			}
 			return routines;
+		}
+
+		private List<Path> establishDirectoryFiles(Path directory) {
+			List<Path> files = sourceFilesByDirectory.get(directory);
+			if (files == null) {
+				files = new ArrayList<Path>();
+				sourceFilesByDirectory.put(directory, files);
+			}
+			return files;
 		}
 	}
 

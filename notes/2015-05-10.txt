@@ -1,0 +1,52 @@
+
+Raw Data
+
+1. ML loads routine edges from merged routine-edge.run
+2. FeatureService loads training edge set from file (?)
+
+Request Opcodes
+
+0. feature data for an edge (training set)
+1. edge label (total: <role-counts>)
+2. graph properties (e.g., total routine <role-counts>)
+
+
+Request Format
+
+12 bytes: { <opcode> (1) | <from-hash> (4) | <from-opcode> (2) | <to-hash> (4) | <empty> (1) }
+
+
+Response Format
+
+8 byte <role-counts>: { # admin (4) | # anon (4) }
+
+0. feature data: { caller <role-counts>, calling sites <role-counts>, target <role-counts>,
+                   target file <role-counts>, target directory <role-counts>,
+                   <role-counts>*, word* }
+1. edge <role-counts>
+2. routine <role-counts>
+
+#: number of runs having this role as the lowest observed
+
+
+Dictionary: each word with high skew: { word, <role-counts> }
+Call Site: role (so far)? { <role-counts> }
+Call Sites of All Callers: exclusive role? { <role-counts> }
+Call Target:
+ · routine role? { <role-counts> }
+ · file role? { <role-counts> }
+ · directory role? { <role-counts> }
+
+
+
+Configuration
+ · min skew
+ · min word instances
+
+
+
+-----------------
+
+ML already has all the labels for all the edges in the dataset. It needs to know
+the features for each edge.
+

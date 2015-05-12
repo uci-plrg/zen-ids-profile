@@ -1,6 +1,8 @@
 package edu.uci.eecs.scriptsafe.analysis.request;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -9,8 +11,10 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
@@ -47,7 +51,7 @@ public class RequestGraphLoader {
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 			if (ScriptDataFilename.REQUEST_GRAPH.matches(file)) {
 				File routineCatalog = ScriptDataFilename.ROUTINE_CATALOG.requireFile(file.getParent().toFile());
-				File nodeFile = ScriptDataFilename.NODE.requireFile(file.getParent().toFile());
+				File nodeFile = ScriptDataFilename.NODE.getFile(file.getParent().toFile());
 				File datasetFile = ScriptDataFilename.CFG.getFile(file.getParent().toFile());
 				if (nodeFile.exists() && nodeFile.isFile())
 					fileSets.add(new FileSet(file.toFile(), nodeFile, null, routineCatalog));
@@ -87,6 +91,8 @@ public class RequestGraphLoader {
 	private final List<Path> paths = new ArrayList<Path>();
 	private final Map<Integer, Path> routineFiles = new HashMap<Integer, Path>();
 
+	private Set<Integer> requestFilter = null;
+
 	private ScriptNodeLoader nodeLoader;
 	private final ScriptDatasetLoader cfgLoader = new ScriptDatasetLoader();
 
@@ -98,6 +104,10 @@ public class RequestGraphLoader {
 
 	public int getPathCount() {
 		return paths.size();
+	}
+
+	public void setRequestFilter(Set<Integer> requestFilter) {
+		this.requestFilter = requestFilter;
 	}
 
 	public RequestGraph load() throws IOException {
@@ -119,7 +129,7 @@ public class RequestGraphLoader {
 		return requestGraph;
 	}
 
-	int load(FileSet fileSet) throws IOException {
+	private int load(FileSet fileSet) throws IOException {
 		if (fileSet.nodeFile != null) {
 			nodeLoader.loadNodes(fileSet.nodeFile);
 		} else {
@@ -130,8 +140,8 @@ public class RequestGraphLoader {
 		}
 
 		LittleEndianInputStream in = new LittleEndianInputStream(fileSet.requestFile);
-		int fromIndex, toRoutineHash, userLevel, totalRequests = 0;
-		RequestCallSiteSummary callSite;
+		int requestId, fromIndex, toRoutineHash, userLevel, totalRequests = 0;
+		boolean excludeThisRequest = false;
 
 		try {
 			int firstField;
@@ -139,6 +149,12 @@ public class RequestGraphLoader {
 				firstField = in.readInt();
 				if (firstField == REQUEST_HEADER_TAG) {
 					totalRequests++;
+					requestId = in.readInt();
+					in.readInt();
+					in.readInt();
+					excludeThisRequest = (requestFilter != null && !requestFilter.contains(requestId));
+					continue;
+				} else if (excludeThisRequest) {
 					in.readInt();
 					in.readInt();
 					in.readInt();
@@ -147,11 +163,9 @@ public class RequestGraphLoader {
 				fromIndex = in.readInt();
 				userLevel = (fromIndex >>> 26);
 				fromIndex = (fromIndex & 0x3ffffff);
-				callSite = requestGraph.establishCallSite(
-						RoutineId.Cache.INSTANCE.getId(fileSet.routineCatalog, firstField), firstField, fromIndex);
 				toRoutineHash = in.readInt();
-				callSite.addEdge(RoutineId.Cache.INSTANCE.getId(fileSet.routineCatalog, toRoutineHash),
-						requestGraph.routines.get(toRoutineHash), userLevel);
+
+				requestGraph.addEdge(firstField, fromIndex, toRoutineHash, userLevel, fileSet.routineCatalog);
 
 				in.readInt();
 			}

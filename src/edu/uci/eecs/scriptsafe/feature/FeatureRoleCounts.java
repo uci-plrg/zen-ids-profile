@@ -2,14 +2,12 @@ package edu.uci.eecs.scriptsafe.feature;
 
 import java.nio.ByteBuffer;
 
-import edu.uci.eecs.scriptsafe.analysis.request.RequestEdgeSummary;
-
 class FeatureRoleCounts implements FeatureResponseGenerator.Field {
 
 	private int adminCount = 0;
 	private int anonymousCount = 0;
 
-	void addCounts(RequestEdgeSummary edge) {
+	void addCounts(FeatureRoleCountElement edge) {
 		if (edge != null) {
 			adminCount += edge.getAdminCount();
 			anonymousCount += edge.getAnonymousCount();

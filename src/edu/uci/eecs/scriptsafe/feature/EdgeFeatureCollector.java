@@ -16,10 +16,10 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
  * caller <role-counts>
  * calling sites <role-counts>
  * target <role-counts>
- * target file <role-counts>,
+ * target file <role-counts>
  * target directory <role-counts>
- * <role-counts>*
- * word* 
+ * word[0..n] <role-counts>
+ * word[0..n] text
  * </pre>
  */
 class EdgeFeatureCollector {
@@ -31,7 +31,7 @@ class EdgeFeatureCollector {
 	private FeatureRoleCounts targetIncomingCounts = new FeatureRoleCounts();
 	private FeatureRoleCounts targetFileIncomingCounts = new FeatureRoleCounts();
 	private FeatureRoleCounts targetDirectoryIncomingCounts = new FeatureRoleCounts();
-	private SourceWordList wordList = new SourceWordList(0.9f); // TODO: config
+	private SourceWordList wordList = new SourceWordList(0.9f, 4f); // TODO: config
 
 	FeatureResponseGenerator responseGenerator = new FeatureResponseGenerator();
 
@@ -46,6 +46,7 @@ class EdgeFeatureCollector {
 
 	void setDataSource(FeatureDataSource dataSource) {
 		this.dataSource = dataSource;
+		wordList.setDataSource(dataSource);
 	}
 
 	ByteBuffer getFeatures(int fromRoutineHash, int fromOpcode, int toRoutineHash) {
@@ -57,6 +58,7 @@ class EdgeFeatureCollector {
 			callSiteCounts.addCounts(edge);
 
 		for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(toRoutineHash)) {
+			callSite = dataSource.requestGraph.getCallSite(edge.getFromRoutineHash(), edge.getFromRoutineIndex());
 			for (RequestEdgeSummary callingSiteSummary : callSite.getEdges())
 				callingSiteCounts.addCounts(callingSiteSummary);
 		}
@@ -83,6 +85,8 @@ class EdgeFeatureCollector {
 				}
 			}
 		}
+
+		wordList.evaluateRoutine(toRoutineHash);
 
 		return responseGenerator.generateResponse();
 	}

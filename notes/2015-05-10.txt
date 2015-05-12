@@ -22,7 +22,7 @@ Response Format
 
 0. feature data: { caller <role-counts>, calling sites <role-counts>, target <role-counts>,
                    target file <role-counts>, target directory <role-counts>,
-                   <role-counts>*, word* }
+                   word <role-counts>* }
 1. edge <role-counts>
 2. routine <role-counts>
 

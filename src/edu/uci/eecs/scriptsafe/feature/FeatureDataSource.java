@@ -2,6 +2,7 @@ package edu.uci.eecs.scriptsafe.feature;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Set;
 
 import edu.uci.eecs.scriptsafe.analysis.dictionary.Dictionary;
 import edu.uci.eecs.scriptsafe.analysis.dictionary.RoutineLineMap;
@@ -15,14 +16,15 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
 
 public class FeatureDataSource {
 
+	private final RequestGraphLoader requestLoader = new RequestGraphLoader();
+	private final ScriptDatasetLoader datasetLoader = new ScriptDatasetLoader();
+
 	final RoutineLineMap routineLineMap = new RoutineLineMap();
-	final RequestGraphLoader requestLoader = new RequestGraphLoader();
 	final RequestGraph requestGraph;
-	final ScriptDatasetLoader datasetLoader = new ScriptDatasetLoader();
 	final ScriptFlowGraph dataset;
 	final Dictionary dictionary;
 
-	public FeatureDataSource(String datasetDir, String phpDir) throws IOException {
+	public FeatureDataSource(String datasetDir, String phpDir, Set<Integer> requestFilter) throws IOException {
 		File datasetDirectory = new File(datasetDir);
 		File phpDirectory = new File(phpDir);
 		File datasetFile = ScriptDataFilename.CFG.requireFile(datasetDirectory);
@@ -32,6 +34,7 @@ public class FeatureDataSource {
 		routineLineMap.load(routineCatalogFile, phpDirectory, datasetFile);
 		dictionary = new SkewDictionary(routineLineMap);
 		requestLoader.addPath(datasetDirectory.toPath());
+		requestLoader.setRequestFilter(requestFilter);
 		requestGraph = requestLoader.load();
 	}
 }

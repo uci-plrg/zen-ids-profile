@@ -344,7 +344,7 @@ public class RoutineLineMap {
 			appFile.installRoutineSpans(cfg);
 	}
 
-	List<String> getWords(int hash) {
+	public List<String> getWords(int hash) {
 		List<String> words = new ArrayList<String>();
 		ColoredRoutineSpan key = new ColoredRoutineSpan(hash, true);
 		RoutineSpan span = routineSpans.get(key);
@@ -357,7 +357,7 @@ public class RoutineLineMap {
 		return words;
 	}
 
-	List<String> getWords(int hash, boolean isAdmin) {
+	public List<String> getWords(int hash, boolean isAdmin) {
 		ColoredRoutineSpan key = new ColoredRoutineSpan(hash, isAdmin);
 		RoutineSpan span = routineSpans.get(key);
 		if (span == null)

@@ -1,5 +1,7 @@
 package edu.uci.eecs.scriptsafe.analysis.request;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,6 +15,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 public class RequestGraph {
 
 	public final Map<Integer, ScriptRoutineGraph> routines = new HashMap<Integer, ScriptRoutineGraph>();
+	public final Map<Integer, Integer> calledRoutineUserLevel = new HashMap<Integer, Integer>();
 	public final Map<CallSiteKey, RequestCallSiteSummary> callSites = new HashMap<CallSiteKey, RequestCallSiteSummary>();
 	public final Map<Integer, List<RequestCallSiteSummary>> callSitesByRoutine = new HashMap<Integer, List<RequestCallSiteSummary>>();
 	public final Map<Path, List<ScriptRoutineGraph>> routinesBySourceFile = new HashMap<Path, List<ScriptRoutineGraph>>();
@@ -31,13 +34,25 @@ public class RequestGraph {
 		CallSiteKey key = new CallSiteKey(routineHash, opcode);
 		return callSites.get(key);
 	}
-	
+
 	public RequestEdgeSummary getEdge(int fromRoutineHash, int fromOpcode, int toRoutineHash) {
 		RequestCallSiteSummary callSite = getCallSite(fromRoutineHash, fromOpcode);
 		return callSite.getEdge(toRoutineHash);
 	}
 
-	RequestCallSiteSummary establishCallSite(RoutineId routineId, int routineHash, int nodeIndex) {
+	void addEdge(int fromRoutineHash, int fromOpcode, int toRoutineHash, int userLevel, File routineCatalog)
+			throws NumberFormatException, IOException {
+		RequestCallSiteSummary callSite = establishCallSite(
+				RoutineId.Cache.INSTANCE.getId(routineCatalog, fromRoutineHash), fromRoutineHash, fromOpcode);
+		callSite.addEdge(RoutineId.Cache.INSTANCE.getId(routineCatalog, toRoutineHash), routines.get(toRoutineHash),
+				userLevel);
+
+		Integer currentUserLevel = calledRoutineUserLevel.get(toRoutineHash);
+		if (currentUserLevel == null || currentUserLevel > userLevel)
+			calledRoutineUserLevel.put(toRoutineHash, userLevel);
+	}
+
+	private RequestCallSiteSummary establishCallSite(RoutineId routineId, int routineHash, int nodeIndex) {
 		CallSiteKey key = new CallSiteKey(routineHash, nodeIndex);
 		RequestCallSiteSummary site = callSites.get(key);
 		if (site == null) {

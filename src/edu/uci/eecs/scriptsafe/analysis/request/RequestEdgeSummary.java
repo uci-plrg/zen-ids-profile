@@ -1,9 +1,10 @@
 package edu.uci.eecs.scriptsafe.analysis.request;
 
+import edu.uci.eecs.scriptsafe.feature.FeatureRoleCountElement;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineId;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
-public class RequestEdgeSummary {
+public class RequestEdgeSummary implements FeatureRoleCountElement {
 	public final RequestCallSiteSummary callSite;
 	public final RoutineId calleeId;
 	public final ScriptRoutineGraph callee;
@@ -17,10 +18,12 @@ public class RequestEdgeSummary {
 		this.callee = callee;
 	}
 
+	@Override
 	public int getAdminCount() {
 		return adminCount;
 	}
 
+	@Override
 	public int getAnonymousCount() {
 		return anonymousCount;
 	}

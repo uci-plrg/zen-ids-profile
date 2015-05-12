@@ -19,6 +19,8 @@ public class FeatureService {
 	public static final OptionArgumentMap.StringOption port = OptionArgumentMap.createStringOption('p');
 	public static final OptionArgumentMap.StringOption datasetDir = OptionArgumentMap.createStringOption('d');
 	public static final OptionArgumentMap.StringOption phpDir = OptionArgumentMap.createStringOption('s');
+	public static final OptionArgumentMap.StringOption crossValidationFilePath = OptionArgumentMap
+			.createStringOption('k');
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());
 	public static final OptionArgumentMap.StringOption watchlistFile = OptionArgumentMap.createStringOption('w',
@@ -32,12 +34,14 @@ public class FeatureService {
 	private int serverPort;
 
 	private FeatureDataSource dataSource;
+	private FeatureCrossValidationSets crossValidationSets;
 	private final EdgeFeatureCollector edgeCollector = new EdgeFeatureCollector();
 	private final ByteBuffer reader = ByteBuffer.allocate(FeatureOperation.OPERATION_BYTE_COUNT);
 
 	private FeatureService(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, port, datasetDir, phpDir, verbose, watchlistFile, watchlistCategories);
+		argMap = new OptionArgumentMap(args, port, datasetDir, phpDir, crossValidationFilePath, verbose, watchlistFile,
+				watchlistCategories);
 	}
 
 	private void start() {
@@ -61,6 +65,8 @@ public class FeatureService {
 				return;
 			}
 
+			crossValidationSets = new FeatureCrossValidationSets(new File(crossValidationFilePath.getValue()));
+
 			if (watchlistFile.hasValue()) {
 				File watchlist = new File(watchlistFile.getValue());
 				ScriptMergeWatchList.getInstance().loadFromFile(watchlist);
@@ -69,7 +75,8 @@ public class FeatureService {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
-			dataSource = new FeatureDataSource(datasetDir.getValue(), phpDir.getValue());
+			dataSource = new FeatureDataSource(datasetDir.getValue(), phpDir.getValue(),
+					crossValidationSets.augmentCrossValidation(0));
 			edgeCollector.setDataSource(dataSource);
 
 			listen();

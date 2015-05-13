@@ -2,7 +2,6 @@ package edu.uci.eecs.scriptsafe.feature;
 
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.Properties;
 
 import edu.uci.eecs.scriptsafe.analysis.request.RequestCallSiteSummary;
 import edu.uci.eecs.scriptsafe.analysis.request.RequestEdgeSummary;
@@ -32,24 +31,18 @@ class EdgeFeatureCollector {
 	private FeatureRoleCounts targetIncomingCounts = new FeatureRoleCounts();
 	private FeatureRoleCounts targetFileIncomingCounts = new FeatureRoleCounts();
 	private FeatureRoleCounts targetDirectoryIncomingCounts = new FeatureRoleCounts();
-	private SourceWordList wordList;
 
-	FeatureResponseGenerator responseGenerator = new FeatureResponseGenerator();
+	final FeatureResponseGenerator responseGenerator = new FeatureResponseGenerator();
 
-	EdgeFeatureCollector(Properties config) {
-		wordList = new SourceWordList(config);
-
+	void setDataSource(FeatureDataSource dataSource) {
+		this.dataSource = dataSource;
+		
 		responseGenerator.addField(callSiteCounts);
 		responseGenerator.addField(callingSiteCounts);
 		responseGenerator.addField(targetIncomingCounts);
 		responseGenerator.addField(targetFileIncomingCounts);
 		responseGenerator.addField(targetDirectoryIncomingCounts);
-		responseGenerator.addField(wordList);
-	}
-
-	void setDataSource(FeatureDataSource dataSource) {
-		this.dataSource = dataSource;
-		wordList.setDataSource(dataSource);
+		responseGenerator.addField(dataSource.wordList.createWordMatchResponseField());
 	}
 
 	ByteBuffer getFeatures(int fromRoutineHash, int fromOpcode, int toRoutineHash) {
@@ -82,13 +75,13 @@ class EdgeFeatureCollector {
 		for (Path file : RoutineId.Cache.INSTANCE.getFilesInDirectory(directory)) {
 			for (int routineInFileHash : RoutineId.Cache.INSTANCE.getRoutinesInFile(file)) {
 				for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(routineInFileHash)) {
-					targetDirectoryIncomingCounts.addCounts(dataSource.requestGraph.getEdge(
-							edge.getFromRoutineHash(), edge.getFromRoutineIndex(), routineInFileHash));
+					targetDirectoryIncomingCounts.addCounts(dataSource.requestGraph.getEdge(edge.getFromRoutineHash(),
+							edge.getFromRoutineIndex(), routineInFileHash));
 				}
 			}
 		}
 
-		wordList.evaluateRoutine(toRoutineHash);
+		dataSource.wordList.evaluateRoutine(toRoutineHash);
 
 		return responseGenerator.generateResponse();
 	}

@@ -13,6 +13,7 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestEdgeSummary;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 
@@ -38,7 +39,8 @@ public class FeatureService {
 	private int serverPort;
 
 	private FeatureDataSource dataSource;
-	private EdgeFeatureCollector edgeCollector;
+	private EdgeFeatureCollector edgeCollector = new EdgeFeatureCollector();
+	private GraphFeatureCollector graphCollector = new GraphFeatureCollector();
 
 	private FeatureService(ArgumentStack args) {
 		this.args = args;
@@ -70,10 +72,6 @@ public class FeatureService {
 				}
 			}
 
-			Properties config = new Properties();
-			config.load(new FileInputStream(new File(configFilePath.getValue())));
-			edgeCollector = new EdgeFeatureCollector(config);
-
 			if (watchlistFile.hasValue()) {
 				File watchlist = new File(watchlistFile.getValue());
 				ScriptMergeWatchList.getInstance().loadFromFile(watchlist);
@@ -82,10 +80,15 @@ public class FeatureService {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
+			Properties config = new Properties();
+			config.load(new FileInputStream(new File(configFilePath.getValue())));
 			FeatureCrossValidationSets crossValidationSets = new FeatureCrossValidationSets(new File(
 					crossValidationFilePath.getValue()));
-			dataSource = new FeatureDataSource(datasetDir.getValue(), phpDir.getValue(), crossValidationSets);
+			dataSource = new FeatureDataSource(datasetDir.getValue(), phpDir.getValue(), config, crossValidationSets);
 
+			edgeCollector.setDataSource(dataSource);
+			graphCollector.setDataSource(dataSource);
+			
 			if (testOption.hasValue())
 				testServer();
 			else
@@ -140,7 +143,7 @@ public class FeatureService {
 			switch (op) {
 				case TRAIN_ON_K:
 					dataSource.requestGraph.train(field1);
-					edgeCollector.setDataSource(dataSource);
+					dataSource.wordList.reload();
 					response = FeatureResponse.OK.generateResponse();
 					break;
 				case GET_K_DELTA:
@@ -153,7 +156,7 @@ public class FeatureService {
 					response = getEdgeLabel(field1, field2, field3);
 					break;
 				case GET_GRAPH_PROPERTIES:
-					response = getGraphProperties();
+					response = graphCollector.getFeatures();
 					break;
 				default:
 					response = FeatureResponse.ERROR.generateResponse();
@@ -168,12 +171,14 @@ public class FeatureService {
 		return response;
 	}
 
-	private ByteBuffer getEdgeLabel(int fromRoutineHash, int fromOpcode, int toRoutineHash) {
-		return null;
-	}
-
-	private ByteBuffer getGraphProperties() {
-		return null;
+	private ByteBuffer getEdgeLabel(int fromRoutineHash, int fromIndex, int toRoutineHash) {
+		ByteBuffer response = FeatureResponse.OK.generateResponse(1);
+		RequestEdgeSummary edge = dataSource.requestGraph.getEdge(fromRoutineHash, fromIndex, toRoutineHash);
+		if (edge == null)
+			response.put((byte) -1);
+		else
+			response.put((byte) (edge.getAnonymousCount() == 0 ? 1 : 0));
+		return response;
 	}
 
 	FeatureDataSource getDataSource() {

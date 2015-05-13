@@ -13,6 +13,15 @@ class FeatureRoleCounts implements FeatureResponseGenerator.Field {
 			anonymousCount += edge.getAnonymousCount();
 		}
 	}
+	
+	void increment(boolean isAdmin) {
+		if (isAdmin)
+			adminCount++;
+		else
+			anonymousCount++;
+	}
+	
+	
 
 	@Override
 	public int getByteCount() {

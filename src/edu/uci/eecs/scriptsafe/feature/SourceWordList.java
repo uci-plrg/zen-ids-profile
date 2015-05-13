@@ -11,7 +11,7 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.analysis.dictionary.Dictionary.Evaluation;
 import edu.uci.eecs.scriptsafe.analysis.dictionary.WordAppearanceCount;
 
-class SourceWordList implements FeatureResponseGenerator.Field {
+class SourceWordList {
 
 	private enum ConfigOptions {
 		SKEW_THRESHOLD(0.9f),
@@ -47,6 +47,8 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 		int minAnonymousMajority = 1;
 
 		void loadRoutineWords() {
+			adminRoutineCount = anonymousRoutineCount = 0;
+
 			// aggregate counts (using WordSetBuilder?)
 			for (Map.Entry<Integer, Integer> entry : dataSource.requestGraph.calledRoutineUserLevel.entrySet()) {
 				boolean isEmpty = true;
@@ -171,7 +173,48 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 		}
 	}
 
-	private FeatureDataSource dataSource;
+	private class WordMatchResponseField implements FeatureResponseGenerator.Field {
+		@Override
+		public int getByteCount() {
+			return routineWords.size() * 20; /* 20 = 4 bytes * 5 fields */
+		}
+
+		@Override
+		public void write(ByteBuffer buffer) {
+			for (WordAppearanceCount word : routineWords) {
+				Predictor predictor = predictors.get(word.word);
+				buffer.putInt(word.getCount());
+				buffer.putInt(predictor.adminWord.routineMatchCount);
+				buffer.putInt(predictor.anonymousWord.routineMatchCount);
+				buffer.putInt(predictor.adminWord.appearanceCount);
+				buffer.putInt(predictor.anonymousWord.appearanceCount);
+			}
+		}
+
+		@Override
+		public void reset() {
+			routineWords.clear();
+		}
+	}
+
+	private class NonEmptyRoutineResponseField implements FeatureResponseGenerator.Field {
+		@Override
+		public int getByteCount() {
+			return 8;
+		}
+
+		@Override
+		public void write(ByteBuffer buffer) {
+			buffer.putInt(adminRoutineCount);
+			buffer.putInt(anonymousRoutineCount);
+		}
+
+		@Override
+		public void reset() {
+		}
+	}
+
+	private final FeatureDataSource dataSource;
 
 	private final Loader loader = new Loader();
 
@@ -184,17 +227,17 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 	private final float skewThreshold;
 	private final float majorityThresholdFactor;
 
-	private int adminRoutineCount = 0;
-	private int anonymousRoutineCount = 0;
+	private int adminRoutineCount;
+	private int anonymousRoutineCount;
 
-	SourceWordList(Properties config) {
+	SourceWordList(Properties config, FeatureDataSource dataSource) {
+		this.dataSource = dataSource;
+
 		this.skewThreshold = ConfigOptions.SKEW_THRESHOLD.getProperty(config);
 		this.majorityThresholdFactor = ConfigOptions.MAJORITY_THRESHOLD_FACTOR.getProperty(config);
 	}
 
-	void setDataSource(FeatureDataSource dataSource) {
-		this.dataSource = dataSource;
-
+	void reload() {
 		loader.loadRoutineWords();
 		loader.identifyPredictors();
 	}
@@ -209,25 +252,11 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 		}
 	}
 
-	@Override
-	public int getByteCount() {
-		return routineWords.size() * 20; /* 20 = 4 bytes * 5 fields */
+	public FeatureResponseGenerator.Field createWordMatchResponseField() {
+		return new WordMatchResponseField();
 	}
 
-	@Override
-	public void write(ByteBuffer buffer) {
-		for (WordAppearanceCount word : routineWords) {
-			Predictor predictor = predictors.get(word.word);
-			buffer.putInt(word.getCount());
-			buffer.putInt(predictor.adminWord.routineMatchCount);
-			buffer.putInt(predictor.anonymousWord.routineMatchCount);
-			buffer.putInt(predictor.adminWord.appearanceCount);
-			buffer.putInt(predictor.anonymousWord.appearanceCount);
-		}
-	}
-
-	@Override
-	public void reset() {
-		routineWords.clear();
+	public FeatureResponseGenerator.Field createNonEmptyRoutineResponseField() {
+		return new NonEmptyRoutineResponseField();
 	}
 }

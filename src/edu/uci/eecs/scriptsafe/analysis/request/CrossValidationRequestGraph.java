@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import edu.uci.eecs.scriptsafe.feature.FeatureCrossValidationSets;
+import edu.uci.eecs.scriptsafe.feature.FeatureResponse;
 
 public class CrossValidationRequestGraph extends RequestGraph {
 
@@ -112,8 +113,8 @@ public class CrossValidationRequestGraph extends RequestGraph {
 					newEdges.add(rawEdge);
 			}
 		}
-		
-		ByteBuffer buffer = ByteBuffer.allocate(11 * newEdges.size());
+
+		ByteBuffer buffer = FeatureResponse.OK.generateResponse(11 * newEdges.size());
 		for (RawEdge newEdge : newEdges) {
 			buffer.putInt(newEdge.fromRoutineHash);
 			buffer.putShort((short) newEdge.fromIndex);

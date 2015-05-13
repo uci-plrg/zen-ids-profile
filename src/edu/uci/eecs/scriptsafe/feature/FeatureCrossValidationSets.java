@@ -5,14 +5,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 public class FeatureCrossValidationSets {
 
+	final Map<Integer, Integer> kByRequestId = new HashMap<Integer, Integer>();
 	final List<List<Integer>> crossValidationGroups = new ArrayList<List<Integer>>();
-	final Set<Integer> includedRequestIds = new HashSet<Integer>();
+	int setCount = 0;
 
 	public FeatureCrossValidationSets(File crossValidationFile) throws IOException {
 		load(crossValidationFile);
@@ -24,13 +25,16 @@ public class FeatureCrossValidationSets {
 			while (in.ready()) {
 				String kLine = in.readLine();
 				List<Integer> k = new ArrayList<Integer>();
-				for (String requestId : kLine.split(",")) {
+				for (String requestIdString : kLine.split(",")) {
 					try {
-						k.add(Integer.parseInt(requestId));
+						int requestId = Integer.parseInt(requestIdString);
+						kByRequestId.put(requestId, setCount);
+						k.add(requestId);
 					} catch (NumberFormatException e) {
 						// skip it
 					}
 				}
+				setCount++;
 				crossValidationGroups.add(k);
 			}
 		} finally {
@@ -38,8 +42,11 @@ public class FeatureCrossValidationSets {
 		}
 	}
 
-	Set<Integer> augmentCrossValidation(int k) {
-		includedRequestIds.addAll(crossValidationGroups.get(k));
-		return includedRequestIds;
+	public int getNumberOfSets() {
+		return setCount;
+	}
+
+	public int getK(int requestId) {
+		return kByRequestId.get(requestId);
 	}
 }

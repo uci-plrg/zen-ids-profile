@@ -108,7 +108,8 @@ public class GraphExporter {
 
 			File sourcePath = new File(sourceGraphDir.getValue());
 			requestLoader.addPath(sourcePath.toPath());
-			requestGraph = requestLoader.load();
+			requestGraph = new RequestGraph();
+			requestLoader.load(requestGraph);
 
 			if (watchlistFile.hasValue()) {
 				File watchlist = new File(watchlistFile.getValue());

@@ -37,7 +37,6 @@ public class FeatureService {
 
 	private int serverPort;
 
-	FeatureCrossValidationSets crossValidationSets;
 	private FeatureDataSource dataSource;
 	private EdgeFeatureCollector edgeCollector;
 
@@ -75,8 +74,6 @@ public class FeatureService {
 			config.load(new FileInputStream(new File(configFilePath.getValue())));
 			edgeCollector = new EdgeFeatureCollector(config);
 
-			crossValidationSets = new FeatureCrossValidationSets(new File(crossValidationFilePath.getValue()));
-
 			if (watchlistFile.hasValue()) {
 				File watchlist = new File(watchlistFile.getValue());
 				ScriptMergeWatchList.getInstance().loadFromFile(watchlist);
@@ -85,7 +82,9 @@ public class FeatureService {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
-			dataSource = new FeatureDataSource(datasetDir.getValue(), phpDir.getValue());
+			FeatureCrossValidationSets crossValidationSets = new FeatureCrossValidationSets(new File(
+					crossValidationFilePath.getValue()));
+			dataSource = new FeatureDataSource(datasetDir.getValue(), phpDir.getValue(), crossValidationSets);
 
 			if (testOption.hasValue())
 				testServer();
@@ -140,9 +139,12 @@ public class FeatureService {
 		try {
 			switch (op) {
 				case TRAIN_ON_K:
-					dataSource.load(crossValidationSets.augmentCrossValidation(field1));
+					dataSource.requestGraph.train(field1);
 					edgeCollector.setDataSource(dataSource);
 					response = FeatureResponse.OK.generateResponse();
+					break;
+				case GET_K_DELTA:
+					response = dataSource.requestGraph.getDelta(field1);
 					break;
 				case GET_FEATURES:
 					response = edgeCollector.getFeatures(field1, field2, field3);
@@ -162,6 +164,7 @@ public class FeatureService {
 			Log.error("Failed to handle request %s", op);
 			Log.log(e);
 		}
+		response.rewind();
 		return response;
 	}
 
@@ -171,6 +174,10 @@ public class FeatureService {
 
 	private ByteBuffer getGraphProperties() {
 		return null;
+	}
+
+	FeatureDataSource getDataSource() {
+		return dataSource;
 	}
 
 	private void printUsage() {

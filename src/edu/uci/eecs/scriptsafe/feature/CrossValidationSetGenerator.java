@@ -51,7 +51,7 @@ public class CrossValidationSetGenerator {
 
 			List<Integer> requestIds = new ArrayList<Integer>();
 			for (int i = 0; i < requestCount; i++)
-				requestIds.add(i);
+				requestIds.add(i + 1);
 			Collections.shuffle(requestIds);
 
 			int groupSize = requestCount / k;

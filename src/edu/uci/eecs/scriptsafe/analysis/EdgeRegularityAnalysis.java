@@ -72,7 +72,8 @@ public class EdgeRegularityAnalysis {
 
 			Log.log("Analyzing uncommon edges in %d request-edge.run files.", requestLoader.getPathCount());
 
-			requestGraph = requestLoader.load();
+			requestGraph = new RequestGraph();
+			requestLoader.load(requestGraph);
 
 			List<RequestCallSiteSummary> callSitesByRegularity = new ArrayList<RequestCallSiteSummary>();
 			for (RequestCallSiteSummary callSite : requestGraph.callSites.values()) {
@@ -93,8 +94,8 @@ public class EdgeRegularityAnalysis {
 						majorityUserLevel = "an";
 					else
 						majorityUserLevel = "eq";
-					Log.log("\t%04d: -%s-> %s (0x%x)", (edge.getAdminCount() + edge.getAnonymousCount()), majorityUserLevel,
-							edge.calleeId.id, edge.callee.hash);
+					Log.log("\t%04d: -%s-> %s (0x%x)", (edge.getAdminCount() + edge.getAnonymousCount()),
+							majorityUserLevel, edge.calleeId.id, edge.callee.hash);
 				}
 			}
 		} catch (Throwable t) {

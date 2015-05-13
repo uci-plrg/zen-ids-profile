@@ -1,7 +1,6 @@
 package edu.uci.eecs.scriptsafe.analysis.request;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -12,7 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
@@ -111,8 +109,6 @@ public class RequestGraphLoader {
 	private final List<Path> paths = new ArrayList<Path>();
 	private final Map<Integer, Path> routineFiles = new HashMap<Integer, Path>();
 
-	private Set<Integer> requestFilter = null;
-
 	private ScriptNodeLoader nodeLoader;
 	private final ScriptDatasetLoader cfgLoader = new ScriptDatasetLoader();
 
@@ -126,12 +122,8 @@ public class RequestGraphLoader {
 		return paths.size();
 	}
 
-	public void setRequestFilter(Set<Integer> requestFilter) {
-		this.requestFilter = requestFilter;
-	}
-
-	public RequestGraph load() throws IOException {
-		requestGraph = new RequestGraph();
+	public RequestGraph load(RequestGraph requestGraph) throws IOException {
+		this.requestGraph = requestGraph;
 		RequestFileCollector requestFileCollector = new RequestFileCollector();
 		for (Path path : paths)
 			Files.walkFileTree(path, requestFileCollector);
@@ -143,7 +135,6 @@ public class RequestGraphLoader {
 
 		Log.log("Loaded %d total requests to analyze", totalRequests);
 
-		RequestGraph requestGraph = this.requestGraph;
 		this.requestGraph = null;
 		requestGraph.setTotalRequests(totalRequests);
 		return requestGraph;
@@ -161,7 +152,6 @@ public class RequestGraphLoader {
 
 		LittleEndianInputStream in = new LittleEndianInputStream(fileSet.requestFile);
 		int firstField, requestId, fromIndex, toRoutineHash, userLevel, totalRequests = 0;
-		boolean excludeThisRequest = false;
 
 		try {
 			while (in.ready(0x10)) {
@@ -170,15 +160,8 @@ public class RequestGraphLoader {
 					requestId = in.readInt();
 					in.readInt();
 					in.readInt();
-					if (requestFilter != null && !requestFilter.contains(requestId))
-						excludeThisRequest = true;
-					else
-						totalRequests++;
-					continue;
-				} else if (excludeThisRequest) {
-					in.readInt();
-					in.readInt();
-					in.readInt();
+					totalRequests++;
+					requestGraph.startRequest(requestId, fileSet.routineCatalog);
 					continue;
 				}
 				fromIndex = in.readInt();

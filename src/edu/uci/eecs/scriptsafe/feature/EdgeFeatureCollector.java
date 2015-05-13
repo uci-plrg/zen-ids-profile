@@ -55,25 +55,25 @@ class EdgeFeatureCollector {
 	ByteBuffer getFeatures(int fromRoutineHash, int fromOpcode, int toRoutineHash) {
 		responseGenerator.resetAllFields();
 
-		RequestCallSiteSummary callSite = dataSource.getRequestGraph().getCallSite(fromRoutineHash, fromOpcode);
+		RequestCallSiteSummary callSite = dataSource.requestGraph.getCallSite(fromRoutineHash, fromOpcode);
 		for (RequestEdgeSummary edge : callSite.getEdges())
 			callSiteCounts.addCounts(edge);
 
 		for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(toRoutineHash)) {
-			callSite = dataSource.getRequestGraph().getCallSite(edge.getFromRoutineHash(), edge.getFromRoutineIndex());
+			callSite = dataSource.requestGraph.getCallSite(edge.getFromRoutineHash(), edge.getFromRoutineIndex());
 			for (RequestEdgeSummary callingSiteSummary : callSite.getEdges())
 				callingSiteCounts.addCounts(callingSiteSummary);
 		}
 
 		for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(toRoutineHash)) {
-			targetIncomingCounts.addCounts(dataSource.getRequestGraph().getEdge(edge.getFromRoutineHash(),
+			targetIncomingCounts.addCounts(dataSource.requestGraph.getEdge(edge.getFromRoutineHash(),
 					edge.getFromRoutineIndex(), toRoutineHash));
 		}
 
 		ScriptRoutineGraph routine = dataSource.dataset.getRoutine(fromRoutineHash);
 		for (int routineInFileHash : RoutineId.Cache.INSTANCE.getRoutinesInFile(routine.id.sourceFile)) {
 			for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(routineInFileHash)) {
-				targetFileIncomingCounts.addCounts(dataSource.getRequestGraph().getEdge(edge.getFromRoutineHash(),
+				targetFileIncomingCounts.addCounts(dataSource.requestGraph.getEdge(edge.getFromRoutineHash(),
 						edge.getFromRoutineIndex(), routineInFileHash));
 			}
 		}
@@ -82,7 +82,7 @@ class EdgeFeatureCollector {
 		for (Path file : RoutineId.Cache.INSTANCE.getFilesInDirectory(directory)) {
 			for (int routineInFileHash : RoutineId.Cache.INSTANCE.getRoutinesInFile(file)) {
 				for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(routineInFileHash)) {
-					targetDirectoryIncomingCounts.addCounts(dataSource.getRequestGraph().getEdge(
+					targetDirectoryIncomingCounts.addCounts(dataSource.requestGraph.getEdge(
 							edge.getFromRoutineHash(), edge.getFromRoutineIndex(), routineInFileHash));
 				}
 			}

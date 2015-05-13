@@ -2,10 +2,9 @@ package edu.uci.eecs.scriptsafe.feature;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Set;
 
 import edu.uci.eecs.scriptsafe.analysis.dictionary.RoutineLineMap;
-import edu.uci.eecs.scriptsafe.analysis.request.RequestGraph;
+import edu.uci.eecs.scriptsafe.analysis.request.CrossValidationRequestGraph;
 import edu.uci.eecs.scriptsafe.analysis.request.RequestGraphLoader;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptDataFilename;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
@@ -19,10 +18,10 @@ public class FeatureDataSource {
 
 	final RoutineLineMap routineLineMap = new RoutineLineMap();
 	final ScriptFlowGraph dataset;
+	final CrossValidationRequestGraph requestGraph;
 
-	private RequestGraph requestGraph;
-
-	public FeatureDataSource(String datasetDir, String phpDir) throws IOException {
+	public FeatureDataSource(String datasetDir, String phpDir, FeatureCrossValidationSets crossValidationSets)
+			throws IOException {
 		File datasetDirectory = new File(datasetDir);
 		File phpDirectory = new File(phpDir);
 		File datasetFile = ScriptDataFilename.CFG.requireFile(datasetDirectory);
@@ -31,14 +30,7 @@ public class FeatureDataSource {
 		datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset);
 		routineLineMap.load(routineCatalogFile, phpDirectory, datasetFile);
 		requestLoader.addPath(datasetDirectory.toPath());
-	}
-
-	void load(Set<Integer> requestFilter) throws IOException {
-		requestLoader.setRequestFilter(requestFilter);
-		requestGraph = requestLoader.load();
-	}
-	
-	public RequestGraph getRequestGraph() {
-		return requestGraph;
+		requestGraph = new CrossValidationRequestGraph(crossValidationSets);
+		requestLoader.load(requestGraph);
 	}
 }

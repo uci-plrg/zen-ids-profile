@@ -6,6 +6,7 @@ import edu.uci.eecs.scriptsafe.analysis.AnalysisException;
 
 public enum FeatureOperation {
 	TRAIN_ON_K,
+	GET_K_DELTA,
 	GET_FEATURES,
 	GET_EDGE_LABEL,
 	GET_GRAPH_PROPERTIES;

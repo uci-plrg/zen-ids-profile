@@ -48,7 +48,7 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 
 		void loadRoutineWords() {
 			// aggregate counts (using WordSetBuilder?)
-			for (Map.Entry<Integer, Integer> entry : dataSource.getRequestGraph().calledRoutineUserLevel.entrySet()) {
+			for (Map.Entry<Integer, Integer> entry : dataSource.requestGraph.calledRoutineUserLevel.entrySet()) {
 				boolean isEmpty = true;
 				List<WordAppearanceCount> words = dataSource.routineLineMap.getWords(entry.getKey(), true);
 				isEmpty &= words.isEmpty();

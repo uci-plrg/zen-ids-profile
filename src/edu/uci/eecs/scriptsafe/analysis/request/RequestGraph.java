@@ -35,21 +35,27 @@ public class RequestGraph {
 		return callSites.get(key);
 	}
 
-	public RequestEdgeSummary getEdge(int fromRoutineHash, int fromOpcode, int toRoutineHash) {
-		RequestCallSiteSummary callSite = getCallSite(fromRoutineHash, fromOpcode);
-		return callSite.getEdge(toRoutineHash);
+	public RequestEdgeSummary getEdge(int fromRoutineHash, int fromIndex, int toRoutineHash) {
+		RequestCallSiteSummary callSite = getCallSite(fromRoutineHash, fromIndex);
+		if (callSite == null)
+			return null;
+		else
+			return callSite.getEdge(toRoutineHash);
 	}
 
-	void addEdge(int fromRoutineHash, int fromOpcode, int toRoutineHash, int userLevel, File routineCatalog)
+	void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
 			throws NumberFormatException, IOException {
 		RequestCallSiteSummary callSite = establishCallSite(
-				RoutineId.Cache.INSTANCE.getId(routineCatalog, fromRoutineHash), fromRoutineHash, fromOpcode);
+				RoutineId.Cache.INSTANCE.getId(routineCatalog, fromRoutineHash), fromRoutineHash, fromIndex);
 		callSite.addEdge(RoutineId.Cache.INSTANCE.getId(routineCatalog, toRoutineHash), routines.get(toRoutineHash),
 				userLevel);
 
 		Integer currentUserLevel = calledRoutineUserLevel.get(toRoutineHash);
 		if (currentUserLevel == null || currentUserLevel > userLevel)
 			calledRoutineUserLevel.put(toRoutineHash, userLevel);
+	}
+
+	void startRequest(int requestId, File routineCatalog) {
 	}
 
 	private RequestCallSiteSummary establishCallSite(RoutineId routineId, int routineHash, int nodeIndex) {

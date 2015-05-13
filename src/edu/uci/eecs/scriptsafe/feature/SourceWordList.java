@@ -50,7 +50,7 @@ class SourceWordList {
 			adminRoutineCount = anonymousRoutineCount = 0;
 
 			// aggregate counts (using WordSetBuilder?)
-			for (Map.Entry<Integer, Integer> entry : dataSource.requestGraph.calledRoutineUserLevel.entrySet()) {
+			for (Map.Entry<Integer, Integer> entry : dataSource.trainingRequestGraph.calledRoutineUserLevel.entrySet()) {
 				boolean isEmpty = true;
 				List<WordAppearanceCount> words = dataSource.routineLineMap.getWords(entry.getKey(), true);
 				isEmpty &= words.isEmpty();
@@ -183,11 +183,13 @@ class SourceWordList {
 		public void write(ByteBuffer buffer) {
 			for (WordAppearanceCount word : routineWords) {
 				Predictor predictor = predictors.get(word.word);
-				buffer.putInt(word.getCount());
-				buffer.putInt(predictor.adminWord.routineMatchCount);
-				buffer.putInt(predictor.anonymousWord.routineMatchCount);
-				buffer.putInt(predictor.adminWord.appearanceCount);
-				buffer.putInt(predictor.anonymousWord.appearanceCount);
+				if (predictor != null) {
+					buffer.putInt(word.getCount());
+					buffer.putInt(predictor.adminWord == null ? 0 : predictor.adminWord.routineMatchCount);
+					buffer.putInt(predictor.anonymousWord == null ? 0 : predictor.anonymousWord.routineMatchCount);
+					buffer.putInt(predictor.adminWord == null ? 0 : predictor.adminWord.appearanceCount);
+					buffer.putInt(predictor.anonymousWord == null ? 0 : predictor.anonymousWord.appearanceCount);
+				}
 			}
 		}
 

@@ -36,7 +36,7 @@ public class RoutineId {
 		public List<Integer> getRoutinesInFile(Path file) {
 			return routinesBySourceFile.get(file);
 		}
-		
+
 		public List<Path> getFilesInDirectory(Path directory) {
 			return sourceFilesByDirectory.get(directory);
 		}
@@ -76,30 +76,32 @@ public class RoutineId {
 					Path file = new File(id.substring(0, pipeIndex)).toPath();
 					String name = id.substring(pipeIndex + 1);
 					routineIds.put(hash, new RoutineId(id, name, file));
-					establishFileRoutines(file).add(hash);
-					establishDirectoryFiles(file.getParent()).add(file);
+					addFileRoutine(file, hash);
+					addDirectoryFile(file);
 				}
 			} finally {
 				in.close();
 			}
 		}
 
-		private List<Integer> establishFileRoutines(Path sourceFile) {
+		private void addFileRoutine(Path sourceFile, int routineHash) {
 			List<Integer> routines = routinesBySourceFile.get(sourceFile);
 			if (routines == null) {
 				routines = new ArrayList<Integer>();
 				routinesBySourceFile.put(sourceFile, routines);
 			}
-			return routines;
+			if (!routines.contains(routineHash))
+				routines.add(routineHash);
 		}
 
-		private List<Path> establishDirectoryFiles(Path directory) {
-			List<Path> files = sourceFilesByDirectory.get(directory);
+		private void addDirectoryFile(Path file) {
+			List<Path> files = sourceFilesByDirectory.get(file.getParent());
 			if (files == null) {
 				files = new ArrayList<Path>();
-				sourceFilesByDirectory.put(directory, files);
+				sourceFilesByDirectory.put(file.getParent(), files);
 			}
-			return files;
+			if (!files.contains(file))
+				files.add(file);
 		}
 	}
 

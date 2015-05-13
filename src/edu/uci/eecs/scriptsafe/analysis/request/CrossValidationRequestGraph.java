@@ -4,9 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import edu.uci.eecs.scriptsafe.feature.FeatureCrossValidationSets;
 import edu.uci.eecs.scriptsafe.feature.FeatureResponse;
@@ -15,44 +15,53 @@ public class CrossValidationRequestGraph extends RequestGraph {
 
 	/* N.B.: hashCode() and equals() do not account for the color */
 	private static class RawEdge {
-		final int fromRoutineHash;
-		final int fromIndex;
-		final int toRoutineHash;
+
+		private static class EndpointKey {
+			final int fromRoutineHash;
+			final int fromIndex;
+			final int toRoutineHash;
+
+			EndpointKey(int fromRoutineHash, int fromIndex, int toRoutineHash) {
+				this.fromRoutineHash = fromRoutineHash;
+				this.fromIndex = fromIndex;
+				this.toRoutineHash = toRoutineHash;
+			}
+
+			@Override
+			public int hashCode() {
+				final int prime = 31;
+				int result = 1;
+				result = prime * result + fromIndex;
+				result = prime * result + fromRoutineHash;
+				result = prime * result + toRoutineHash;
+				return result;
+			}
+
+			@Override
+			public boolean equals(Object obj) {
+				if (this == obj)
+					return true;
+				if (obj == null)
+					return false;
+				if (getClass() != obj.getClass())
+					return false;
+				EndpointKey other = (EndpointKey) obj;
+				if (fromIndex != other.fromIndex)
+					return false;
+				if (fromRoutineHash != other.fromRoutineHash)
+					return false;
+				if (toRoutineHash != other.toRoutineHash)
+					return false;
+				return true;
+			}
+		}
+
+		final EndpointKey key;
 		final boolean isAdmin;
 
 		RawEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, boolean isAdmin) {
-			this.fromRoutineHash = fromRoutineHash;
-			this.fromIndex = fromIndex;
-			this.toRoutineHash = toRoutineHash;
+			key = new EndpointKey(fromRoutineHash, fromIndex, toRoutineHash);
 			this.isAdmin = isAdmin;
-		}
-
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + fromIndex;
-			result = prime * result + fromRoutineHash;
-			result = prime * result + toRoutineHash;
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			RawEdge other = (RawEdge) obj;
-			if (fromIndex != other.fromIndex)
-				return false;
-			if (fromRoutineHash != other.fromRoutineHash)
-				return false;
-			if (toRoutineHash != other.toRoutineHash)
-				return false;
-			return true;
 		}
 	}
 
@@ -98,27 +107,33 @@ public class CrossValidationRequestGraph extends RequestGraph {
 	public void train(int k) throws NumberFormatException, IOException {
 		for (RawRequest request : rawRequestsByK[k]) {
 			for (RawEdge edge : request.edges) {
-				super.addEdge(edge.fromRoutineHash, edge.fromIndex, edge.toRoutineHash, edge.isAdmin ? 10 : 0,
-						request.routineCatalog);
+				super.addEdge(edge.key.fromRoutineHash, edge.key.fromIndex, edge.key.toRoutineHash, edge.isAdmin ? 10
+						: 0, request.routineCatalog);
 			}
 		}
 	}
 
 	public ByteBuffer getDelta(int k) {
-		Set<RawEdge> newEdges = new HashSet<RawEdge>();
+		Map<RawEdge.EndpointKey, RawEdge> newEdges = new HashMap<RawEdge.EndpointKey, RawEdge>();
 		for (RawRequest request : rawRequestsByK[k]) {
 			for (RawEdge rawEdge : request.edges) {
-				RequestEdgeSummary edge = getEdge(rawEdge.fromRoutineHash, rawEdge.fromIndex, rawEdge.toRoutineHash);
-				if (edge == null || (!rawEdge.isAdmin && edge.getAnonymousCount() == 0))
-					newEdges.add(rawEdge);
+				RequestEdgeSummary edge = getEdge(rawEdge.key.fromRoutineHash, rawEdge.key.fromIndex,
+						rawEdge.key.toRoutineHash);
+				RawEdge newEdge = newEdges.get(rawEdge.key);
+				if (edge == null) {
+					if (newEdge == null || (newEdge.isAdmin && !rawEdge.isAdmin))
+						newEdges.put(rawEdge.key, rawEdge);
+				} else if (!rawEdge.isAdmin && edge.getAnonymousCount() == 0) {
+					newEdges.put(rawEdge.key, rawEdge);
+				}
 			}
 		}
 
 		ByteBuffer buffer = FeatureResponse.OK.generateResponse(11 * newEdges.size());
-		for (RawEdge newEdge : newEdges) {
-			buffer.putInt(newEdge.fromRoutineHash);
-			buffer.putShort((short) newEdge.fromIndex);
-			buffer.putInt(newEdge.toRoutineHash);
+		for (RawEdge newEdge : newEdges.values()) {
+			buffer.putInt(newEdge.key.fromRoutineHash);
+			buffer.putShort((short) newEdge.key.fromIndex);
+			buffer.putInt(newEdge.key.toRoutineHash);
 			buffer.put((byte) (newEdge.isAdmin ? 1 : 0));
 		}
 		return buffer;

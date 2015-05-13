@@ -20,12 +20,12 @@ public class RequestEdgeSummary implements FeatureRoleCountElement {
 
 	@Override
 	public int getAdminCount() {
-		return adminCount;
+		return adminCount > 0 ? 1 : 0;
 	}
 
 	@Override
 	public int getAnonymousCount() {
-		return anonymousCount;
+		return anonymousCount > 0 ? 1 : 0;
 	}
 
 	boolean matches(ScriptRoutineGraph callee) {

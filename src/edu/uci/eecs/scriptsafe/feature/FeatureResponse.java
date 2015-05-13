@@ -5,7 +5,6 @@ import java.nio.ByteBuffer;
 import edu.uci.eecs.scriptsafe.analysis.AnalysisException;
 
 public enum FeatureResponse {
-
 	OK,
 	ERROR;
 

@@ -142,18 +142,15 @@ public class FeatureService {
 		try {
 			switch (op) {
 				case TRAIN_ON_K:
-					dataSource.requestGraph.train(field1);
+					dataSource.trainingRequestGraph.train(field1);
 					dataSource.wordList.reload();
 					response = FeatureResponse.OK.generateResponse();
 					break;
 				case GET_K_DELTA:
-					response = dataSource.requestGraph.getDelta(field1);
+					response = dataSource.trainingRequestGraph.getDelta(field1);
 					break;
 				case GET_FEATURES:
 					response = edgeCollector.getFeatures(field1, field2, field3);
-					break;
-				case GET_EDGE_LABEL:
-					response = getEdgeLabel(field1, field2, field3);
 					break;
 				case GET_GRAPH_PROPERTIES:
 					response = graphCollector.getFeatures();
@@ -168,16 +165,6 @@ public class FeatureService {
 			Log.log(e);
 		}
 		response.rewind();
-		return response;
-	}
-
-	private ByteBuffer getEdgeLabel(int fromRoutineHash, int fromIndex, int toRoutineHash) {
-		ByteBuffer response = FeatureResponse.OK.generateResponse(1);
-		RequestEdgeSummary edge = dataSource.requestGraph.getEdge(fromRoutineHash, fromIndex, toRoutineHash);
-		if (edge == null)
-			response.put((byte) -1);
-		else
-			response.put((byte) (edge.getAnonymousCount() == 0 ? 1 : 0));
 		return response;
 	}
 

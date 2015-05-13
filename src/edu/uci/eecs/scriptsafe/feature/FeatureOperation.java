@@ -8,7 +8,6 @@ public enum FeatureOperation {
 	TRAIN_ON_K,
 	GET_K_DELTA,
 	GET_FEATURES,
-	GET_EDGE_LABEL,
 	GET_GRAPH_PROPERTIES;
 
 	static final int OPERATION_BYTE_COUNT = 12;
@@ -29,10 +28,10 @@ public enum FeatureOperation {
 		throw new AnalysisException("Cannot understand op with opcode %d", b);
 	}
 
-	static ByteBuffer create(FeatureOperation op, int frommRoutineHash, int fromOpcode, int toRoutineHash) {
+	static ByteBuffer create(FeatureOperation op, int fromRoutineHash, int fromOpcode, int toRoutineHash) {
 		ByteBuffer opBytes = ByteBuffer.allocate(OPERATION_BYTE_COUNT);
 		opBytes.put(op.code);
-		opBytes.putInt(frommRoutineHash);
+		opBytes.putInt(fromRoutineHash);
 		opBytes.putShort((short) fromOpcode);
 		opBytes.putInt(toRoutineHash);
 		opBytes.rewind();

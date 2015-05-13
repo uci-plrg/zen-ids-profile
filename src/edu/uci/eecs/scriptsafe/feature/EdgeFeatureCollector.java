@@ -3,6 +3,7 @@ package edu.uci.eecs.scriptsafe.feature;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.analysis.request.RequestCallSiteSummary;
 import edu.uci.eecs.scriptsafe.analysis.request.RequestEdgeSummary;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
@@ -36,7 +37,7 @@ class EdgeFeatureCollector {
 
 	void setDataSource(FeatureDataSource dataSource) {
 		this.dataSource = dataSource;
-		
+
 		responseGenerator.addField(callSiteCounts);
 		responseGenerator.addField(callingSiteCounts);
 		responseGenerator.addField(targetIncomingCounts);
@@ -48,25 +49,30 @@ class EdgeFeatureCollector {
 	ByteBuffer getFeatures(int fromRoutineHash, int fromOpcode, int toRoutineHash) {
 		responseGenerator.resetAllFields();
 
-		RequestCallSiteSummary callSite = dataSource.requestGraph.getCallSite(fromRoutineHash, fromOpcode);
-		for (RequestEdgeSummary edge : callSite.getEdges())
-			callSiteCounts.addCounts(edge);
-
-		for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(toRoutineHash)) {
-			callSite = dataSource.requestGraph.getCallSite(edge.getFromRoutineHash(), edge.getFromRoutineIndex());
-			for (RequestEdgeSummary callingSiteSummary : callSite.getEdges())
-				callingSiteCounts.addCounts(callingSiteSummary);
+		RequestCallSiteSummary callSite = dataSource.trainingRequestGraph.getCallSite(fromRoutineHash, fromOpcode);
+		if (callSite != null) {
+			for (RequestEdgeSummary edge : callSite.getEdges())
+				callSiteCounts.addCounts(edge);
 		}
 
 		for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(toRoutineHash)) {
-			targetIncomingCounts.addCounts(dataSource.requestGraph.getEdge(edge.getFromRoutineHash(),
+			callSite = dataSource.trainingRequestGraph.getCallSite(edge.getFromRoutineHash(),
+					edge.getFromRoutineIndex());
+			if (callSite != null) {
+				for (RequestEdgeSummary callingSiteSummary : callSite.getEdges())
+					callingSiteCounts.addCounts(callingSiteSummary);
+			}
+		}
+
+		for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(toRoutineHash)) {
+			targetIncomingCounts.addCounts(dataSource.trainingRequestGraph.getEdge(edge.getFromRoutineHash(),
 					edge.getFromRoutineIndex(), toRoutineHash));
 		}
 
-		ScriptRoutineGraph routine = dataSource.dataset.getRoutine(fromRoutineHash);
+		ScriptRoutineGraph routine = dataSource.dataset.getRoutine(toRoutineHash);
 		for (int routineInFileHash : RoutineId.Cache.INSTANCE.getRoutinesInFile(routine.id.sourceFile)) {
 			for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(routineInFileHash)) {
-				targetFileIncomingCounts.addCounts(dataSource.requestGraph.getEdge(edge.getFromRoutineHash(),
+				targetFileIncomingCounts.addCounts(dataSource.trainingRequestGraph.getEdge(edge.getFromRoutineHash(),
 						edge.getFromRoutineIndex(), routineInFileHash));
 			}
 		}
@@ -75,8 +81,8 @@ class EdgeFeatureCollector {
 		for (Path file : RoutineId.Cache.INSTANCE.getFilesInDirectory(directory)) {
 			for (int routineInFileHash : RoutineId.Cache.INSTANCE.getRoutinesInFile(file)) {
 				for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(routineInFileHash)) {
-					targetDirectoryIncomingCounts.addCounts(dataSource.requestGraph.getEdge(edge.getFromRoutineHash(),
-							edge.getFromRoutineIndex(), routineInFileHash));
+					targetDirectoryIncomingCounts.addCounts(dataSource.trainingRequestGraph.getEdge(
+							edge.getFromRoutineHash(), edge.getFromRoutineIndex(), routineInFileHash));
 				}
 			}
 		}

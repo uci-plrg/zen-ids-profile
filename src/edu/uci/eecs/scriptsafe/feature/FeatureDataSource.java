@@ -19,7 +19,7 @@ public class FeatureDataSource {
 
 	final RoutineLineMap routineLineMap = new RoutineLineMap();
 	final ScriptFlowGraph dataset;
-	final CrossValidationRequestGraph requestGraph;
+	final CrossValidationRequestGraph trainingRequestGraph;
 	final SourceWordList wordList;
 
 	public FeatureDataSource(String datasetDir, String phpDir, Properties config,
@@ -32,8 +32,8 @@ public class FeatureDataSource {
 		datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset);
 		routineLineMap.load(routineCatalogFile, phpDirectory, datasetFile);
 		requestLoader.addPath(datasetDirectory.toPath());
-		requestGraph = new CrossValidationRequestGraph(crossValidationSets);
-		requestLoader.load(requestGraph);
+		trainingRequestGraph = new CrossValidationRequestGraph(crossValidationSets);
+		requestLoader.load(trainingRequestGraph);
 		wordList = new SourceWordList(config, this); // N.B.: must be last, will use previous values
 	}
 }

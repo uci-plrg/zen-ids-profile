@@ -27,9 +27,9 @@ class ExclusiveDictionary implements Dictionary {
 
 	@Override
 	public Evaluation evaluateRoutine(int hash, boolean hasHint, boolean hintAdmin) {
-		List<String> words = routineLineMap.getWords(hash);
+		List<WordAppearanceCount> words = routineLineMap.getWords(hash);
 		for (int i = words.size() - 1; i >= 0; i--) {
-			if (isCommonWord(words.get(i)))
+			if (isCommonWord(words.get(i).word))
 				words.remove(i);
 		}
 
@@ -64,19 +64,19 @@ class ExclusiveDictionary implements Dictionary {
 
 	@Override
 	public void addRoutine(int hash, boolean isAdmin) {
-		List<String> words = routineLineMap.getWords(hash, true);
-		for (String word : words) {
-			DictionaryRequestHandler.recordWordInstance(adminWords, word);
-			anonymousOnlyWords.remove(word);
-			if (!anonymousWords.containsKey(word))
-				adminOnlyWords.add(word);
+		List<WordAppearanceCount> words = routineLineMap.getWords(hash, true);
+		for (WordAppearanceCount word : words) {
+			DictionaryRequestHandler.recordWordInstance(adminWords, word.word);
+			anonymousOnlyWords.remove(word.word);
+			if (!anonymousWords.containsKey(word.word))
+				adminOnlyWords.add(word.word);
 		}
 		words = routineLineMap.getWords(hash, false);
-		for (String word : words) {
-			DictionaryRequestHandler.recordWordInstance(anonymousWords, word);
-			adminOnlyWords.remove(word);
-			if (!adminWords.containsKey(word))
-				anonymousOnlyWords.add(word);
+		for (WordAppearanceCount word : words) {
+			DictionaryRequestHandler.recordWordInstance(anonymousWords, word.word);
+			adminOnlyWords.remove(word.word);
+			if (!adminWords.containsKey(word.word))
+				anonymousOnlyWords.add(word.word);
 		}
 		Log.log("Update routine 0x%x: %d admin-only words, %d anonymous-only words", hash, adminOnlyWords.size(),
 				anonymousOnlyWords.size());

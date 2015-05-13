@@ -8,10 +8,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.StringTokenizer;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
@@ -37,13 +35,13 @@ public class RoutineLineMap {
 
 	private static class RoutineSpan {
 
-		static final Set<String> wordSetBuilder = new HashSet<String>();
+		static final WordAppearanceCount.SetBuilder wordSetBuilder = new WordAppearanceCount.SetBuilder();
 
 		final int hash;
 		final Path filePath;
 		final List<CodeLine> code = new ArrayList<CodeLine>(); // N.B.: based from 0
 
-		List<String> words = null;
+		List<WordAppearanceCount> words = null;
 
 		RoutineSpan(int hash, Path filePath) {
 			this.hash = hash;
@@ -56,7 +54,7 @@ public class RoutineLineMap {
 				code.add(new CodeLine(i, codeLines.get(i)));
 		}
 
-		List<String> getWords() {
+		List<WordAppearanceCount> getWords() {
 			parseWords();
 			return words;
 		}
@@ -78,16 +76,15 @@ public class RoutineLineMap {
 						if (Character.isJavaIdentifierPart(c)) {
 							buffer.append(c);
 						} else {
-							wordSetBuilder.add(buffer.toString());
+							wordSetBuilder.addWordAppearance(buffer.toString());
 							buffer.setLength(0);
 						}
 					}
 				}
 				if (buffer.length() > 0)
-					wordSetBuilder.add(buffer.toString());
+					wordSetBuilder.addWordAppearance(buffer.toString());
 			}
-			words = new ArrayList<String>(wordSetBuilder);
-			wordSetBuilder.clear();
+			words = wordSetBuilder.serializeWords();
 		}
 
 		void print(StringBuilder buffer) {
@@ -102,8 +99,12 @@ public class RoutineLineMap {
 				parseWords();
 
 				buffer.append("\tWord bag: {");
-				for (String word : words) {
-					buffer.append(word);
+				for (WordAppearanceCount word : words) {
+					buffer.append(word.word);
+					if (word.getCount() > 1) {
+						buffer.append(":");
+						buffer.append(word.getCount());
+					}
 					buffer.append("|");
 				}
 				if (!words.isEmpty())
@@ -310,6 +311,8 @@ public class RoutineLineMap {
 		}
 	}
 
+	private static final WordAppearanceCount.SetBuilder wordListAggregator = new WordAppearanceCount.SetBuilder();
+
 	private final ScriptDatasetLoader cfgLoader = new ScriptDatasetLoader();
 
 	private final Map<ColoredRoutineSpan, RoutineSpan> routineSpans = new HashMap<ColoredRoutineSpan, RoutineSpan>();
@@ -344,20 +347,19 @@ public class RoutineLineMap {
 			appFile.installRoutineSpans(cfg);
 	}
 
-	public List<String> getWords(int hash) {
-		List<String> words = new ArrayList<String>();
+	public List<WordAppearanceCount> getWords(int hash) {
 		ColoredRoutineSpan key = new ColoredRoutineSpan(hash, true);
 		RoutineSpan span = routineSpans.get(key);
 		if (span != null)
-			words.addAll(span.getWords());
+			wordListAggregator.addWordAppearances(span.getWords());
 		key = new ColoredRoutineSpan(hash, false);
 		span = routineSpans.get(key);
 		if (span != null)
-			words.addAll(span.getWords());
-		return words;
+			wordListAggregator.addWordAppearances(span.getWords());
+		return wordListAggregator.serializeWords();
 	}
 
-	public List<String> getWords(int hash, boolean isAdmin) {
+	public List<WordAppearanceCount> getWords(int hash, boolean isAdmin) {
 		ColoredRoutineSpan key = new ColoredRoutineSpan(hash, isAdmin);
 		RoutineSpan span = routineSpans.get(key);
 		if (span == null)

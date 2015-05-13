@@ -26,10 +26,11 @@ class FeatureResponseGenerator {
 	}
 
 	ByteBuffer generateResponse() {
-		int count = 0;
+		int count = 1; // response code
 		for (Field field : fields)
 			count += field.getByteCount();
 		ByteBuffer buffer = ByteBuffer.allocate(count);
+		buffer.put(FeatureResponse.OK.code);
 		for (Field field : fields)
 			field.write(buffer);
 		return buffer;

@@ -1,11 +1,13 @@
 package edu.uci.eecs.scriptsafe.feature;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Properties;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
@@ -21,6 +23,8 @@ public class FeatureService {
 	public static final OptionArgumentMap.StringOption phpDir = OptionArgumentMap.createStringOption('s');
 	public static final OptionArgumentMap.StringOption crossValidationFilePath = OptionArgumentMap
 			.createStringOption('k');
+	public static final OptionArgumentMap.StringOption configFilePath = OptionArgumentMap.createStringOption('i');
+	public static final OptionArgumentMap.BooleanOption testOption = OptionArgumentMap.createBooleanOption('t', false);
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());
 	public static final OptionArgumentMap.StringOption watchlistFile = OptionArgumentMap.createStringOption('w',
@@ -33,15 +37,14 @@ public class FeatureService {
 
 	private int serverPort;
 
+	FeatureCrossValidationSets crossValidationSets;
 	private FeatureDataSource dataSource;
-	private FeatureCrossValidationSets crossValidationSets;
-	private final EdgeFeatureCollector edgeCollector = new EdgeFeatureCollector();
-	private final ByteBuffer reader = ByteBuffer.allocate(FeatureOperation.OPERATION_BYTE_COUNT);
+	private EdgeFeatureCollector edgeCollector;
 
 	private FeatureService(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, port, datasetDir, phpDir, crossValidationFilePath, verbose, watchlistFile,
-				watchlistCategories);
+		argMap = new OptionArgumentMap(args, port, datasetDir, phpDir, crossValidationFilePath, configFilePath,
+				testOption, verbose, watchlistFile, watchlistCategories);
 	}
 
 	private void start() {
@@ -54,16 +57,23 @@ public class FeatureService {
 		System.out.println("Log level " + verbose.getValue());
 
 		try {
-			if (!(port.hasValue() && datasetDir.hasValue() && phpDir.hasValue())) {
+			if (!((testOption.getValue() || port.hasValue()) && datasetDir.hasValue() && phpDir.hasValue()
+					&& crossValidationFilePath.hasValue() && configFilePath.hasValue())) {
 				printUsage();
 				return;
 			}
 
-			serverPort = Integer.parseInt(port.getValue());
-			if (serverPort < 0 || serverPort > Short.MAX_VALUE) {
-				Log.error("Port %d does not exist. Exiting now.", serverPort);
-				return;
+			if (port.hasValue()) {
+				serverPort = Integer.parseInt(port.getValue());
+				if (serverPort < 0 || serverPort > Short.MAX_VALUE) {
+					Log.error("Port %d does not exist. Exiting now.", serverPort);
+					return;
+				}
 			}
+
+			Properties config = new Properties();
+			config.load(new FileInputStream(new File(configFilePath.getValue())));
+			edgeCollector = new EdgeFeatureCollector(config);
 
 			crossValidationSets = new FeatureCrossValidationSets(new File(crossValidationFilePath.getValue()));
 
@@ -75,16 +85,22 @@ public class FeatureService {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
-			dataSource = new FeatureDataSource(datasetDir.getValue(), phpDir.getValue(),
-					crossValidationSets.augmentCrossValidation(0));
-			edgeCollector.setDataSource(dataSource);
+			dataSource = new FeatureDataSource(datasetDir.getValue(), phpDir.getValue());
 
-			listen();
+			if (testOption.hasValue())
+				testServer();
+			else
+				listen();
 
 		} catch (Throwable t) {
 			Log.error("Uncaught %s exception:", t.getClass().getSimpleName());
 			Log.log(t);
 		}
+	}
+
+	void testServer() {
+		FeatureServerTest test = new FeatureServerTest(this);
+		test.run();
 	}
 
 	void listen() throws IOException {
@@ -98,6 +114,7 @@ public class FeatureService {
 	}
 
 	void respond(SocketChannel client) throws IOException {
+		ByteBuffer reader = ByteBuffer.allocate(FeatureOperation.OPERATION_BYTE_COUNT);
 		try {
 			ByteBuffer response;
 			client.configureBlocking(true);
@@ -113,26 +130,37 @@ public class FeatureService {
 		}
 	}
 
-	ByteBuffer execute(ByteBuffer data) {
+	ByteBuffer execute(ByteBuffer data) throws IOException {
 		ByteBuffer response;
-		FeatureOperation op = FeatureOperation.forByte(reader.get());
-		int fromRoutineHash = reader.getInt();
-		int fromOpcode = reader.getShort();
-		int toRoutineHash = reader.getInt();
+		FeatureOperation op = FeatureOperation.forByte(data.get());
+		int field1 = data.getInt();
+		int field2 = data.getShort();
+		int field3 = data.getInt();
 
-		switch (op) {
-			case GET_FEATURES:
-				response = edgeCollector.getFeatures(fromRoutineHash, fromOpcode, toRoutineHash);
-				break;
-			case GET_EDGE_LABEL:
-				response = getEdgeLabel(fromRoutineHash, fromOpcode, toRoutineHash);
-				break;
-			case GET_GRAPH_PROPERTIES:
-				response = getGraphProperties();
-				break;
-			default:
-				response = ByteBuffer.allocate(1).put((byte) 0);
-				break;
+		try {
+			switch (op) {
+				case TRAIN_ON_K:
+					dataSource.load(crossValidationSets.augmentCrossValidation(field1));
+					edgeCollector.setDataSource(dataSource);
+					response = FeatureResponse.OK.generateResponse();
+					break;
+				case GET_FEATURES:
+					response = edgeCollector.getFeatures(field1, field2, field3);
+					break;
+				case GET_EDGE_LABEL:
+					response = getEdgeLabel(field1, field2, field3);
+					break;
+				case GET_GRAPH_PROPERTIES:
+					response = getGraphProperties();
+					break;
+				default:
+					response = FeatureResponse.ERROR.generateResponse();
+					break;
+			}
+		} catch (Exception e) {
+			response = FeatureResponse.ERROR.generateResponse();
+			Log.error("Failed to handle request %s", op);
+			Log.log(e);
 		}
 		return response;
 	}
@@ -146,8 +174,18 @@ public class FeatureService {
 	}
 
 	private void printUsage() {
-		System.err.println(String.format("Usage: %s -p <server-port> -d <dataset-dir> -s <php-src-dir>", getClass()
-				.getSimpleName()));
+		System.err.println("Usage for service:");
+		System.err.println("  -p <server-port>");
+		System.err.println("  -d <dataset-dir>");
+		System.err.println("  -s <php-src-dir>");
+		System.err.println("  -k <cross-validation-file>");
+		System.err.println("  -i <config-file>");
+		System.err.println("Usage for test:");
+		System.err.println("  -t (test)");
+		System.err.println("  -d <dataset-dir>");
+		System.err.println("  -s <php-src-dir>");
+		System.err.println("  -k <cross-validation-file>");
+		System.err.println("  -i <config-file>");
 	}
 
 	public static void main(String args[]) {

@@ -1,18 +1,45 @@
 package edu.uci.eecs.scriptsafe.feature;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Properties;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.analysis.dictionary.Dictionary.Evaluation;
+import edu.uci.eecs.scriptsafe.analysis.dictionary.WordAppearanceCount;
 
 class SourceWordList implements FeatureResponseGenerator.Field {
 
+	private enum ConfigOptions {
+		SKEW_THRESHOLD(0.9f),
+		MAJORITY_THRESHOLD_FACTOR(4f);
+
+		final float defaultValue;
+
+		private ConfigOptions(float defaultValue) {
+			this.defaultValue = defaultValue;
+		}
+
+		float getProperty(Properties config) {
+			float value = defaultValue;
+			String propertyValue = config.getProperty(toString());
+			if (propertyValue != null) {
+				try {
+					value = Float.parseFloat(propertyValue);
+				} catch (NumberFormatException e) {
+					Log.error("%s attempting to parse '%s' as a float", e.getClass().getSimpleName());
+					value = defaultValue;
+				}
+			}
+			return value;
+		}
+	}
+
 	private class Loader {
-		final Set<String> allWords = new HashSet<String>();
+		final Map<String, WordInstance> allWords = new HashMap<String, WordInstance>();
 		final Map<String, WordInstance> adminWords = new HashMap<String, WordInstance>();
 		final Map<String, WordInstance> anonymousWords = new HashMap<String, WordInstance>();
 
@@ -20,18 +47,21 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 		int minAnonymousMajority = 1;
 
 		void loadRoutineWords() {
-			for (Map.Entry<Integer, Integer> entry : dataSource.requestGraph.calledRoutineUserLevel.entrySet()) {
+			// aggregate counts (using WordSetBuilder?)
+			for (Map.Entry<Integer, Integer> entry : dataSource.getRequestGraph().calledRoutineUserLevel.entrySet()) {
 				boolean isEmpty = true;
-				List<String> words = dataSource.routineLineMap.getWords(entry.getKey(), true);
+				List<WordAppearanceCount> words = dataSource.routineLineMap.getWords(entry.getKey(), true);
 				isEmpty &= words.isEmpty();
-				allWords.addAll(words);
-				for (String word : words)
+				for (WordAppearanceCount word : words) {
 					recordWordInstance(adminWords, word);
+					recordWordInstance(allWords, word);
+				}
 				words = dataSource.routineLineMap.getWords(entry.getKey(), false);
 				isEmpty &= words.isEmpty();
-				allWords.addAll(words);
-				for (String word : words)
+				for (WordAppearanceCount word : words) {
 					recordWordInstance(anonymousWords, word);
+					recordWordInstance(allWords, word);
+				}
 				if (!isEmpty) {
 					if (entry.getValue() < 2)
 						anonymousRoutineCount++;
@@ -44,8 +74,8 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 		void identifyPredictors() {
 			for (WordInstance adminWord : adminWords.values()) {
 				WordInstance anonymousWord = anonymousWords.get(adminWord.word);
-				if (adminWord.count < minAdminMajority
-						&& (anonymousWord == null || anonymousWord.count < minAnonymousMajority))
+				if (adminWord.routineMatchCount < minAdminMajority
+						&& (anonymousWord == null || anonymousWord.routineMatchCount < minAnonymousMajority))
 					continue; // skip if both below the threshold
 
 				predictors.put(adminWord.word, new Predictor(adminWord, anonymousWord));
@@ -54,17 +84,28 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 				if (predictors.containsKey(anonymousWord.word))
 					continue;
 				WordInstance adminWord = adminWords.get(anonymousWord.word);
-				if (anonymousWord.count < minAnonymousMajority
-						&& (adminWord == null || adminWord.count < minAdminMajority))
+				if (anonymousWord.routineMatchCount < minAnonymousMajority
+						&& (adminWord == null || adminWord.routineMatchCount < minAdminMajority))
 					continue; // skip if both below the threshold
 
-				predictors.put(adminWord.word, new Predictor(adminWord, anonymousWord));
+				predictors.put(anonymousWord.word, new Predictor(adminWord, anonymousWord));
 			}
 		}
 
 		void calculateMajorityThresholds() {
 			minAdminMajority = (int) (majorityThresholdFactor * Math.log10(adminRoutineCount));
 			minAnonymousMajority = (int) (majorityThresholdFactor * Math.log10(anonymousRoutineCount));
+		}
+
+		void recordWordInstance(Map<String, WordInstance> words, WordAppearanceCount word) {
+			WordInstance instance = words.get(word.word);
+			if (instance == null) {
+				instance = new WordInstance(word.word);
+				words.put(word.word, instance);
+			} else {
+				instance.routineMatchCount++;
+			}
+			instance.appearanceCount += word.getCount();
 		}
 	}
 
@@ -75,27 +116,26 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 		Evaluation evaluation;
 		String word;
 		float skew;
-		int adminCount;
-		int anonymousCount;
+		final WordInstance adminWord;
+		final WordInstance anonymousWord;
 
 		Predictor(WordInstance adminWord, WordInstance anonymousWord) {
+			this.adminWord = adminWord;
+			this.anonymousWord = anonymousWord;
+
 			if (adminWord == null) {
 				adminProbability = 0f;
 				evaluation = Evaluation.ANONYMOUS;
 				skew = 1f;
-				adminCount = 0;
 			} else {
-				adminProbability = (adminWord.count / (float) adminRoutineCount) * 100f;
-				adminCount = adminWord.count;
+				adminProbability = (adminWord.routineMatchCount / (float) adminRoutineCount) * 100f;
 			}
 			if (anonymousWord == null) {
 				anonymousProbability = 0f;
 				evaluation = Evaluation.ADMIN;
 				skew = 1f;
-				anonymousCount = 0;
 			} else {
-				anonymousProbability = (anonymousWord.count / (float) anonymousRoutineCount) * 100f;
-				anonymousCount = anonymousWord.count;
+				anonymousProbability = (anonymousWord.routineMatchCount / (float) anonymousRoutineCount) * 100f;
 			}
 			skewBase = adminProbability + anonymousProbability;
 			word = (adminWord == null) ? anonymousWord.word : adminWord.word;
@@ -112,18 +152,19 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 
 		@Override
 		public int getAdminCount() {
-			return adminCount;
+			return adminWord == null ? 0 : adminWord.routineMatchCount;
 		}
 
 		@Override
 		public int getAnonymousCount() {
-			return anonymousCount;
+			return anonymousWord == null ? 0 : anonymousWord.routineMatchCount;
 		}
 	}
 
 	private static class WordInstance {
 		final String word;
-		int count = 1;
+		int appearanceCount = 0;
+		int routineMatchCount = 1;
 
 		WordInstance(String word) {
 			this.word = word;
@@ -136,8 +177,8 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 
 	private final Map<String, Predictor> predictors = new HashMap<String, Predictor>();
 
-	private final Set<Predictor> routinePredictors = new HashSet<Predictor>();
-	private final FeatureRoleCounts routinePredictorCounts = new FeatureRoleCounts();
+	/* Transitory per FeatureResponseGenerator.Field workflow */
+	private final List<WordAppearanceCount> routineWords = new ArrayList<WordAppearanceCount>();
 
 	/* Configurable */
 	private final float skewThreshold;
@@ -146,9 +187,9 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 	private int adminRoutineCount = 0;
 	private int anonymousRoutineCount = 0;
 
-	SourceWordList(float skewThreshold, float majorityThresholdFactor) {
-		this.skewThreshold = skewThreshold;
-		this.majorityThresholdFactor = majorityThresholdFactor;
+	SourceWordList(Properties config) {
+		this.skewThreshold = ConfigOptions.SKEW_THRESHOLD.getProperty(config);
+		this.majorityThresholdFactor = ConfigOptions.MAJORITY_THRESHOLD_FACTOR.getProperty(config);
 	}
 
 	void setDataSource(FeatureDataSource dataSource) {
@@ -159,40 +200,34 @@ class SourceWordList implements FeatureResponseGenerator.Field {
 	}
 
 	void evaluateRoutine(int routineHash) {
-		List<String> words = dataSource.routineLineMap.getWords(routineHash);
-		for (String word : words) {
-			Predictor predictor = predictors.get(word);
-			if (predictor != null && predictor.skew > skewThreshold)
-				routinePredictors.add(predictor);
+		routineWords.addAll(dataSource.routineLineMap.getWords(routineHash));
+		for (int i = routineWords.size() - 1; i >= 0; i--) {
+			WordAppearanceCount word = routineWords.get(i);
+			Predictor predictor = predictors.get(word.word);
+			if (predictor == null || predictor.skew < skewThreshold)
+				routineWords.remove(i);
 		}
 	}
 
 	@Override
 	public int getByteCount() {
-		return routinePredictorCounts.getByteCount() * routinePredictors.size();
+		return routineWords.size() * 20; /* 20 = 4 bytes * 5 fields */
 	}
 
 	@Override
 	public void write(ByteBuffer buffer) {
-		for (Predictor predictor : routinePredictors) {
-			routinePredictorCounts.reset();
-			routinePredictorCounts.addCounts(predictor);
-			routinePredictorCounts.write(buffer);
+		for (WordAppearanceCount word : routineWords) {
+			Predictor predictor = predictors.get(word.word);
+			buffer.putInt(word.getCount());
+			buffer.putInt(predictor.adminWord.routineMatchCount);
+			buffer.putInt(predictor.anonymousWord.routineMatchCount);
+			buffer.putInt(predictor.adminWord.appearanceCount);
+			buffer.putInt(predictor.anonymousWord.appearanceCount);
 		}
 	}
 
 	@Override
 	public void reset() {
-		routinePredictors.clear();
-	}
-
-	void recordWordInstance(Map<String, WordInstance> words, String word) {
-		WordInstance instance = words.get(word);
-		if (instance == null) {
-			instance = new WordInstance(word);
-			words.put(word, instance);
-		} else {
-			instance.count++;
-		}
+		routineWords.clear();
 	}
 }

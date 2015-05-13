@@ -1,8 +1,7 @@
 package edu.uci.eecs.scriptsafe.analysis.request;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -11,7 +10,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -86,6 +84,28 @@ public class RequestGraphLoader {
 		}
 	}
 
+	public static int loadRequestCount(File requestFile) throws IOException {
+		LittleEndianInputStream in = new LittleEndianInputStream(requestFile);
+		int firstField, totalRequests = 0;
+
+		try {
+			while (in.ready(0x10)) {
+				firstField = in.readInt();
+				in.readInt();
+				in.readInt();
+				in.readInt();
+				if (firstField == REQUEST_HEADER_TAG)
+					totalRequests++;
+			}
+		} catch (Exception e) {
+			Log.error("Failed to load request count from file %s:", requestFile.getAbsolutePath());
+			Log.log(e);
+		} finally {
+			in.close();
+		}
+		return totalRequests;
+	}
+
 	private static final int REQUEST_HEADER_TAG = 2;
 
 	private final List<Path> paths = new ArrayList<Path>();
@@ -140,19 +160,20 @@ public class RequestGraphLoader {
 		}
 
 		LittleEndianInputStream in = new LittleEndianInputStream(fileSet.requestFile);
-		int requestId, fromIndex, toRoutineHash, userLevel, totalRequests = 0;
+		int firstField, requestId, fromIndex, toRoutineHash, userLevel, totalRequests = 0;
 		boolean excludeThisRequest = false;
 
 		try {
-			int firstField;
 			while (in.ready(0x10)) {
 				firstField = in.readInt();
 				if (firstField == REQUEST_HEADER_TAG) {
-					totalRequests++;
 					requestId = in.readInt();
 					in.readInt();
 					in.readInt();
-					excludeThisRequest = (requestFilter != null && !requestFilter.contains(requestId));
+					if (requestFilter != null && !requestFilter.contains(requestId))
+						excludeThisRequest = true;
+					else
+						totalRequests++;
 					continue;
 				} else if (excludeThisRequest) {
 					in.readInt();

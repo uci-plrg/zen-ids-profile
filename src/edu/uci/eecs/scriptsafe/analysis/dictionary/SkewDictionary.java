@@ -75,7 +75,7 @@ public class SkewDictionary implements Dictionary {
 
 	@Override
 	public Evaluation evaluateRoutine(int hash, boolean hasHint, boolean hintAdmin) {
-		List<String> routineWords = routineLineMap.getWords(hash);
+		List<WordAppearanceCount> routineWords = routineLineMap.getWords(hash);
 		stats.update();
 
 		int adminCount, anonymousCount;
@@ -85,8 +85,8 @@ public class SkewDictionary implements Dictionary {
 
 		int adminOverMin = 0, anonymousOverMin = 0, adminSkew = 0, anonymousSkew = 0;
 
-		for (String word : routineWords) {
-			adminInstance = adminWords.get(word);
+		for (WordAppearanceCount word : routineWords) {
+			adminInstance = adminWords.get(word.word);
 			if (adminInstance == null) {
 				adminCount = 0;
 				adminScore = 0f;
@@ -159,17 +159,19 @@ public class SkewDictionary implements Dictionary {
 	@Override
 	public void addRoutine(int hash, boolean isAdmin) {
 		boolean isEmpty = true;
-		List<String> words = routineLineMap.getWords(hash, true);
+		List<WordAppearanceCount> words = routineLineMap.getWords(hash, true);
 		isEmpty &= words.isEmpty();
-		allWords.addAll(words);
-		for (String word : words) {
-			DictionaryRequestHandler.recordWordInstance(adminWords, word);
+		for (WordAppearanceCount word : words)
+			allWords.add(word.word);
+		for (WordAppearanceCount word : words) {
+			DictionaryRequestHandler.recordWordInstance(adminWords, word.word);
 		}
 		words = routineLineMap.getWords(hash, false);
 		isEmpty &= words.isEmpty();
-		allWords.addAll(words);
-		for (String word : words) {
-			DictionaryRequestHandler.recordWordInstance(anonymousWords, word);
+		for (WordAppearanceCount word : words)
+			allWords.add(word.word);
+		for (WordAppearanceCount word : words) {
+			DictionaryRequestHandler.recordWordInstance(anonymousWords, word.word);
 		}
 		if (!isEmpty) {
 			if (isAdmin)

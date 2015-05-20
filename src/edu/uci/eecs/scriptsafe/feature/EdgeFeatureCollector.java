@@ -56,17 +56,23 @@ class EdgeFeatureCollector {
 		}
 
 		for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(toRoutineHash)) {
-			callSite = dataSource.trainingRequestGraph.getCallSite(edge.getFromRoutineHash(),
-					edge.getFromRoutineIndex());
-			if (callSite != null) {
-				for (RequestEdgeSummary callingSiteSummary : callSite.getEdges())
-					callingSiteCounts.addCounts(callingSiteSummary);
+			if (dataSource.trainingRequestGraph.getEdge(edge.getFromRoutineHash(), edge.getFromRoutineIndex(),
+					edge.getToRoutineHash()) != null) { // filter edges outside the current training set
+				callSite = dataSource.trainingRequestGraph.getCallSite(edge.getFromRoutineHash(),
+						edge.getFromRoutineIndex());
+				if (callSite != null) {
+					for (RequestEdgeSummary callingSiteSummary : callSite.getEdges())
+						callingSiteCounts.addCounts(callingSiteSummary);
+				}
 			}
 		}
 
 		for (RoutineEdge edge : dataSource.dataset.edges.getIncomingEdges(toRoutineHash)) {
-			targetIncomingCounts.addCounts(dataSource.trainingRequestGraph.getEdge(edge.getFromRoutineHash(),
-					edge.getFromRoutineIndex(), toRoutineHash));
+			if (dataSource.trainingRequestGraph.getEdge(edge.getFromRoutineHash(), edge.getFromRoutineIndex(),
+					edge.getToRoutineHash()) != null) { // filter edges outside the current training set
+				targetIncomingCounts.addCounts(dataSource.trainingRequestGraph.getEdge(edge.getFromRoutineHash(),
+						edge.getFromRoutineIndex(), toRoutineHash));
+			}
 		}
 
 		ScriptRoutineGraph routine = dataSource.dataset.getRoutine(toRoutineHash);

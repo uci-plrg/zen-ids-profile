@@ -54,6 +54,10 @@ public class ScriptNodeLoader {
 			// parse out extended value for include/eval nodes
 			nodeIndex = input.readInt();
 			node = createNode(routineHash, opcode, type, lineNumber, nodeIndex);
+			if (nodeIndex > routine.getNodeCount()) {
+				Log.warn("Skipping node %d with disjoint index %d", routine.getNodeCount(), nodeIndex);
+				continue;
+			}
 			if (lastNode != null)
 				lastNode.setNext(node);
 			lastNode = node;

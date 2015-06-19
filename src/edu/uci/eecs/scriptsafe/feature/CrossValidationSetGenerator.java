@@ -11,6 +11,7 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.scriptsafe.analysis.request.RequestGraphLoader;
+import edu.uci.eecs.scriptsafe.merge.RequestMerge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptDataFilename;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 
@@ -40,8 +41,8 @@ public class CrossValidationSetGenerator {
 			}
 
 			int k = kOption.getValue();
-			File requestFile = ScriptDataFilename.REQUEST_GRAPH.requireFile(new File(datasetDir.getValue()));
-			int requestCount = RequestGraphLoader.loadRequestCount(requestFile);
+			int requestCount = RequestMerge.getRequestCount(ScriptDataFilename.REQUEST_FIELDS.requireFile(new File(
+					datasetDir.getValue())));
 
 			if (k > requestCount) {
 				Log.error("The number of groups 'k' (%d) must not be greater than the total number of requests (%d)",

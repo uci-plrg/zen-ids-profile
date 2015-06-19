@@ -3,11 +3,10 @@ package edu.uci.eecs.scriptsafe.analysis.request;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.feature.FeatureCrossValidationSets;
 import edu.uci.eecs.scriptsafe.feature.FeatureResponse;
 
@@ -58,74 +57,72 @@ public class CrossValidationRequestGraph extends RequestGraph {
 
 		final EndpointKey key;
 		final boolean isAdmin;
+		final File routineCatalog;
 
-		RawEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, boolean isAdmin) {
+		RawEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, File routineCatalog, boolean isAdmin) {
 			key = new EndpointKey(fromRoutineHash, fromIndex, toRoutineHash);
+			this.routineCatalog = routineCatalog;
 			this.isAdmin = isAdmin;
 		}
 	}
 
-	private static class RawRequest {
-		final int requestId;
-		final File routineCatalog;
-
-		final List<RawEdge> edges = new ArrayList<RawEdge>();
-
-		RawRequest(int requestId, File routineCatalog) {
-			this.requestId = requestId;
-			this.routineCatalog = routineCatalog;
-		}
+	private static class RequestGroup {
+		final Map<RawEdge.EndpointKey, RawEdge> edges = new HashMap<RawEdge.EndpointKey, RawEdge>();
 	}
 
 	private final FeatureCrossValidationSets kSets;
-	private final List<RawRequest> rawRequestsByK[];
+	private final RequestGroup rawRequestsByK[];
 
-	private RawRequest currentRequest;
+	private RequestGroup currentGroup;
 
-	@SuppressWarnings("unchecked")
 	public CrossValidationRequestGraph(FeatureCrossValidationSets kSets) {
 		this.kSets = kSets;
 
-		rawRequestsByK = new List[kSets.getNumberOfSets()];
+		rawRequestsByK = new RequestGroup[kSets.getNumberOfSets()];
 		for (int i = 0; i < rawRequestsByK.length; i++)
-			rawRequestsByK[i] = new ArrayList<RawRequest>();
+			rawRequestsByK[i] = new RequestGroup();
 	}
 
 	/* N.B.: construction expects the exact workflow of RequestGraphLoader */
 	@Override
 	void startRequest(int requestId, File routineCatalog) {
-		currentRequest = new RawRequest(requestId, routineCatalog);
-		rawRequestsByK[kSets.getK(requestId)].add(currentRequest);
+		currentGroup = rawRequestsByK[kSets.getK(requestId)];
 	}
 
 	@Override
 	void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
 			throws NumberFormatException, IOException {
-		currentRequest.edges.add(new RawEdge(fromRoutineHash, fromIndex, toRoutineHash, userLevel > 2));
+		if (userLevel >= 2)
+			Log.log("Observed admin edge");
+		
+		RawEdge.EndpointKey key = new RawEdge.EndpointKey(fromRoutineHash, fromIndex, toRoutineHash);
+		RawEdge existing = currentGroup.edges.get(key);
+		if (existing == null || (userLevel < 2 && existing.isAdmin)) {
+			Log.log("Adding %s edge. Edge exists already? %s", (userLevel < 2 ? "anonymous" : "admin"),
+					(existing == null) ? "no" : "yes");
+			currentGroup.edges.put(key, new RawEdge(fromRoutineHash, fromIndex, toRoutineHash, routineCatalog,
+					userLevel >= 2));
+		}
 	}
 
 	public void train(int k) throws NumberFormatException, IOException {
-		for (RawRequest request : rawRequestsByK[k]) {
-			for (RawEdge edge : request.edges) {
-				super.addEdge(edge.key.fromRoutineHash, edge.key.fromIndex, edge.key.toRoutineHash, edge.isAdmin ? 10
-						: 0, request.routineCatalog);
-			}
+		for (RawEdge edge : rawRequestsByK[k].edges.values()) {
+			super.addEdge(edge.key.fromRoutineHash, edge.key.fromIndex, edge.key.toRoutineHash, edge.isAdmin ? 10 : 0,
+					edge.routineCatalog);
 		}
 	}
 
 	public ByteBuffer getDelta(int k) {
 		Map<RawEdge.EndpointKey, RawEdge> newEdges = new HashMap<RawEdge.EndpointKey, RawEdge>();
-		for (RawRequest request : rawRequestsByK[k]) {
-			for (RawEdge rawEdge : request.edges) {
-				RequestEdgeSummary edge = getEdge(rawEdge.key.fromRoutineHash, rawEdge.key.fromIndex,
-						rawEdge.key.toRoutineHash);
-				RawEdge newEdge = newEdges.get(rawEdge.key);
-				if (edge == null) {
-					if (newEdge == null || (newEdge.isAdmin && !rawEdge.isAdmin))
-						newEdges.put(rawEdge.key, rawEdge);
-				} else if (!rawEdge.isAdmin && edge.getAnonymousCount() == 0) {
+		for (RawEdge rawEdge : rawRequestsByK[k].edges.values()) {
+			RequestEdgeSummary edge = getEdge(rawEdge.key.fromRoutineHash, rawEdge.key.fromIndex,
+					rawEdge.key.toRoutineHash);
+			RawEdge newEdge = newEdges.get(rawEdge.key);
+			if (edge == null) {
+				if (newEdge == null || (newEdge.isAdmin && !rawEdge.isAdmin))
 					newEdges.put(rawEdge.key, rawEdge);
-				}
+			} else if (!rawEdge.isAdmin && edge.getAnonymousCount() == 0) {
+				newEdges.put(rawEdge.key, rawEdge);
 			}
 		}
 

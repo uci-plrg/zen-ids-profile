@@ -82,28 +82,6 @@ public class RequestGraphLoader {
 		}
 	}
 
-	public static int loadRequestCount(File requestFile) throws IOException {
-		LittleEndianInputStream in = new LittleEndianInputStream(requestFile);
-		int firstField, totalRequests = 0;
-
-		try {
-			while (in.ready(0x10)) {
-				firstField = in.readInt();
-				in.readInt();
-				in.readInt();
-				in.readInt();
-				if (firstField == REQUEST_HEADER_TAG)
-					totalRequests++;
-			}
-		} catch (Exception e) {
-			Log.error("Failed to load request count from file %s:", requestFile.getAbsolutePath());
-			Log.log(e);
-		} finally {
-			in.close();
-		}
-		return totalRequests;
-	}
-
 	private static final int REQUEST_HEADER_TAG = 2;
 
 	private final List<Path> paths = new ArrayList<Path>();

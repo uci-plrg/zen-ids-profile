@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 
 public class ScriptNode {
@@ -33,7 +34,8 @@ public class ScriptNode {
 				if (type.flag == flag)
 					return type;
 			}
-			throw new IllegalArgumentException("Unknown SubscriptType " + flag);
+			Log.warn("Unknown SubscriptType %d; assuming EVAL", flag);
+			return SubscriptType.EVAL;
 		}
 	}
 
@@ -179,7 +181,7 @@ public class ScriptNode {
 	public static final EnumSet<Opcode> CALL_INIT_OPCODES = EnumSet.of(Opcode.ZEND_INIT_FCALL,
 			Opcode.ZEND_INIT_FCALL_BY_NAME, Opcode.ZEND_INIT_METHOD_CALL, Opcode.ZEND_INIT_NS_FCALL_BY_NAME,
 			Opcode.ZEND_INIT_STATIC_METHOD_CALL, Opcode.ZEND_INIT_USER_CALL);
-	
+
 	public static final int USER_LEVEL_TOP = 0x3f;
 
 	public final int routineHash;

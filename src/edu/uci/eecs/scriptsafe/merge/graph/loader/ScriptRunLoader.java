@@ -254,7 +254,17 @@ class ScriptRunLoader {
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
 				for (RawOpcodeEdge edge : edges) {
 					routine = graph.getRoutine(edge.routineHash);
-					fromNode = routine.getNode(edge.fromIndex);
+					if (routine == null) {
+						Log.warn("Cannot find routine for hash 0x%x. Skipping it.", edge.routineHash);
+						continue;
+					} else if (edge.fromIndex > routine.getNodeCount()) {
+						Log.warn(
+								"Edge originates at a non-existent node with index %d in a routine of size %d. Skipping it.",
+								edge.fromIndex, routine.getNodeCount());
+						continue;
+					} else {
+						fromNode = routine.getNode(edge.fromIndex);
+					}
 
 					if (!(fromNode instanceof ScriptBranchNode)) {
 						if (!isFallThrough(fromNode, edge)) {
@@ -268,15 +278,27 @@ class ScriptRunLoader {
 					}
 
 					branchNode = (ScriptBranchNode) routine.getNode(edge.fromIndex);
-					branchNode.setTarget(routine.getNode(edge.toIndex));
+					if (edge.toIndex > routine.getNodeCount()) {
+						Log.warn(
+								"Edge points to a non-existent node with index %d in a routine of size %d. Skipping it.",
+								edge.toIndex, routine.getNodeCount());
+					} else {
+						branchNode.setTarget(routine.getNode(edge.toIndex));
+					}
 					branchNode.setBranchUserLevel(edge.userLevel);
 
 					Log.message("User level %d on %d->%d in routine 0x%x", branchNode.getBranchUserLevel(),
 							edge.fromIndex, edge.toIndex, routine.hash);
 
-					if (routine.getNode(edge.toIndex).index != edge.toIndex) {
-						throw new MergeException("Incorrect node index: expected %d but found %d", edge.toIndex,
-								routine.getNode(edge.toIndex).index);
+					if (edge.toIndex > routine.getNodeCount()) {
+						Log.warn(
+								"Edge points to a non-existent node with index %d in a routine of size %d. Skipping it.",
+								edge.toIndex, routine.getNodeCount());
+					} else {
+						if (routine.getNode(edge.toIndex).index != edge.toIndex) {
+							throw new MergeException("Incorrect node index: expected %d but found %d", edge.toIndex,
+									routine.getNode(edge.toIndex).index);
+						}
 					}
 				}
 			}

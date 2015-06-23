@@ -45,8 +45,8 @@ public class RequestMerge {
 
 		int requestCount = appendRequests(rightRequestCount + 1, outputFiles.getRequestFile());
 		int requestSubgraphCount = appendRequestEdges(rightRequestCount + 1, outputFiles.getRequestEdgeFile());
-		if (requestCount != requestSubgraphCount)
-			Log.warn("Request count %d does not match request subgraph count %d", requestCount, requestSubgraphCount);
+		// if (requestCount != requestSubgraphCount)
+		// Log.warn("Request count %d does not match request subgraph count %d", requestCount, requestSubgraphCount);
 	}
 
 	private int appendRequests(int nextRequestId, File outputFile) throws IOException {

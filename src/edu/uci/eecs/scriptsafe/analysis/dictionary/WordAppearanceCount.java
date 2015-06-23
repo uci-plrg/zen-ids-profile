@@ -42,8 +42,11 @@ public class WordAppearanceCount {
 			return words;
 		}
 	}
+	
+	private static int INDEX = 0;
 
 	private int count = 1;
+	public final int id = INDEX++;
 	public final String word;
 
 	WordAppearanceCount(String word) {

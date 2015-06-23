@@ -6,7 +6,6 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.feature.FeatureCrossValidationSets;
 import edu.uci.eecs.scriptsafe.feature.FeatureResponse;
 
@@ -92,14 +91,9 @@ public class CrossValidationRequestGraph extends RequestGraph {
 	@Override
 	void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
 			throws NumberFormatException, IOException {
-		if (userLevel >= 2)
-			Log.log("Observed admin edge");
-		
 		RawEdge.EndpointKey key = new RawEdge.EndpointKey(fromRoutineHash, fromIndex, toRoutineHash);
 		RawEdge existing = currentGroup.edges.get(key);
 		if (existing == null || (userLevel < 2 && existing.isAdmin)) {
-			Log.log("Adding %s edge. Edge exists already? %s", (userLevel < 2 ? "anonymous" : "admin"),
-					(existing == null) ? "no" : "yes");
 			currentGroup.edges.put(key, new RawEdge(fromRoutineHash, fromIndex, toRoutineHash, routineCatalog,
 					userLevel >= 2));
 		}

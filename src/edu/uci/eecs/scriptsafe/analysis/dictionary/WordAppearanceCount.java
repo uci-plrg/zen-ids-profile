@@ -8,7 +8,7 @@ import java.util.Map;
 public class WordAppearanceCount {
 
 	public static class SetBuilder {
-		
+
 		private final Map<String, WordAppearanceCount> set = new HashMap<String, WordAppearanceCount>();
 
 		public void addWordAppearance(String word) {
@@ -42,15 +42,16 @@ public class WordAppearanceCount {
 			return words;
 		}
 	}
-	
-	private static int INDEX = 0;
 
 	private int count = 1;
-	public final int id = INDEX++;
+	public final int id;
 	public final String word;
 
 	WordAppearanceCount(String word) {
 		this.word = word;
+
+		long hash = word.hashCode();
+		id = (int) ((hash & 0xffffffff) | (hash >> 0x20L));
 	}
 
 	void increment() {

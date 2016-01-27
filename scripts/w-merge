@@ -16,9 +16,16 @@ shift $(( $OPTIND - 1 ))
 
 [ -z "$output_dir" ] && usage && exit
 
-s-merge -o $output_dir -l $1 -r $2
-[ $? -ne 0 ] && echo "Error, exiting now." && exit
-shift 2
+if [ -z "$(ls $output_dir/cfg.set)" ]
+then # starting a new dataset
+  echo "Merging $# workers into a new dataset"
+  s-merge -o $output_dir -l $1 -r $2
+  [ $? -ne 0 ] && echo "Error, exiting now." && exit
+  shift 2
+else
+  echo "Merge $# workers into dataset $output_dir/cfg.set"
+  rm -f $output_dir/merge.log
+fi
 
 for d in "${@}"
 do

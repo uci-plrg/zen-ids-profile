@@ -156,7 +156,7 @@ class ScriptRunLoader {
 		@Override
 		public ScriptRoutineGraph createRoutine(int routineHash) {
 			ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash,
-					RoutineId.Cache.INSTANCE.getId(routineHash), flowGraph.isFragmentary);
+					RoutineId.Cache.INSTANCE.getId(routineHash), flowGraph.isNewUserLevelSample);
 			flowGraph.addRoutine(routine);
 			return routine;
 		}

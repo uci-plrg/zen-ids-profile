@@ -11,8 +11,9 @@ import java.util.Map;
 import edu.uci.eecs.scriptsafe.analysis.request.RequestCallSiteSummary.CallSiteKey;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineId;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptNodeLoader;
 
-public class RequestGraph {
+public class RequestGraph implements RequestSequenceLoader.RequestCollection {
 
 	public final Map<Integer, ScriptRoutineGraph> routines = new HashMap<Integer, ScriptRoutineGraph>();
 	public final Map<Integer, Integer> calledRoutineUserLevel = new HashMap<Integer, Integer>();
@@ -43,7 +44,7 @@ public class RequestGraph {
 			return callSite.getEdge(toRoutineHash);
 	}
 
-	void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
+	public void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
 			throws NumberFormatException, IOException {
 		RequestCallSiteSummary callSite = establishCallSite(
 				RoutineId.Cache.INSTANCE.getId(routineCatalog, fromRoutineHash), fromRoutineHash, fromIndex);
@@ -55,7 +56,24 @@ public class RequestGraph {
 			calledRoutineUserLevel.put(toRoutineHash, userLevel);
 	}
 
-	void startRequest(int requestId, File routineCatalog) {
+	public void addRoutine(ScriptRoutineGraph routine) {
+		routines.put(routine.hash, routine);
+	}
+
+	public void startRequest(int requestId, File routineCatalog) {
+	}
+
+	@Override
+	public ScriptRoutineGraph createRoutine(int routineHash) {
+		ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash, RoutineId.Cache.INSTANCE.getId(routineHash),
+				false);
+		routines.put(routine.hash, routine);
+		return routine;
+	}
+
+	@Override
+	public ScriptRoutineGraph getRoutine(int routineHash) {
+		return routines.get(routineHash);
 	}
 
 	private RequestCallSiteSummary establishCallSite(RoutineId routineId, int routineHash, int nodeIndex) {

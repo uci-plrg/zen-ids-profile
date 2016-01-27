@@ -12,15 +12,15 @@ public class ScriptFlowGraph {
 
 	public final ScriptGraphDataFiles.Type dataSourceType;
 	public final String description;
-	public final boolean isFragmentary;
+	public final boolean isNewUserLevelSample;
 	private final Map<Integer, ScriptRoutineGraph> routines = new HashMap<Integer, ScriptRoutineGraph>();
 	public final GraphEdgeSet edges = new GraphEdgeSet();
 	private int maxDynamicRoutineIndex;
 
-	public ScriptFlowGraph(ScriptGraphDataFiles.Type dataSourceType, String description, boolean isFragmentary) {
+	public ScriptFlowGraph(ScriptGraphDataFiles.Type dataSourceType, String description, boolean isNewUserLevelSample) {
 		this.dataSourceType = dataSourceType;
 		this.description = description;
-		this.isFragmentary = isFragmentary;
+		this.isNewUserLevelSample = isNewUserLevelSample;
 	}
 
 	public void addRoutine(ScriptRoutineGraph routine) {

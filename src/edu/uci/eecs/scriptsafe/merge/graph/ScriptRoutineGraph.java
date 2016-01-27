@@ -25,14 +25,14 @@ public class ScriptRoutineGraph {
 
 	public final int hash;
 	public final RoutineId id;
-	public final boolean isFragmentary;
+	public final boolean isNewUserLevelSample;
 
 	private final List<ScriptNode> nodes = new ArrayList<ScriptNode>();
 
-	public ScriptRoutineGraph(int hash, RoutineId id, boolean isFragmentary) {
+	public ScriptRoutineGraph(int hash, RoutineId id, boolean isNewUserLevelSample) {
 		this.hash = hash;
 		this.id = id;
-		this.isFragmentary = isFragmentary;
+		this.isNewUserLevelSample = isNewUserLevelSample;
 	}
 
 	public ScriptRoutineGraph copy(boolean isFragmentary) {
@@ -91,7 +91,7 @@ public class ScriptRoutineGraph {
 			throw new MergeException("Node counts differ at the same routine hash 0x%x: %d vs. %d!", hash,
 					nodes.size(), other.nodes.size());
 
-		if (other.isFragmentary) {
+		if (other.isNewUserLevelSample) {
 			for (int i = 0; i < nodes.size(); i++) {
 				ScriptNode thisNode = nodes.get(i);
 				ScriptNode otherNode = other.nodes.get(i);

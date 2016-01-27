@@ -14,4 +14,4 @@ append_classpath "SCRIPT_SAFE_MERGE_DIR"
 main_class="edu.uci.eecs.scriptsafe.feature.FeatureService"
 
 #echo "java -cp $cp $main_class $@"
-java -Xms512M -Xmx2048M -cp $cp $main_class -t $@
+java -Xms4096M -Xmx16348M -cp $cp $main_class -t $@

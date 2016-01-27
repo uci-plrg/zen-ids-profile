@@ -61,7 +61,7 @@ public class DatasetMerge implements ScriptDatasetGenerator.DataSource {
 					Log.spot("Adding new routine 0x%x", leftRoutine.hash);
 
 				if (rightRoutine == null) {
-					mergedStaticRoutines.put(leftRoutine.hash, leftRoutine);
+					mergedStaticRoutines.put(leftRoutine.hash, leftRoutine); // adding new routine
 				} else {
 					try {
 						rightRoutine.mergeRoutine(leftRoutine);

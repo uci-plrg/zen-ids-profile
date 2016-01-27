@@ -93,13 +93,13 @@ public class CrossValidationRequestGraph extends RequestGraph {
 
 	/* N.B.: construction expects the exact workflow of RequestGraphLoader */
 	@Override
-	void startRequest(int requestId, File routineCatalog) {
+	public void startRequest(int requestId, File routineCatalog) {
 		currentRequest = new RawRequest(requestId, routineCatalog);
 		rawRequestsByK[kSets.getK(requestId)].add(currentRequest);
 	}
 
 	@Override
-	void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
+	public void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
 			throws NumberFormatException, IOException {
 		currentRequest.edges.add(new RawEdge(fromRoutineHash, fromIndex, toRoutineHash, userLevel > 2));
 	}

@@ -25,23 +25,8 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptNodeLoader;
 
 public class RequestGraphLoader {
 
-	private static class FileSet {
-
-		private final File requestFile;
-		private final File nodeFile;
-		private final File datasetFile;
-		private final File routineCatalog;
-
-		FileSet(File requestFile, File nodeFile, File datasetFile, File routineCatalog) {
-			this.requestFile = requestFile;
-			this.nodeFile = nodeFile;
-			this.datasetFile = datasetFile;
-			this.routineCatalog = routineCatalog;
-		}
-	}
-
 	private class RequestFileCollector extends SimpleFileVisitor<Path> {
-		private final List<FileSet> fileSets = new ArrayList<FileSet>();
+		private final List<RequestFileSet> fileSets = new ArrayList<RequestFileSet>();
 
 		@Override
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -50,9 +35,9 @@ public class RequestGraphLoader {
 				File nodeFile = ScriptDataFilename.NODE.getFile(file.getParent().toFile());
 				File datasetFile = ScriptDataFilename.CFG.getFile(file.getParent().toFile());
 				if (nodeFile.exists() && nodeFile.isFile())
-					fileSets.add(new FileSet(file.toFile(), nodeFile, null, routineCatalog));
+					fileSets.add(new RequestFileSet(file.toFile(), nodeFile, null, routineCatalog));
 				else if (datasetFile.exists() && datasetFile.isFile())
-					fileSets.add(new FileSet(file.toFile(), null, datasetFile, routineCatalog));
+					fileSets.add(new RequestFileSet(file.toFile(), null, datasetFile, routineCatalog));
 				else
 					throw new AnalysisException("Cannot find the %s or %s file corresponding to %s",
 							ScriptDataFilename.NODE.filename, ScriptDataFilename.CFG.filename, file.toAbsolutePath());
@@ -61,56 +46,8 @@ public class RequestGraphLoader {
 		}
 	}
 
-	private class ScriptNodeLoadContext implements ScriptNodeLoader.LoadContext {
-		private final RequestGraph requestGraph;
-
-		ScriptNodeLoadContext(RequestGraph requestGraph) {
-			this.requestGraph = requestGraph;
-		}
-
-		@Override
-		public ScriptRoutineGraph getRoutine(int routineHash) {
-			return requestGraph.routines.get(routineHash);
-		}
-
-		@Override
-		public ScriptRoutineGraph createRoutine(int routineHash) {
-			ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash,
-					RoutineId.Cache.INSTANCE.getId(routineHash), false);
-			requestGraph.routines.put(routine.hash, routine);
-			return routine;
-		}
-	}
-
-	public static int loadRequestCount(File requestFile) throws IOException {
-		LittleEndianInputStream in = new LittleEndianInputStream(requestFile);
-		int firstField, totalRequests = 0;
-
-		try {
-			while (in.ready(0x10)) {
-				firstField = in.readInt();
-				in.readInt();
-				in.readInt();
-				in.readInt();
-				if (firstField == REQUEST_HEADER_TAG)
-					totalRequests++;
-			}
-		} catch (Exception e) {
-			Log.error("Failed to load request count from file %s:", requestFile.getAbsolutePath());
-			Log.log(e);
-		} finally {
-			in.close();
-		}
-		return totalRequests;
-	}
-
-	private static final int REQUEST_HEADER_TAG = 2;
-
 	private final List<Path> paths = new ArrayList<Path>();
 	private final Map<Integer, Path> routineFiles = new HashMap<Integer, Path>();
-
-	private ScriptNodeLoader nodeLoader;
-	private final ScriptDatasetLoader cfgLoader = new ScriptDatasetLoader();
 
 	private RequestGraph requestGraph;
 
@@ -128,57 +65,14 @@ public class RequestGraphLoader {
 		for (Path path : paths)
 			Files.walkFileTree(path, requestFileCollector);
 
-		nodeLoader = new ScriptNodeLoader(new ScriptNodeLoadContext(requestGraph));
 		int totalRequests = 0;
-		for (FileSet fileSet : requestFileCollector.fileSets)
-			totalRequests += load(fileSet);
+		for (RequestFileSet fileSet : requestFileCollector.fileSets)
+			totalRequests += RequestSequenceLoader.load(fileSet, requestGraph);
 
 		Log.log("Loaded %d total requests to analyze", totalRequests);
 
 		this.requestGraph = null;
 		requestGraph.setTotalRequests(totalRequests);
 		return requestGraph;
-	}
-
-	private int load(FileSet fileSet) throws IOException {
-		if (fileSet.nodeFile != null) {
-			nodeLoader.loadNodes(fileSet.nodeFile);
-		} else {
-			ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, fileSet.datasetFile.getAbsolutePath(), false);
-			cfgLoader.loadDataset(fileSet.datasetFile, fileSet.routineCatalog, cfg);
-			for (ScriptRoutineGraph routine : cfg.getRoutines())
-				requestGraph.routines.put(routine.hash, routine);
-		}
-
-		LittleEndianInputStream in = new LittleEndianInputStream(fileSet.requestFile);
-		int firstField, requestId, fromIndex, toRoutineHash, userLevel, totalRequests = 0;
-
-		try {
-			while (in.ready(0x10)) {
-				firstField = in.readInt();
-				if (firstField == REQUEST_HEADER_TAG) {
-					requestId = in.readInt();
-					in.readInt();
-					in.readInt();
-					totalRequests++;
-					requestGraph.startRequest(requestId, fileSet.routineCatalog);
-					continue;
-				}
-				fromIndex = in.readInt();
-				userLevel = (fromIndex >>> 26);
-				fromIndex = (fromIndex & 0x3ffffff);
-				toRoutineHash = in.readInt();
-
-				requestGraph.addEdge(firstField, fromIndex, toRoutineHash, userLevel, fileSet.routineCatalog);
-
-				in.readInt();
-			}
-		} catch (Exception e) {
-			Log.error("Failed to load file %s (skipping it):", fileSet.requestFile.getAbsolutePath());
-			Log.log(e);
-		} finally {
-			in.close();
-		}
-		return totalRequests;
 	}
 }

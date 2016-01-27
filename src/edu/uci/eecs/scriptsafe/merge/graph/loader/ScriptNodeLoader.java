@@ -19,9 +19,16 @@ public class ScriptNodeLoader {
 		ScriptRoutineGraph getRoutine(int routineHash);
 	}
 
-	private final LoadContext loadContext;
+	private LoadContext loadContext;
+
+	public ScriptNodeLoader() {
+	}
 
 	public ScriptNodeLoader(LoadContext loadContext) {
+		this.loadContext = loadContext;
+	}
+
+	public void setLoadContext(LoadContext loadContext) {
 		this.loadContext = loadContext;
 	}
 

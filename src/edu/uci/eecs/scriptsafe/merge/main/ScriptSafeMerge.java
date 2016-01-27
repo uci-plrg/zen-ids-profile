@@ -91,9 +91,9 @@ public class ScriptSafeMerge {
 						leftDataSource.getDescription(), true));
 				Log.log("Cloned %d routines and %d edges into the left graph", leftGraph.getRoutineCount(),
 						leftGraph.edges.getOutgoingEdgeCount());
-				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT);
+				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT); // clobbers clones individually
 			} else {
-				leftGraph = new ScriptFlowGraph(leftDataSource.getType(), leftDataSource.getDescription(), false);
+				leftGraph = new ScriptFlowGraph(leftDataSource.getType(), leftDataSource.getDescription(), true);
 				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT);
 			}
 

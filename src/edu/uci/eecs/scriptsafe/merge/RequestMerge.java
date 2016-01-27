@@ -16,6 +16,14 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles;
 
 public class RequestMerge {
 
+	public static int getRequestCount(File requestFile) throws NumberFormatException, IOException {
+		RandomAccessFile tailReader = new RandomAccessFile(requestFile, "r");
+		tailReader.seek(tailReader.length() - 9);
+		int rightRequestCount = Integer.parseInt(tailReader.readLine());
+		tailReader.close();
+		return rightRequestCount;
+	}
+
 	private static final int REQUEST_HEADER_TAG = 2;
 
 	private ScriptGraphDataFiles leftDataSource;
@@ -33,16 +41,15 @@ public class RequestMerge {
 			Files.copy(rightDataSource.getRequestEdgeFile().toPath(), outputFiles.getRequestEdgeFile().toPath(),
 					StandardCopyOption.REPLACE_EXISTING);
 		}
-		RandomAccessFile tailReader = new RandomAccessFile(outputFiles.getRequestFile(), "r");
-		tailReader.seek(tailReader.length() - 9);
-		int rightRequestCount = Integer.parseInt(tailReader.readLine());
-		tailReader.close();
+		int rightRequestCount = RequestMerge.getRequestCount(outputFiles.getRequestFile());
 
-		appendRequests(rightRequestCount + 1, outputFiles.getRequestFile());
-		appendRequestEdges(rightRequestCount + 1, outputFiles.getRequestEdgeFile());
+		int requestCount = appendRequests(rightRequestCount + 1, outputFiles.getRequestFile());
+		int requestSubgraphCount = appendRequestEdges(rightRequestCount + 1, outputFiles.getRequestEdgeFile());
+		// if (requestCount != requestSubgraphCount)
+		// Log.warn("Request count %d does not match request subgraph count %d", requestCount, requestSubgraphCount);
 	}
 
-	private void appendRequests(int nextRequestId, File outputFile) throws IOException {
+	private int appendRequests(int nextRequestId, File outputFile) throws IOException {
 		int length, set, fileRemaining;
 		byte buffer[] = new byte[8192];
 		FileInputStream in = new FileInputStream(leftDataSource.getRequestFile());
@@ -78,13 +85,15 @@ public class RequestMerge {
 			out.flush();
 			out.close();
 		}
+		return nextRequestId;
 	}
 
-	private void appendRequestEdges(int nextRequestId, File outputFile) throws IOException {
+	private int appendRequestEdges(int nextRequestId, File outputFile) throws IOException {
 		LittleEndianInputStream in = new LittleEndianInputStream(leftDataSource.getRequestEdgeFile());
 		LittleEndianOutputStream out = new LittleEndianOutputStream(new FileOutputStream(outputFile, true), "file:"
 				+ outputFile.getAbsolutePath());
 
+		int total = 0;
 		try {
 			int firstField;
 			while (in.ready(0x10)) {
@@ -103,12 +112,14 @@ public class RequestMerge {
 				}
 				out.writeInt(in.readInt());
 				out.writeInt(in.readInt());
+				total++;
 			}
 		} finally {
 			in.close();
 			out.flush();
 			out.close();
 		}
+		return total;
 	}
 
 	private boolean isRequestId(byte buffer[], int i, int uncheckedBytes) {

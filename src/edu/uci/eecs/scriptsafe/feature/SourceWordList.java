@@ -176,7 +176,7 @@ class SourceWordList {
 	private class WordMatchResponseField implements FeatureResponseGenerator.Field {
 		@Override
 		public int getByteCount() {
-			return routineWords.size() * 20; /* 20 = 4 bytes * 5 fields */
+			return routineWords.size() * 24; /* 24 = 4 bytes * 6 fields */
 		}
 
 		@Override
@@ -184,6 +184,7 @@ class SourceWordList {
 			for (WordAppearanceCount word : routineWords) {
 				Predictor predictor = predictors.get(word.word);
 				if (predictor != null) {
+					buffer.putInt(word.id);
 					buffer.putInt(word.getCount());
 					buffer.putInt(predictor.adminWord == null ? 0 : predictor.adminWord.routineMatchCount);
 					buffer.putInt(predictor.anonymousWord == null ? 0 : predictor.anonymousWord.routineMatchCount);

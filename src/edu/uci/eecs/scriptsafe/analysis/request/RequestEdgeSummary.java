@@ -20,11 +20,13 @@ public class RequestEdgeSummary implements FeatureRoleCountElement {
 
 	@Override
 	public int getAdminCount() {
-		return adminCount > 0 ? 1 : 0;
+		/* count 1 for admin if no anonymous edges occur */
+		return anonymousCount == 0 ? 1 : 0;
 	}
 
 	@Override
 	public int getAnonymousCount() {
+		/* count 1 for anonymous if any anonymous edges occur */
 		return anonymousCount > 0 ? 1 : 0;
 	}
 

@@ -84,17 +84,18 @@ public class ScriptSafeMerge {
 					rightPath.getAbsolutePath(), outputFiles.directory.getAbsolutePath());
 
 			rightGraph = new ScriptFlowGraph(rightDataSource.getType(), rightDataSource.getDescription(), false);
-			loader.loadGraph(rightDataSource, rightGraph, DatasetMerge.Side.RIGHT);
+			loader.loadGraph(rightDataSource, rightGraph, DatasetMerge.Side.RIGHT, true/* load edges */);
 			if (rightDataSource.getType() == Type.DATASET) {
 				ScriptGraphCloner cloner = new ScriptGraphCloner();
 				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getType(),
 						leftDataSource.getDescription(), true));
 				Log.log("Cloned %d routines and %d edges into the left graph", leftGraph.getRoutineCount(),
 						leftGraph.edges.getOutgoingEdgeCount());
-				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT); // clobbers clones individually
+				/* overwrites cloned routines as they are encountered in the left graph */
+				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT, true/* load edges */);
 			} else {
 				leftGraph = new ScriptFlowGraph(leftDataSource.getType(), leftDataSource.getDescription(), true);
-				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT);
+				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT, true/* load edges */);
 			}
 
 			Log.log("Left graph is a %s from %s with %d routines and %d edges", leftDataSource.getClass()
@@ -123,7 +124,7 @@ public class ScriptSafeMerge {
 			RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
 			requestMerge.merge(outputFiles);
 		} catch (Throwable t) {
-			t.printStackTrace();
+			Log.log(t);
 		}
 	}
 

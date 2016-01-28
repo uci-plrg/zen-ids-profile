@@ -8,14 +8,14 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 
 public class ScriptGraphLoader {
 
-	public void loadGraph(ScriptGraphDataFiles dataSource, ScriptFlowGraph graph, DatasetMerge.Side side)
-			throws IOException {
+	public void loadGraph(ScriptGraphDataFiles dataSource, ScriptFlowGraph graph, DatasetMerge.Side side,
+			boolean loadRunEdges) throws IOException {
 		Log.log("Loading %s from the %s", dataSource.getType(), side);
 
 		switch (dataSource.getType()) {
 			case RUN:
 				ScriptRunLoader runLoader = new ScriptRunLoader();
-				runLoader.loadRun((ScriptRunFiles) dataSource, graph, side);
+				runLoader.loadRun((ScriptRunFiles) dataSource, graph, side, loadRunEdges);
 				break;
 			case DATASET:
 				ScriptDatasetLoader datasetLoader = new ScriptDatasetLoader();

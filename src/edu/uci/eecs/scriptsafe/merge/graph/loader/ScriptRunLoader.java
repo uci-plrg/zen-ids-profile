@@ -166,7 +166,7 @@ class ScriptRunLoader {
 			ScriptRoutineGraph routine = flowGraph.getRoutine(routineHash);
 			if (routine != null && preloadedRoutines.contains(routine.hash)) { // were nodes copied from the right?
 				routine.clearNodes(); // have a copy on the left, so remove copied nodes
-				preloadedRoutines.remove(routine.hash);
+				preloadedRoutines.remove(routine.hash); // don't clear it next time
 			}
 			return routine;
 		}
@@ -191,21 +191,25 @@ class ScriptRunLoader {
 		return graph;
 	}
 
-	void loadRun(ScriptRunFiles run, ScriptFlowGraph graph, DatasetMerge.Side side) throws IOException {
+	void loadRun(ScriptRunFiles run, ScriptFlowGraph graph, DatasetMerge.Side side, boolean loadEdges)
+			throws IOException {
 		preloadedRoutines.clear();
 		for (ScriptRoutineGraph preloadedRoutine : graph.getRoutines())
 			preloadedRoutines.add(preloadedRoutine.hash);
 		rawGraphs.clear();
 		this.side = side;
 
-		loadOpcodeEdges(run);
-		loadRoutineEdges(run, graph);
+		if (loadEdges) {
+			loadOpcodeEdges(run);
+			loadRoutineEdges(run, graph);
+		}
 
 		RoutineId.Cache.INSTANCE.load(run.routineCatalog);
 		nodeLoadContext.setFlowGraph(graph);
 		nodeLoader.loadNodes(run.nodeFile);
 
-		linkNodes(graph);
+		if (loadEdges)
+			linkNodes(graph);
 	}
 
 	private void loadOpcodeEdges(ScriptRunFiles run) throws IOException {

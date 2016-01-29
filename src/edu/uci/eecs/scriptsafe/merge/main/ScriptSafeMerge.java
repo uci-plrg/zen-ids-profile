@@ -27,7 +27,7 @@ public class ScriptSafeMerge {
 	public static final OptionArgumentMap.StringOption leftGraphDir = OptionArgumentMap.createStringOption('l');
 	public static final OptionArgumentMap.StringOption rightGraphDir = OptionArgumentMap.createStringOption('r');
 	public static final OptionArgumentMap.StringOption outputDir = OptionArgumentMap.createStringOption('o');
-	public static final OptionArgumentMap.IntegerOption requestCount = OptionArgumentMap.createIntegerOption('q',
+	public static final OptionArgumentMap.IntegerOption requestMergeCount = OptionArgumentMap.createIntegerOption('m',
 			OptionMode.OPTIONAL);
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());
@@ -48,7 +48,7 @@ public class ScriptSafeMerge {
 
 	private ScriptSafeMerge(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, requestCount, verbose,
+		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, requestMergeCount, verbose,
 				watchlistFile, watchlistCategories);
 	}
 
@@ -78,7 +78,7 @@ public class ScriptSafeMerge {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
-			boolean isSequentialMerge = requestCount.hasValue();
+			boolean isSequentialMerge = requestMergeCount.hasValue();
 
 			String rightGraphDirName = rightGraphDir.hasValue() ? rightGraphDir.getValue() : outputDir.getValue();
 			File leftPath = new File(leftGraphDir.getValue());
@@ -92,7 +92,7 @@ public class ScriptSafeMerge {
 			if (isSequentialMerge) {
 				rightGraph = new ScriptFlowGraph(rightDataSource.getType(), rightDataSource.getDescription(), false);
 				loader.loadGraph(rightDataSource, rightGraph, DatasetMerge.Side.RIGHT,
-						rightDataSource.getType() != Type.DATASET/* shallow run */);
+						rightDataSource.getType() != Type.DATASET/* deep for dataset, shallow for run */);
 				leftGraph = new ScriptFlowGraph(leftDataSource.getType(), leftDataSource.getDescription(), true);
 				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT, true/* shallow */);
 			} else {
@@ -136,7 +136,7 @@ public class ScriptSafeMerge {
 				RequestFileSet requestFiles = new RequestFileSet(outputFiles.getRequestEdgeFile(), null, null,
 						outputFiles.getRoutineCatalogFile());
 				RequestSequenceMerge sequenceMerge = new RequestSequenceMerge(baseRequestCount,
-						requestCount.getValue(), requestFiles, leftGraph, rightGraph);
+						requestMergeCount.getValue(), requestFiles, leftGraph, rightGraph);
 				sequenceMerge.merge();
 				merge = sequenceMerge;
 			} else {

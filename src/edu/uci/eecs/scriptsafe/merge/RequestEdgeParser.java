@@ -26,23 +26,29 @@ public class RequestEdgeParser {
 		// skip first request header and request id
 		in.readInt();
 		in.readInt();
+		in.readInt();
+		in.readInt();
 	}
 
 	void writeNextRequest(int requestId) throws IOException {
 		out.writeInt(REQUEST_HEADER_TAG);
 		out.writeInt(requestId);
+		out.writeInt(0);
+		out.writeInt(0);
 
 		while (in.ready(0x10)) {
 			firstField = in.readInt();
 			if (firstField == REQUEST_HEADER_TAG) {
 				in.readInt(); // skip request id
+				in.readInt();
+				in.readInt();
 				break;
 			} else {
 				out.writeInt(firstField);
 				out.writeInt(in.readInt());
+				out.writeInt(in.readInt());
+				out.writeInt(in.readInt());
 			}
-			out.writeInt(in.readInt());
-			out.writeInt(in.readInt());
 		}
 	}
 

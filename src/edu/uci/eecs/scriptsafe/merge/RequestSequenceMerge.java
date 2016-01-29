@@ -24,13 +24,15 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
 // pull routines from the right first, then left
 public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, RequestSequenceLoader.RequestCollection {
 
-	private int skipRequestCount, mergeRequestCount, requestIndex;
+	private int skipRequestCount, mergeRequestCount, evaluationCount = 0, requestIndex;
 	private RequestFileSet requestFiles;
 	ScriptFlowGraph leftGraph, rightGraph;
 
 	private final Map<Integer, ScriptRoutineGraph> mergedStaticRoutines = new HashMap<Integer, ScriptRoutineGraph>();
 	// private final DynamicRoutineMerge dynamicRoutineMerge; // TODO: dynamic routines
 	private final GraphEdgeSet mergedEdges = new GraphEdgeSet();
+
+	private int currentRequestId = -1;
 
 	public RequestSequenceMerge(int skipRequestCount, int mergeRequestCount, RequestFileSet requestFiles,
 			ScriptFlowGraph leftGraph, ScriptFlowGraph rightGraph) {
@@ -115,10 +117,11 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 			skipRequestCount--;
 		} else if (mergeRequestCount > 0) {
 			mergeRequestCount--;
-			Log.log("Merge %d more requests", mergeRequestCount);
 		} else {
-			Log.log("Evaluate request");
+			evaluationCount++;
 		}
+
+		currentRequestId = requestId;
 
 		return true;
 	}
@@ -139,10 +142,10 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 			if (fromNode instanceof ScriptBranchNode) {
 				ScriptBranchNode branchNode = (ScriptBranchNode) fromNode;
 				if (branchNode.getTargetIndex() != toIndex) {
-					Log.error("Error: branch node 0x%x(%d) has multiple targets: %d and %d!", fromRoutineHash,
-							fromIndex, toIndex, branchNode.getTargetIndex());
+					Log.error("Error: branch node 0x%x(%d) with opcode 0x%x has multiple targets: %d and %d!",
+							fromRoutineHash, fromIndex, branchNode.opcode, toIndex, branchNode.getTargetIndex());
 				}
-				if (branchNode.getBranchUserLevel() > userLevel) {
+				if (userLevel < branchNode.getBranchUserLevel()) {
 					reportBranchPermissionChange(fromRoutineHash, branchNode, userLevel);
 					branchNode.setBranchUserLevel(userLevel);
 				}
@@ -180,11 +183,11 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 
 	private String printMode() {
 		if (skipRequestCount > 0)
-			return "skipping";
+			return String.format("skipping @ %d # %d", skipRequestCount, currentRequestId);
 		else if (mergeRequestCount > 0)
-			return "merging";
+			return String.format("merging @ %d # %d", mergeRequestCount, currentRequestId);
 		else
-			return "evaluating";
+			return String.format("evaluating @ %d # %d", evaluationCount, currentRequestId);
 	}
 
 	private void reportEdgeAddResult(GraphEdgeSet.AddEdgeResult addResult) {
@@ -194,14 +197,19 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 		switch (addResult.type) {
 			case LOWER_USER_LEVEL:
 				LowerUserLevelResult chmod = (LowerUserLevelResult) addResult;
-				Log.log("[%s] Lower user level from %s to %s on edge %s -> %s", printMode(),
-						RoutineEdge.printUserLevel(chmod.fromUserLevel), RoutineEdge.printUserLevel(chmod.toUserLevel),
-						chmod.edge.printFromNode(), chmod.edge.printToNode());
+				if (chmod.toUserLevel < 2) {
+					Log.log("[%s] Lower user level from %s to %s on edge %s -> %s", printMode(),
+							RoutineEdge.printUserLevel(chmod.fromUserLevel),
+							RoutineEdge.printUserLevel(chmod.toUserLevel), chmod.edge.printFromNode(),
+							chmod.edge.printToNode());
+				}
 				break;
 			case NEW_EDGE:
 				NewEdgeResult newEdge = (NewEdgeResult) addResult;
-				Log.log("[%s] New edge %s -> %s with user level %s", printMode(), newEdge.edge.printFromNode(),
-						newEdge.edge.printToNode(), RoutineEdge.printUserLevel(newEdge.edge.getUserLevel()));
+				if (newEdge.edge.getUserLevel() < 2) {
+					Log.log("[%s] New edge %s -> %s with user level %s", printMode(), newEdge.edge.printFromNode(),
+							newEdge.edge.printToNode(), RoutineEdge.printUserLevel(newEdge.edge.getUserLevel()));
+				}
 				break;
 		}
 	}

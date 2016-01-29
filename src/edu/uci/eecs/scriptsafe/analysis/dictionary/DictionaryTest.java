@@ -111,7 +111,7 @@ public class DictionaryTest {
 			File datasetFile = ScriptDataFilename.CFG.requireFile(datasetDirectory);
 			File routineCatalogFile = ScriptDataFilename.ROUTINE_CATALOG.requireFile(datasetDirectory);
 			dataset = new ScriptFlowGraph(Type.DATASET, datasetFile.getAbsolutePath(), false);
-			datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset);
+			datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset, false);
 
 			for (ScriptRoutineGraph routine : dataset.getRoutines()) {
 				if (dataset.edges.getIncomingEdgeCount(routine.hash) == 0)

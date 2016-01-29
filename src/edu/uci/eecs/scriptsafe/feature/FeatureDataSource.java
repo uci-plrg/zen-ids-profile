@@ -29,7 +29,7 @@ public class FeatureDataSource {
 		File datasetFile = ScriptDataFilename.CFG.requireFile(datasetDirectory);
 		File routineCatalogFile = ScriptDataFilename.ROUTINE_CATALOG.requireFile(datasetDirectory);
 		dataset = new ScriptFlowGraph(Type.DATASET, datasetFile.getAbsolutePath(), false);
-		datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset);
+		datasetLoader.loadDataset(datasetFile, routineCatalogFile, dataset, false);
 		routineLineMap.load(routineCatalogFile, phpDirectory, datasetFile);
 		requestLoader.addPath(datasetDirectory.toPath());
 		trainingRequestGraph = new CrossValidationRequestGraph(crossValidationSets);

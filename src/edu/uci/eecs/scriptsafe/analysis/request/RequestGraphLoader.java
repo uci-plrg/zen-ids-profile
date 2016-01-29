@@ -74,7 +74,7 @@ public class RequestGraphLoader {
 				nodeLoader.loadNodes(fileSet.nodeFile);
 			} else {
 				ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, fileSet.datasetFile.getAbsolutePath(), false);
-				cfgLoader.loadDataset(fileSet.datasetFile, fileSet.routineCatalog, cfg);
+				cfgLoader.loadDataset(fileSet.datasetFile, fileSet.routineCatalog, cfg, false);
 				for (ScriptRoutineGraph routine : cfg.getRoutines())
 					requestGraph.addRoutine(routine);
 			}

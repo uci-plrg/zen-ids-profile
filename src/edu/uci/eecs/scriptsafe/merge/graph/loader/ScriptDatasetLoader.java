@@ -35,10 +35,14 @@ public class ScriptDatasetLoader {
 	private final List<ScriptNode> calls = new ArrayList<ScriptNode>();
 
 	private LittleEndianInputStream in;
+	
+	private boolean shallow;
 
-	public void loadDataset(File datasetFile, File routineCatalog, ScriptFlowGraph graph) throws IOException {
+	public void loadDataset(File datasetFile, File routineCatalog, ScriptFlowGraph graph, boolean shallow)
+			throws IOException {
 		RoutineId.Cache.INSTANCE.load(routineCatalog);
 		in = new LittleEndianInputStream(datasetFile);
+		this.shallow = shallow;
 
 		in.readInt(); // skip hashtable pointer
 		int routineCount = in.readInt();
@@ -67,7 +71,7 @@ public class ScriptDatasetLoader {
 			ScriptNode.Type type = ScriptNode.Type.values()[typeOrdinal];
 			int target = in.readInt();
 			if (type == Type.BRANCH) {
-				userLevel = (target >>> 26);
+				userLevel = shallow ? 0 : (target >>> 26);
 				target = (target & 0x3ffffff);
 				ScriptBranchNode branch = new ScriptBranchNode(routineHash, opcode, i, lineNumber, userLevel);
 				pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(routineHash, branch, target));
@@ -108,16 +112,19 @@ public class ScriptDatasetLoader {
 						userLevel = (targetNodeIndex >>> 26);
 						targetNodeIndex = (targetNodeIndex & 0x3ffffff);
 
-						if (ScriptMergeWatchList.watchAny(routine.hash, call.index)
-								|| ScriptMergeWatchList.watch(routineHash)) {
-							Log.log("Loader added routine edge to the dataset graph: 0x%x %d -%s-> 0x%x", routine.hash,
-									call.index, RoutineEdge.printUserLevel(userLevel), routineHash);
-						}
+						if (!shallow) {
+							if (ScriptMergeWatchList.watchAny(routine.hash, call.index)
+									|| ScriptMergeWatchList.watch(routineHash)) {
+								Log.log("Loader added routine edge to the dataset graph: 0x%x %d -%s-> 0x%x",
+										routine.hash, call.index, RoutineEdge.printUserLevel(userLevel), routineHash);
+							}
 
-						if (targetNodeIndex == 0) {
-							graph.edges.addCallEdge(routine.hash, call, routineHash, userLevel);
-						} else {
-							graph.edges.addExceptionEdge(routine.hash, call, routineHash, targetNodeIndex, userLevel);
+							if (targetNodeIndex == 0) {
+								graph.edges.addCallEdge(routine.hash, call, routineHash, userLevel);
+							} else {
+								graph.edges.addExceptionEdge(routine.hash, call, routineHash, targetNodeIndex,
+										userLevel);
+							}
 						}
 					}
 				}
@@ -129,13 +136,16 @@ public class ScriptDatasetLoader {
 						targetNodeIndex = in.readInt();
 						userLevel = (targetNodeIndex >>> 26);
 						targetNodeIndex = (targetNodeIndex & 0x3ffffff);
-						if (targetNodeIndex == 0) {
-							graph.edges.addCallEdge(routine.hash, call,
-									ScriptRoutineGraph.constructDynamicHash(dynamicRoutineId), userLevel);
-						} else {
-							graph.edges.addExceptionEdge(routine.hash, call,
-									ScriptRoutineGraph.constructDynamicHash(dynamicRoutineId), targetNodeIndex,
-									userLevel);
+
+						if (!shallow) {
+							if (targetNodeIndex == 0) {
+								graph.edges.addCallEdge(routine.hash, call,
+										ScriptRoutineGraph.constructDynamicHash(dynamicRoutineId), userLevel);
+							} else {
+								graph.edges.addExceptionEdge(routine.hash, call,
+										ScriptRoutineGraph.constructDynamicHash(dynamicRoutineId), targetNodeIndex,
+										userLevel);
+							}
 						}
 					}
 				}

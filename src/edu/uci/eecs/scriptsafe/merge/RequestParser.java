@@ -56,6 +56,10 @@ class RequestParser {
 		else
 			lastBufferTail = new String(buffer, BUFFER_SIZE - BUFFER_TAIL_SIZE, BUFFER_TAIL_SIZE);
 		currentBufferLength = in.read(buffer);
+		if (currentBufferLength < 0) {
+			eof = true;
+			return false;
+		}
 		fileRemaining -= currentBufferLength;
 		i = 0;
 		return true;
@@ -107,6 +111,11 @@ class RequestParser {
 	void readRequestStart() throws IOException {
 		int set = i;
 
+		if (eof) {
+			timestamp = Long.MAX_VALUE;
+			return;
+		}
+
 		do {
 			for (; i < currentBufferLength; i++) {
 				if (buffer[i] == '|' && isRequestTime(getPreviousSnippet())) {
@@ -130,7 +139,7 @@ class RequestParser {
 
 	void writeNextRequest(int requestId) throws IOException {
 		Log.message("Writing request start of %d bytes", requestStart.length());
-		out.write(requestStart.toString().getBytes());
+		out.write(requestStart.toString().getBytes(), 0, requestStart.length());
 		requestStart.setLength(0);
 
 		do {
@@ -142,13 +151,14 @@ class RequestParser {
 								currentBufferLength);
 						Log.message("Writing [%d,%d] plus request id", set, i + 1);
 						out.write(buffer, set, (i - set) + 1);
-						out.write(String.format("%08d", requestId).getBytes());
+						out.write(String.format("%08d", requestId).getBytes(), 0, 8);
+						out.write('\n');
 
-						set = i + 9;
+						set = i + 11;
 						if (set + 1 >= currentBufferLength && fileRemaining == 0) {
 							Log.message("eof");
 							eof = true;
-						} else if (set >= currentBufferLength) {
+						} else if (set > currentBufferLength) {
 							set = set - currentBufferLength;
 							readBuffer();
 						}

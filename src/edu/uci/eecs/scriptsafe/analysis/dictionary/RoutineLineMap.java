@@ -341,7 +341,7 @@ public class RoutineLineMap {
 		catalogReader.close();
 
 		ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, dataset.getAbsolutePath(), false);
-		cfgLoader.loadDataset(dataset, routineCatalog, cfg);
+		cfgLoader.loadDataset(dataset, routineCatalog, cfg, false);
 
 		for (ApplicationFile appFile : catalog.values())
 			appFile.installRoutineSpans(cfg);

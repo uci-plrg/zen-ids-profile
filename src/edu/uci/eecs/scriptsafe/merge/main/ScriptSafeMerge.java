@@ -7,9 +7,11 @@ import edu.uci.eecs.crowdsafe.common.log.Log.FileMode;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestFileSet;
 import edu.uci.eecs.scriptsafe.merge.CatalogMerge;
 import edu.uci.eecs.scriptsafe.merge.DatasetMerge;
 import edu.uci.eecs.scriptsafe.merge.RequestMerge;
+import edu.uci.eecs.scriptsafe.merge.RequestSequenceMerge;
 import edu.uci.eecs.scriptsafe.merge.ScriptDatasetGenerator;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
@@ -25,6 +27,8 @@ public class ScriptSafeMerge {
 	public static final OptionArgumentMap.StringOption leftGraphDir = OptionArgumentMap.createStringOption('l');
 	public static final OptionArgumentMap.StringOption rightGraphDir = OptionArgumentMap.createStringOption('r');
 	public static final OptionArgumentMap.StringOption outputDir = OptionArgumentMap.createStringOption('o');
+	public static final OptionArgumentMap.IntegerOption requestCount = OptionArgumentMap.createIntegerOption('q',
+			OptionMode.OPTIONAL);
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());
 	public static final OptionArgumentMap.StringOption watchlistFile = OptionArgumentMap.createStringOption('w',
@@ -44,17 +48,17 @@ public class ScriptSafeMerge {
 
 	private ScriptSafeMerge(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, verbose, watchlistFile,
-				watchlistCategories);
+		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, requestCount, verbose,
+				watchlistFile, watchlistCategories);
 	}
 
 	private void run() {
 		try {
-			ScriptNode.init();
-
-			argMap.parseOptions();
-
 			Log.addOutput(System.out);
+			ScriptNode.init();
+			argMap.parseOptions();
+			Log.clearOutputs();
+
 			Log.setLevel(Log.Level.values()[verbose.getValue()]);
 			System.out.println("Log level " + verbose.getValue());
 
@@ -74,6 +78,8 @@ public class ScriptSafeMerge {
 				ScriptMergeWatchList.getInstance().activateCategories(watchlistCategories.getValue());
 			}
 
+			boolean isSequentialMerge = requestCount.hasValue();
+
 			String rightGraphDirName = rightGraphDir.hasValue() ? rightGraphDir.getValue() : outputDir.getValue();
 			File leftPath = new File(leftGraphDir.getValue());
 			File rightPath = new File(rightGraphDirName);
@@ -83,19 +89,27 @@ public class ScriptSafeMerge {
 			Log.log("\n\n--- ScriptSafeMerge ---\n\ns-merge -l %s -r %s -o %s", leftPath.getAbsolutePath(),
 					rightPath.getAbsolutePath(), outputFiles.directory.getAbsolutePath());
 
-			rightGraph = new ScriptFlowGraph(rightDataSource.getType(), rightDataSource.getDescription(), false);
-			loader.loadGraph(rightDataSource, rightGraph, DatasetMerge.Side.RIGHT, true/* load edges */);
-			if (rightDataSource.getType() == Type.DATASET) {
-				ScriptGraphCloner cloner = new ScriptGraphCloner();
-				leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getType(),
-						leftDataSource.getDescription(), true));
-				Log.log("Cloned %d routines and %d edges into the left graph", leftGraph.getRoutineCount(),
-						leftGraph.edges.getOutgoingEdgeCount());
-				/* overwrites cloned routines as they are encountered in the left graph */
-				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT, true/* load edges */);
-			} else {
+			if (isSequentialMerge) {
+				rightGraph = new ScriptFlowGraph(rightDataSource.getType(), rightDataSource.getDescription(), false);
+				loader.loadGraph(rightDataSource, rightGraph, DatasetMerge.Side.RIGHT,
+						rightDataSource.getType() != Type.DATASET/* shallow run */);
 				leftGraph = new ScriptFlowGraph(leftDataSource.getType(), leftDataSource.getDescription(), true);
-				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT, true/* load edges */);
+				loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT, true/* shallow */);
+			} else {
+				rightGraph = new ScriptFlowGraph(rightDataSource.getType(), rightDataSource.getDescription(), false);
+				loader.loadGraph(rightDataSource, rightGraph, DatasetMerge.Side.RIGHT, false/* not shallow */);
+				if (rightDataSource.getType() == Type.DATASET) {
+					ScriptGraphCloner cloner = new ScriptGraphCloner();
+					leftGraph = cloner.copyRoutines(rightGraph, new ScriptFlowGraph(leftDataSource.getType(),
+							leftDataSource.getDescription(), true));
+					Log.log("Cloned %d routines and %d edges into the left graph", leftGraph.getRoutineCount(),
+							leftGraph.edges.getOutgoingEdgeCount());
+					/* overwrites cloned routines as they are encountered in the left graph */
+					loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT, false/* not shallow */);
+				} else {
+					leftGraph = new ScriptFlowGraph(leftDataSource.getType(), leftDataSource.getDescription(), true);
+					loader.loadGraph(leftDataSource, leftGraph, DatasetMerge.Side.LEFT, false/* not shallow */);
+				}
 			}
 
 			Log.log("Left graph is a %s from %s with %d routines and %d edges", leftDataSource.getClass()
@@ -105,24 +119,38 @@ public class ScriptSafeMerge {
 					.getSimpleName(), rightPath.getAbsolutePath(), rightGraph.getRoutineCount(), rightGraph.edges
 					.getOutgoingEdgeCount());
 
-			DatasetMerge datasetMerge = new DatasetMerge(leftGraph, rightGraph,
-					rightDataSource.getType() == Type.DATASET);
-			datasetMerge.merge();
-
-			Log.log("Merged graph is a %s with %d routines (%d eval routines)",
-					datasetMerge.getClass().getSimpleName(), datasetMerge.getRoutineCount(),
-					datasetMerge.getDynamicRoutineCount());
-
-			ScriptDatasetGenerator datasetGenerator = new ScriptDatasetGenerator(datasetMerge, outputFiles.dataset);
-			datasetGenerator.generateDataset();
+			RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
+			requestMerge.merge(outputFiles);
 
 			CatalogMerge catalogMerge = new CatalogMerge(leftDataSource.getRoutineCatalogFile(),
 					rightDataSource.getRoutineCatalogFile());
 			catalogMerge.merge();
 			catalogMerge.generateCatalog(outputFiles.getRoutineCatalogFile());
 
-			RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
-			requestMerge.merge(outputFiles);
+			ScriptDatasetGenerator.DataSource merge;
+			if (isSequentialMerge) {
+				int baseRequestCount = 0;
+				if (rightDataSource.getType() == Type.DATASET)
+					baseRequestCount = RequestMerge.peekRequestCount(rightDataSource.getRequestFile());
+				// use the merged request sequence
+				RequestFileSet requestFiles = new RequestFileSet(outputFiles.getRequestEdgeFile(), null, null,
+						outputFiles.getRoutineCatalogFile());
+				RequestSequenceMerge sequenceMerge = new RequestSequenceMerge(baseRequestCount,
+						requestCount.getValue(), requestFiles, leftGraph, rightGraph);
+				sequenceMerge.merge();
+				merge = sequenceMerge;
+			} else {
+				DatasetMerge datasetMerge = new DatasetMerge(leftGraph, rightGraph,
+						rightDataSource.getType() == Type.DATASET);
+				datasetMerge.merge();
+				merge = datasetMerge;
+			}
+
+			Log.log("Merged graph is a %s with %d routines (%d eval routines)", merge.getClass().getSimpleName(),
+					merge.getStaticRoutineCount() + merge.getDynamicRoutineCount(), merge.getDynamicRoutineCount());
+
+			ScriptDatasetGenerator datasetGenerator = new ScriptDatasetGenerator(merge, outputFiles.dataset);
+			datasetGenerator.generateDataset();
 		} catch (Throwable t) {
 			Log.log(t);
 		}

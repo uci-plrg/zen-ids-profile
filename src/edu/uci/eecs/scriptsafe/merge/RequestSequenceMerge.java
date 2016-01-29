@@ -1,0 +1,214 @@
+package edu.uci.eecs.scriptsafe.merge;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestFileSet;
+import edu.uci.eecs.scriptsafe.analysis.request.RequestSequenceLoader;
+import edu.uci.eecs.scriptsafe.merge.graph.GraphEdgeSet;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge;
+import edu.uci.eecs.scriptsafe.merge.graph.RoutineExceptionEdge;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
+import edu.uci.eecs.scriptsafe.merge.graph.GraphEdgeSet.LowerUserLevelResult;
+import edu.uci.eecs.scriptsafe.merge.graph.GraphEdgeSet.NewEdgeResult;
+import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
+
+// pull routines from the right first, then left
+public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, RequestSequenceLoader.RequestCollection {
+
+	private int skipRequestCount, mergeRequestCount, requestIndex;
+	private RequestFileSet requestFiles;
+	ScriptFlowGraph leftGraph, rightGraph;
+
+	private final Map<Integer, ScriptRoutineGraph> mergedStaticRoutines = new HashMap<Integer, ScriptRoutineGraph>();
+	// private final DynamicRoutineMerge dynamicRoutineMerge; // TODO: dynamic routines
+	private final GraphEdgeSet mergedEdges = new GraphEdgeSet();
+
+	public RequestSequenceMerge(int skipRequestCount, int mergeRequestCount, RequestFileSet requestFiles,
+			ScriptFlowGraph leftGraph, ScriptFlowGraph rightGraph) {
+		this.skipRequestCount = skipRequestCount;
+		this.mergeRequestCount = mergeRequestCount;
+		this.requestFiles = requestFiles;
+		this.leftGraph = leftGraph;
+		this.rightGraph = rightGraph;
+
+		if (rightGraph.dataSourceType == Type.DATASET) {
+			for (ScriptRoutineGraph rightRoutine : rightGraph.getRoutines()) {
+				if (ScriptRoutineGraph.isDynamicRoutine(rightRoutine.hash)) {
+					Log.warn("%s does not support dynamic routines yet! Skipping routine.", getClass().getSimpleName());
+				} else {
+					mergedStaticRoutines.put(rightRoutine.hash, rightRoutine);
+				}
+			}
+			for (List<RoutineEdge> edges : rightGraph.edges.getOutgoingEdges()) {
+				for (RoutineEdge edge : edges) {
+					ScriptNode fromNode = rightGraph.getRoutine(edge.getFromRoutineHash()).getNode(
+							edge.getFromRoutineIndex());
+					if (edge.getEntryType() == RoutineEdge.Type.THROW) {
+						mergedEdges.addExceptionEdge(edge.getFromRoutineHash(), fromNode, edge.getToRoutineHash(),
+								((RoutineExceptionEdge) edge).getToRoutineIndex(), edge.getUserLevel());
+					} else {
+						mergedEdges.addCallEdge(edge.getFromRoutineHash(), fromNode, edge.getToRoutineHash(),
+								edge.getUserLevel());
+					}
+				}
+			}
+		}
+	}
+
+	public void merge() throws IOException {
+		requestIndex = 0;
+		RequestSequenceLoader.load(requestFiles, this);
+	}
+
+	@Override
+	public int getDynamicRoutineCount() {
+		return 0;
+	}
+
+	@Override
+	public int getStaticRoutineCount() {
+		return mergedStaticRoutines.size();
+	}
+
+	@Override
+	public Iterable<ScriptRoutineGraph> getDynamicRoutines() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public Iterable<ScriptRoutineGraph> getStaticRoutines() {
+		return mergedStaticRoutines.values();
+	}
+
+	@Override
+	public int getOutgoingEdgeCount(ScriptNode node) {
+		return mergedEdges.getOutgoingEdgeCount(node);
+	}
+
+	@Override
+	public Iterable<RoutineEdge> getOutgoingEdges(ScriptNode node) {
+		return mergedEdges.getOutgoingEdges(node);
+	}
+
+	@Override
+	public ScriptRoutineGraph createRoutine(int routineHash) {
+		throw new MergeException("Cannot create routines for a %s", getClass().getSimpleName());
+	}
+
+	@Override
+	public ScriptRoutineGraph getRoutine(int routineHash) {
+		return mergedStaticRoutines.get(routineHash);
+	}
+
+	@Override
+	public boolean startRequest(int requestId, File routineCatalog) {
+		if (skipRequestCount > 0) {
+			skipRequestCount--;
+		} else if (mergeRequestCount > 0) {
+			mergeRequestCount--;
+			Log.log("Merge %d more requests", mergeRequestCount);
+		} else {
+			Log.log("Evaluate request");
+		}
+
+		return true;
+	}
+
+	@Override
+	public boolean addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int toIndex, int userLevel,
+			File routineCatalog) throws NumberFormatException, IOException {
+		ScriptRoutineGraph fromGraph = getRoutineGraph(fromRoutineHash), toGraph;
+		if (fromGraph == null) {
+			Log.error("Error: request edge 0x%x(%d) -%s-> 0x%x(%d) from unknown routine", fromRoutineHash, fromIndex,
+					RoutineEdge.printUserLevel(userLevel), toRoutineHash, toIndex);
+			return true;
+		}
+		ScriptNode fromNode = fromGraph.getNode(fromIndex);
+		if (fromRoutineHash == toRoutineHash) {
+			toGraph = fromGraph;
+
+			if (fromNode instanceof ScriptBranchNode) {
+				ScriptBranchNode branchNode = (ScriptBranchNode) fromNode;
+				if (branchNode.getTargetIndex() != toIndex) {
+					Log.error("Error: branch node 0x%x(%d) has multiple targets: %d and %d!", fromRoutineHash,
+							fromIndex, toIndex, branchNode.getTargetIndex());
+				}
+				if (branchNode.getBranchUserLevel() > userLevel) {
+					reportBranchPermissionChange(fromRoutineHash, branchNode, userLevel);
+					branchNode.setBranchUserLevel(userLevel);
+				}
+			}
+		} else {
+			toGraph = getRoutineGraph(fromRoutineHash);
+			if (toGraph == null) {
+				throw new MergeException("Request edge 0x%x(%d) -%d-> 0x%x(%d) to unknown routine", fromRoutineHash,
+						fromIndex, toRoutineHash, toIndex);
+			}
+
+			GraphEdgeSet.AddEdgeResult addResult = mergedEdges.addCallEdge(fromRoutineHash, fromNode, toRoutineHash,
+					userLevel);
+			reportEdgeAddResult(addResult);
+		}
+		return true;
+	}
+
+	@Override
+	public void addRoutine(ScriptRoutineGraph routine) {
+		throw new MergeException("Cannot add routines to a %s", getClass().getSimpleName());
+	}
+
+	private ScriptRoutineGraph getRoutineGraph(int hash) {
+		ScriptRoutineGraph graph = mergedStaticRoutines.get(hash);
+		if (graph == null) {
+			rightGraph.getRoutine(hash);
+			if (graph == null)
+				graph = leftGraph.getRoutine(hash);
+			if (graph != null)
+				mergedStaticRoutines.put(hash, graph);
+		}
+		return graph;
+	}
+
+	private String printMode() {
+		if (skipRequestCount > 0)
+			return "skipping";
+		else if (mergeRequestCount > 0)
+			return "merging";
+		else
+			return "evaluating";
+	}
+
+	private void reportEdgeAddResult(GraphEdgeSet.AddEdgeResult addResult) {
+		if (addResult == null)
+			return;
+
+		switch (addResult.type) {
+			case LOWER_USER_LEVEL:
+				LowerUserLevelResult chmod = (LowerUserLevelResult) addResult;
+				Log.log("[%s] Lower user level from %s to %s on edge %s -> %s", printMode(),
+						RoutineEdge.printUserLevel(chmod.fromUserLevel), RoutineEdge.printUserLevel(chmod.toUserLevel),
+						chmod.edge.printFromNode(), chmod.edge.printToNode());
+				break;
+			case NEW_EDGE:
+				NewEdgeResult newEdge = (NewEdgeResult) addResult;
+				Log.log("[%s] New edge %s -> %s with user level %s", printMode(), newEdge.edge.printFromNode(),
+						newEdge.edge.printToNode(), RoutineEdge.printUserLevel(newEdge.edge.getUserLevel()));
+				break;
+		}
+	}
+
+	private void reportBranchPermissionChange(int routineHash, ScriptBranchNode branchNode, int userLevel) {
+		Log.log("[%s] Lower user level from %s to %s on edge 0x%x(%d -> %d)", printMode(),
+				RoutineEdge.printUserLevel(branchNode.getBranchUserLevel()), RoutineEdge.printUserLevel(userLevel),
+				routineHash, branchNode.index, branchNode.getTargetIndex());
+	}
+}

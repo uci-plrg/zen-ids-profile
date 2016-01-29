@@ -191,28 +191,26 @@ class ScriptRunLoader {
 		return graph;
 	}
 
-	void loadRun(ScriptRunFiles run, ScriptFlowGraph graph, DatasetMerge.Side side, boolean loadEdges)
-			throws IOException {
+	void loadRun(ScriptRunFiles run, ScriptFlowGraph graph, DatasetMerge.Side side, boolean shallow) throws IOException {
 		preloadedRoutines.clear();
 		for (ScriptRoutineGraph preloadedRoutine : graph.getRoutines())
 			preloadedRoutines.add(preloadedRoutine.hash);
 		rawGraphs.clear();
 		this.side = side;
 
-		if (loadEdges) {
-			loadOpcodeEdges(run);
+		loadOpcodeEdges(run, !shallow);
+		if (!shallow)
 			loadRoutineEdges(run, graph);
-		}
 
 		RoutineId.Cache.INSTANCE.load(run.routineCatalog);
 		nodeLoadContext.setFlowGraph(graph);
 		nodeLoader.loadNodes(run.nodeFile);
 
-		if (loadEdges)
+		if (!shallow)
 			linkNodes(graph);
 	}
 
-	private void loadOpcodeEdges(ScriptRunFiles run) throws IOException {
+	private void loadOpcodeEdges(ScriptRunFiles run, boolean loadUserLevel) throws IOException {
 		int routineHash, fromIndex, toIndex, userLevel;
 		RawRoutineGraph graph;
 		LittleEndianInputStream input = new LittleEndianInputStream(run.opcodeEdgeFile);
@@ -221,7 +219,7 @@ class ScriptRunLoader {
 			routineHash = input.readInt();
 
 			fromIndex = input.readInt();
-			userLevel = (fromIndex >>> 26);
+			userLevel = loadUserLevel ? (fromIndex >>> 26) : 0;
 			fromIndex = (fromIndex & 0x3ffffff);
 			toIndex = input.readInt();
 

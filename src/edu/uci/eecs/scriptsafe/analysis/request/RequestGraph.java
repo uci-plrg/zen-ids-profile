@@ -44,8 +44,8 @@ public class RequestGraph implements RequestSequenceLoader.RequestCollection {
 			return callSite.getEdge(toRoutineHash);
 	}
 
-	public void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
-			throws NumberFormatException, IOException {
+	public boolean addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int toIndex, int userLevel,
+			File routineCatalog) throws NumberFormatException, IOException {
 		RequestCallSiteSummary callSite = establishCallSite(
 				RoutineId.Cache.INSTANCE.getId(routineCatalog, fromRoutineHash), fromRoutineHash, fromIndex);
 		callSite.addEdge(RoutineId.Cache.INSTANCE.getId(routineCatalog, toRoutineHash), routines.get(toRoutineHash),
@@ -54,13 +54,16 @@ public class RequestGraph implements RequestSequenceLoader.RequestCollection {
 		Integer currentUserLevel = calledRoutineUserLevel.get(toRoutineHash);
 		if (currentUserLevel == null || currentUserLevel > userLevel)
 			calledRoutineUserLevel.put(toRoutineHash, userLevel);
+
+		return true;
 	}
 
 	public void addRoutine(ScriptRoutineGraph routine) {
 		routines.put(routine.hash, routine);
 	}
 
-	public void startRequest(int requestId, File routineCatalog) {
+	public boolean startRequest(int requestId, File routineCatalog) {
+		return true;
 	}
 
 	@Override

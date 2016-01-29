@@ -3,7 +3,9 @@
 . $csc/scripts/cs-common
 
 function print_usage() {
-  echo "Usage: s-merge -l <left-graph> -r <right-graph> -o <output-file> [ -w <watch-list-file> ] [ -c <watch,list,codes> ]"
+  echo "Usage: s-merge -l <left-graph> -r <right-graph> -o <output-file> "
+  echo "               [ -q <request-count> ]"
+  echo "               [ -w <watch-list-file> ] [ -c <watch,list,codes> ]"
   exit
 }
 

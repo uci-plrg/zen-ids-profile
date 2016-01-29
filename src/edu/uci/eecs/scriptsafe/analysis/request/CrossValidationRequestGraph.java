@@ -84,25 +84,27 @@ public class CrossValidationRequestGraph extends RequestGraph {
 
 	/* N.B.: construction expects the exact workflow of RequestGraphLoader */
 	@Override
-	public void startRequest(int requestId, File routineCatalog) {
+	public boolean startRequest(int requestId, File routineCatalog) {
 		currentGroup = rawRequestsByK[kSets.getK(requestId)];
+		return true;
 	}
 
 	@Override
-	public void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
-			throws NumberFormatException, IOException {
+	public boolean addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int toIndex, int userLevel,
+			File routineCatalog) throws NumberFormatException, IOException {
 		RawEdge.EndpointKey key = new RawEdge.EndpointKey(fromRoutineHash, fromIndex, toRoutineHash);
 		RawEdge existing = currentGroup.edges.get(key);
 		if (existing == null || (userLevel < 2 && existing.isAdmin)) {
 			currentGroup.edges.put(key, new RawEdge(fromRoutineHash, fromIndex, toRoutineHash, routineCatalog,
 					userLevel >= 2));
 		}
+		return true;
 	}
 
 	public void train(int k) throws NumberFormatException, IOException {
 		for (RawEdge edge : rawRequestsByK[k].edges.values()) {
-			super.addEdge(edge.key.fromRoutineHash, edge.key.fromIndex, edge.key.toRoutineHash, edge.isAdmin ? 10 : 0,
-					edge.routineCatalog);
+			super.addEdge(edge.key.fromRoutineHash, edge.key.fromIndex, edge.key.toRoutineHash,
+					0/* to_index not used */, edge.isAdmin ? 10 : 0, edge.routineCatalog);
 		}
 	}
 

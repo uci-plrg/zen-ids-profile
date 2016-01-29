@@ -66,8 +66,20 @@ public class RequestGraphLoader {
 			Files.walkFileTree(path, requestFileCollector);
 
 		int totalRequests = 0;
-		for (RequestFileSet fileSet : requestFileCollector.fileSets)
+		ScriptNodeLoader nodeLoader = new ScriptNodeLoader();
+		ScriptDatasetLoader cfgLoader = new ScriptDatasetLoader();
+		for (RequestFileSet fileSet : requestFileCollector.fileSets) {
+			nodeLoader.setLoadContext(requestGraph);
+			if (fileSet.nodeFile != null) {
+				nodeLoader.loadNodes(fileSet.nodeFile);
+			} else {
+				ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, fileSet.datasetFile.getAbsolutePath(), false);
+				cfgLoader.loadDataset(fileSet.datasetFile, fileSet.routineCatalog, cfg);
+				for (ScriptRoutineGraph routine : cfg.getRoutines())
+					requestGraph.addRoutine(routine);
+			}
 			totalRequests += RequestSequenceLoader.load(fileSet, requestGraph);
+		}
 
 		Log.log("Loaded %d total requests to analyze", totalRequests);
 

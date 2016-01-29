@@ -14,19 +14,16 @@ import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptNodeLoader;
 public class RequestSequenceLoader {
 
 	public interface RequestCollection extends ScriptNodeLoader.LoadContext {
-		void startRequest(int requestId, File routineCatalog);
+		boolean startRequest(int requestId, File routineCatalog);
 
-		void addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int userLevel, File routineCatalog)
-				throws NumberFormatException, IOException;
+		boolean addEdge(int fromRoutineHash, int fromIndex, int toRoutineHash, int toIndex, int userLevel,
+				File routineCatalog) throws NumberFormatException, IOException;
 
 		public void addRoutine(ScriptRoutineGraph routine);
 	}
 
 	private static final int REQUEST_HEADER_TAG = 2;
-	
-	private static final ScriptNodeLoader nodeLoader = new ScriptNodeLoader();
-	private static final ScriptDatasetLoader cfgLoader = new ScriptDatasetLoader();
-	
+
 	public static int peekRequestCount(File requestFile) throws IOException {
 		LittleEndianInputStream in = new LittleEndianInputStream(requestFile);
 		int firstField, totalRequests = 0;
@@ -50,18 +47,8 @@ public class RequestSequenceLoader {
 	}
 
 	public static int load(RequestFileSet fileSet, RequestCollection requests) throws IOException {
-		nodeLoader.setLoadContext(requests);
-		if (fileSet.nodeFile != null) {
-			nodeLoader.loadNodes(fileSet.nodeFile);
-		} else {
-			ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, fileSet.datasetFile.getAbsolutePath(), false);
-			cfgLoader.loadDataset(fileSet.datasetFile, fileSet.routineCatalog, cfg);
-			for (ScriptRoutineGraph routine : cfg.getRoutines())
-				requests.addRoutine(routine);
-		}
-
 		LittleEndianInputStream in = new LittleEndianInputStream(fileSet.requestFile);
-		int firstField, requestId, fromIndex, toRoutineHash, userLevel, totalRequests = 0;
+		int firstField, requestId, fromIndex, toRoutineHash, toIndex, userLevel, totalRequests = 0;
 
 		try {
 			while (in.ready(0x10)) {
@@ -71,17 +58,19 @@ public class RequestSequenceLoader {
 					in.readInt();
 					in.readInt();
 					totalRequests++;
-					requests.startRequest(requestId, fileSet.routineCatalog);
-					continue;
+					if (requests.startRequest(requestId, fileSet.routineCatalog))
+						continue;
+					else
+						break;
 				}
 				fromIndex = in.readInt();
 				userLevel = (fromIndex >>> 26);
 				fromIndex = (fromIndex & 0x3ffffff);
 				toRoutineHash = in.readInt();
+				toIndex = in.readInt();
 
-				requests.addEdge(firstField, fromIndex, toRoutineHash, userLevel, fileSet.routineCatalog);
-
-				in.readInt();
+				if (!requests.addEdge(firstField, fromIndex, toRoutineHash, toIndex, userLevel, fileSet.routineCatalog))
+					break;
 			}
 		} catch (Exception e) {
 			Log.error("Failed to load file %s (skipping it):", fileSet.requestFile.getAbsolutePath());

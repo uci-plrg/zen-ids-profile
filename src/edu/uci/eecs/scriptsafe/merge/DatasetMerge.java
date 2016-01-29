@@ -94,11 +94,11 @@ public class DatasetMerge implements ScriptDatasetGenerator.DataSource {
 
 					if (edge.getEntryType() == Type.THROW) {
 						RoutineExceptionEdge throwEdge = (RoutineExceptionEdge) edge;
-						added = mergedEdges.addExceptionEdge(
+						added = (mergedEdges.addExceptionEdge(
 								resolveRoutineIndex(throwEdge.getFromRoutineHash(), fromSide),
 								getNode(throwEdge.getFromRoutineHash(), fromSide, throwEdge.getFromRoutineIndex()),
 								resolveRoutineIndex(throwEdge.getToRoutineHash(), fromSide),
-								throwEdge.getToRoutineIndex(), throwEdge.getUserLevel());
+								throwEdge.getToRoutineIndex(), throwEdge.getUserLevel()) != null);
 
 						if (ScriptMergeWatchList.watchAny(throwEdge.getFromRoutineHash(),
 								throwEdge.getFromRoutineIndex())
@@ -112,9 +112,9 @@ public class DatasetMerge implements ScriptDatasetGenerator.DataSource {
 									throwEdge.printUserLevel(), throwEdge.printToNode());
 						}
 					} else {
-						added = mergedEdges.addCallEdge(resolveRoutineIndex(edge.getFromRoutineHash(), fromSide),
+						added = (mergedEdges.addCallEdge(resolveRoutineIndex(edge.getFromRoutineHash(), fromSide),
 								getNode(edge.getFromRoutineHash(), fromSide, edge.getFromRoutineIndex()),
-								toRoutineHash, edge.getUserLevel());
+								toRoutineHash, edge.getUserLevel()) != null);
 
 						if (ScriptMergeWatchList.watchAny(edge.getFromRoutineHash(), edge.getFromRoutineIndex())
 								|| ScriptMergeWatchList.watch(edge.getToRoutineHash())

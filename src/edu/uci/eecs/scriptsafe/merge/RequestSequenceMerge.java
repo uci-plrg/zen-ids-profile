@@ -21,7 +21,6 @@ import edu.uci.eecs.scriptsafe.merge.graph.GraphEdgeSet.LowerUserLevelResult;
 import edu.uci.eecs.scriptsafe.merge.graph.GraphEdgeSet.NewEdgeResult;
 import edu.uci.eecs.scriptsafe.merge.graph.loader.ScriptGraphDataFiles.Type;
 
-// pull routines from the right first, then left
 public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, RequestSequenceLoader.RequestCollection {
 
 	private int skipRequestCount, mergeRequestCount, evaluationCount = 0, requestIndex;

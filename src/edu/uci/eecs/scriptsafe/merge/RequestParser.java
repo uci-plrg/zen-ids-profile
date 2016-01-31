@@ -26,6 +26,8 @@ class RequestParser {
 
 	static final int BUFFER_SIZE = 8192;
 	static final int BUFFER_TAIL_SIZE = 0x10;
+	static final String REQUEST_TIME_TAG = "<request-time>";
+	static final int REQUEST_TIME_TAG_LENGTH = REQUEST_TIME_TAG.length();
 
 	final FileInputStream in;
 	final FileOutputStream out;
@@ -109,30 +111,24 @@ class RequestParser {
 	}
 
 	void readRequestStart() throws IOException {
-		int set = i;
-
-		if (eof) {
-			timestamp = Long.MAX_VALUE;
-			return;
-		}
+		int set = i, j = 0, k = 0;
+		char timestampBuffer[] = new char[0x10];
 
 		do {
 			for (; i < currentBufferLength; i++) {
-				if (buffer[i] == '|' && isRequestTime(getPreviousSnippet())) {
-					String setToEnd = null;
-					if (i > BUFFER_SIZE - BUFFER_TAIL_SIZE) /* may flip */
-						setToEnd = new String(buffer, set, BUFFER_SIZE - set);
-					timestamp = Long.parseLong(readString('\n').substring(3), 16);
-					Log.message("Found request time at %d: 0x%x. Set is %d.", i, timestamp, set);
-					if (i < set) { /* did flip */
-						requestStart.append(setToEnd);
-						set = 0;
+				if (j < REQUEST_TIME_TAG_LENGTH + 1/* space */) {
+					j++;
+				} else {
+					if (buffer[i] == '\n') {
+						timestamp = Long.parseLong(new String(timestampBuffer, 2, k - 2), 16);
+						Log.message("Found request time at %d: 0x%x. Set is %d.", i, timestamp, set);
+						requestStart.append(String.format("%s 0x%x", REQUEST_TIME_TAG, timestamp));
+						return;
+					} else {
+						timestampBuffer[k++] = (char) buffer[i];
 					}
-					requestStart.append(new String(buffer, set, i - set));
-					return;
 				}
 			}
-			requestStart.append(new String(buffer, set, currentBufferLength - set));
 			set = 0;
 		} while (readBuffer());
 	}

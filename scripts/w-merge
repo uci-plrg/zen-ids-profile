@@ -16,7 +16,7 @@ shift $(( $OPTIND - 1 ))
 
 [ -z "$output_dir" ] && usage && exit
 
-if [ -z "$(ls $output_dir/cfg.set)" ]
+if [ ! -f $output_dir/cfg.set ]
 then # starting a new dataset
   echo "Merging $# workers into a new dataset"
   s-merge -o $output_dir -l $1 -r $2

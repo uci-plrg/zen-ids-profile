@@ -43,11 +43,11 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 
 		if (rightGraph.dataSourceType == Type.DATASET) {
 			for (ScriptRoutineGraph rightRoutine : rightGraph.getRoutines()) {
-				if (ScriptRoutineGraph.isDynamicRoutine(rightRoutine.hash)) {
-					Log.warn("%s does not support dynamic routines yet! Skipping routine.", getClass().getSimpleName());
-				} else {
+				if (ScriptRoutineGraph.isDynamicRoutine(rightRoutine.hash))
+					Log.warn("Warning: %s does not support dynamic routines yet! Skipping routine.", getClass()
+							.getSimpleName());
+				else
 					mergedStaticRoutines.put(rightRoutine.hash, rightRoutine);
-				}
 			}
 			for (List<RoutineEdge> edges : rightGraph.edges.getOutgoingEdges()) {
 				for (RoutineEdge edge : edges) {
@@ -169,6 +169,11 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 	}
 
 	private ScriptRoutineGraph getRoutineGraph(int hash) {
+		if (ScriptRoutineGraph.isDynamicRoutine(hash)) {
+			Log.warn("Warning: %s does not support dynamic routines yet! Skipping routine.", getClass().getSimpleName());
+			return null;
+		}
+
 		ScriptRoutineGraph graph = mergedStaticRoutines.get(hash);
 		if (graph == null) {
 			rightGraph.getRoutine(hash);

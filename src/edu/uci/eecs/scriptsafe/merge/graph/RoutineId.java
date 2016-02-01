@@ -66,7 +66,7 @@ public class RoutineId {
 					space = line.trim().indexOf(" ");
 					if (space < 0)
 						continue;
-					int hash = Integer.parseInt(line.substring(2, space), 16);
+					int hash = (int) Long.parseLong(line.substring(2, space), 16);
 					String id = line.substring(space + 1);
 					int pipeIndex = id.indexOf('|');
 					if (pipeIndex < 0) {

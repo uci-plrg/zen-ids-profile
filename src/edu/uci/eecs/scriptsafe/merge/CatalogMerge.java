@@ -10,7 +10,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
+
 public class CatalogMerge {
+
+	private static boolean isDynamicRoutine(String hash) {
+		return hash.startsWith("0x8000");
+	}
 
 	private File left;
 	private File right;
@@ -39,7 +45,7 @@ public class CatalogMerge {
 				if (duplicateName == null) {
 					routines.put(hash, name);
 				} else {
-					if (!duplicateName.equals(name))
+					if (!duplicateName.equals(name) && !isDynamicRoutine(hash))
 						throw new MergeException("Hash collision on %s: %s vs. %s", hash, name, duplicateName);
 				}
 			}
@@ -53,7 +59,7 @@ public class CatalogMerge {
 				if (duplicateName == null) {
 					routines.put(hash, name);
 				} else {
-					if (!duplicateName.equals(name))
+					if (!duplicateName.equals(name) && !isDynamicRoutine(hash))
 						throw new MergeException("Hash collision on %s: %s vs. %s", hash, name, duplicateName);
 				}
 			}

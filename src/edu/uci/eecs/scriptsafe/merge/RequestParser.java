@@ -50,15 +50,17 @@ class RequestParser {
 	}
 
 	private boolean readBuffer() throws IOException {
-		if (fileRemaining <= 0)
+		if (fileRemaining <= 0) {
+			eof = true;
 			return false;
+		}
 
 		if (buffer == null)
 			buffer = new byte[BUFFER_SIZE];
 		else
 			lastBufferTail = new String(buffer, BUFFER_SIZE - BUFFER_TAIL_SIZE, BUFFER_TAIL_SIZE);
 		currentBufferLength = in.read(buffer);
-		if (currentBufferLength < 0) {
+		if (currentBufferLength <= 0) {
 			eof = true;
 			return false;
 		}

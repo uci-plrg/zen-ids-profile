@@ -72,7 +72,7 @@ class RequestParser {
 	private String getPreviousSnippet() {
 		String previousSnippet = null;
 		if (i < BUFFER_TAIL_SIZE) {
-			if (lastBufferTail != null) /* else not a match */
+			if (lastBufferTail != null && lastBufferTail.length() > i) /* else not a match */
 				previousSnippet = lastBufferTail.substring(i) + new String(buffer, 0, i);
 		} else {
 			previousSnippet = new String(buffer, i - BUFFER_TAIL_SIZE, BUFFER_TAIL_SIZE);

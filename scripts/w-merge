@@ -29,6 +29,7 @@ fi
 
 for d in "${@}"
 do
+  [ -s $d/request.tab ] || { echo "Skipping empty directory $d" && continue; }
   s-merge -o $output_dir -l $d
   [ $? -ne 0 ] && echo "Error, exiting now." && exit
 done

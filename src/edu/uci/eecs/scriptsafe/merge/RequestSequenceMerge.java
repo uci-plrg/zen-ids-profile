@@ -146,7 +146,8 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 				}
 				if (userLevel < branchNode.getBranchUserLevel()) {
 					reportBranchPermissionChange(fromRoutineHash, branchNode, userLevel);
-					branchNode.setBranchUserLevel(userLevel);
+					if (skipRequestCount > 0 || mergeRequestCount > 0)
+						branchNode.setBranchUserLevel(userLevel);
 				}
 			}
 		} else {
@@ -157,8 +158,8 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 			}
 
 			GraphEdgeSet.AddEdgeResult addResult = mergedEdges.addCallEdge(fromRoutineHash, fromNode, toRoutineHash,
-					userLevel);
-			reportEdgeAddResult(addResult);
+					userLevel, !(skipRequestCount > 0 || mergeRequestCount > 0));
+			reportEdgeAddResult(addResult, fromNode);
 		}
 		return true;
 	}
@@ -194,7 +195,7 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 			return String.format("evaluating @ %d # %d", evaluationCount, currentRequestId);
 	}
 
-	private void reportEdgeAddResult(GraphEdgeSet.AddEdgeResult addResult) {
+	private void reportEdgeAddResult(GraphEdgeSet.AddEdgeResult addResult, ScriptNode fromNode) {
 		if (addResult == null)
 			return;
 
@@ -202,25 +203,33 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 			case LOWER_USER_LEVEL:
 				LowerUserLevelResult chmod = (LowerUserLevelResult) addResult;
 				if (chmod.toUserLevel < 2) {
-					Log.log("[%s] Lower user level from %s to %s on edge %s -> %s", printMode(),
+					Log.log("[%s] Lower user level from %s to %s on edge %s (#%d) -> %s", printMode(),
 							RoutineEdge.printUserLevel(chmod.fromUserLevel),
 							RoutineEdge.printUserLevel(chmod.toUserLevel), chmod.edge.printFromNode(),
-							chmod.edge.printToNode());
+							fromNode.lineNumber, chmod.edge.printToNode());
 				}
 				break;
 			case NEW_EDGE:
 				NewEdgeResult newEdge = (NewEdgeResult) addResult;
 				if (newEdge.edge.getUserLevel() < 2) {
-					Log.log("[%s] New edge %s -> %s with user level %s", printMode(), newEdge.edge.printFromNode(),
-							newEdge.edge.printToNode(), RoutineEdge.printUserLevel(newEdge.edge.getUserLevel()));
+					Log.log("[%s] New edge %s (#%d) -> %s with user level %s", printMode(),
+							newEdge.edge.printFromNode(), fromNode.lineNumber, newEdge.edge.printToNode(),
+							RoutineEdge.printUserLevel(newEdge.edge.getUserLevel()));
+					for (RoutineEdge existingEdge : mergedEdges.getOutgoingEdges(fromNode)) {
+						if (existingEdge.getToRoutineHash() != newEdge.edge.getToRoutineHash()) {
+							Log.log("\tExisting edge %s (#%d) -> %s with user level %s", existingEdge.printFromNode(),
+									fromNode.lineNumber, existingEdge.printToNode(),
+									RoutineEdge.printUserLevel(existingEdge.getUserLevel()));
+						}
+					}
 				}
 				break;
 		}
 	}
 
 	private void reportBranchPermissionChange(int routineHash, ScriptBranchNode branchNode, int userLevel) {
-		Log.log("[%s] Lower user level from %s to %s on edge 0x%x(%d -> %d)", printMode(),
+		Log.log("[%s] Lower user level from %s to %s on edge 0x%x(%d (#%d) -> %d)", printMode(),
 				RoutineEdge.printUserLevel(branchNode.getBranchUserLevel()), RoutineEdge.printUserLevel(userLevel),
-				routineHash, branchNode.index, branchNode.getTargetIndex());
+				routineHash, branchNode.index, branchNode.lineNumber, branchNode.getTargetIndex());
 	}
 }

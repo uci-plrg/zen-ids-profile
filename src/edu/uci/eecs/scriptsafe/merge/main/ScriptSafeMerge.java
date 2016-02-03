@@ -1,6 +1,10 @@
 package edu.uci.eecs.scriptsafe.merge.main;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.log.Log.FileMode;
@@ -29,6 +33,8 @@ public class ScriptSafeMerge {
 	public static final OptionArgumentMap.StringOption outputDir = OptionArgumentMap.createStringOption('o');
 	public static final OptionArgumentMap.IntegerOption requestMergeCount = OptionArgumentMap.createIntegerOption('m',
 			OptionMode.OPTIONAL);
+	public static final OptionArgumentMap.BooleanOption leftRequestsAlreadyMerged = OptionArgumentMap
+			.createBooleanOption('y', OptionMode.OPTIONAL);
 	public static final OptionArgumentMap.IntegerOption verbose = OptionArgumentMap.createIntegerOption('v',
 			Log.Level.ERROR.ordinal());
 	public static final OptionArgumentMap.StringOption watchlistFile = OptionArgumentMap.createStringOption('w',
@@ -48,8 +54,8 @@ public class ScriptSafeMerge {
 
 	private ScriptSafeMerge(ArgumentStack args) {
 		this.args = args;
-		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, requestMergeCount, verbose,
-				watchlistFile, watchlistCategories);
+		argMap = new OptionArgumentMap(args, leftGraphDir, rightGraphDir, outputDir, requestMergeCount,
+				leftRequestsAlreadyMerged, verbose, watchlistFile, watchlistCategories);
 	}
 
 	private void run() {
@@ -119,8 +125,23 @@ public class ScriptSafeMerge {
 					.getSimpleName(), rightPath.getAbsolutePath(), rightGraph.getRoutineCount(), rightGraph.edges
 					.getOutgoingEdgeCount());
 
-			RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
-			requestMerge.merge(outputFiles);
+			if (leftRequestsAlreadyMerged.hasValue()) {
+				File outputEdges = outputFiles.getRequestEdgeFile();
+				File leftEdges = leftDataSource.getRequestEdgeFile();
+				if (!outputEdges.getAbsolutePath().equals(leftEdges.getAbsolutePath())) {
+					if (outputEdges.exists()) {
+						Log.warn(
+								"Warning: overwriting existing request edge file %s with already-merged request edge file %s.",
+								outputEdges.getAbsolutePath(), leftEdges.getAbsolutePath());
+					}
+					Files.copy(new FileInputStream(leftDataSource.getRequestFile()),
+							Paths.get(outputFiles.getRequestFile().getPath()));
+					Files.copy(new FileInputStream(leftEdges), Paths.get(outputEdges.getPath()));
+				}
+			} else {
+				RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
+				requestMerge.merge(outputFiles);
+			}
 
 			CatalogMerge catalogMerge = new CatalogMerge(leftDataSource.getRoutineCatalogFile(),
 					rightDataSource.getRoutineCatalogFile());

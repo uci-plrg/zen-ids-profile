@@ -333,7 +333,7 @@ public class RoutineLineMap {
 			File phpFile = new File(phpSourceDir, tokenizer.nextToken());
 			ApplicationFile appFile = catalog.get(phpFile.toPath());
 			if (appFile == null) {
-				appFile = new ApplicationFile(phpFile);
+				appFile = new ApplicationFile(phpFile); /* loads the source code lines */
 				catalog.put(phpFile.toPath(), appFile);
 			}
 			appFile.routines.add(hash);

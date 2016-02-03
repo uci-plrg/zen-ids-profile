@@ -37,7 +37,7 @@ public class GraphEdgeSet {
 
 		public LowerUserLevelResult(RoutineEdge edge, int toUserLevel) {
 			super(AddEdgeResultType.LOWER_USER_LEVEL, edge);
-			
+
 			this.fromUserLevel = edge.getUserLevel();
 			this.toUserLevel = toUserLevel;
 		}
@@ -97,6 +97,11 @@ public class GraphEdgeSet {
 	}
 
 	public AddEdgeResult addCallEdge(int fromRoutineHash, ScriptNode fromNode, int toRoutineHash, int userLevel) {
+		return addCallEdge(fromRoutineHash, fromNode, toRoutineHash, userLevel, false);
+	}
+
+	public AddEdgeResult addCallEdge(int fromRoutineHash, ScriptNode fromNode, int toRoutineHash, int userLevel,
+			boolean evaluating) {
 		List<RoutineEdge> nodeOutgoing = outgoingEdges.get(fromNode);
 		if (nodeOutgoing == null) {
 			nodeOutgoing = new ArrayList<RoutineEdge>();
@@ -114,7 +119,8 @@ public class GraphEdgeSet {
 						}
 					} else if (userLevel < edge.getUserLevel()) {
 						LowerUserLevelResult result = new LowerUserLevelResult(edge, userLevel);
-						edge.setUserLevel(userLevel);
+						if (!evaluating)
+							edge.setUserLevel(userLevel);
 						return result;
 					}
 					return null;
@@ -124,19 +130,24 @@ public class GraphEdgeSet {
 
 		edgeCount++;
 		RoutineEdge newEdge = new RoutineEdge(fromRoutineHash, fromNode.index, toRoutineHash, userLevel);
-		nodeOutgoing.add(newEdge);
 
-		List<RoutineEdge> nodeIncoming = incomingEdges.get(toRoutineHash);
-		if (nodeIncoming == null) {
-			nodeIncoming = new ArrayList<RoutineEdge>();
-			incomingEdges.put(toRoutineHash, nodeIncoming);
-		}
-		nodeIncoming.add(newEdge);
+		if (!evaluating) {
+			nodeOutgoing.add(newEdge);
 
-		if (ScriptMergeWatchList.watchAny(fromRoutineHash, fromNode.index) || ScriptMergeWatchList.watch(toRoutineHash)) {
-			Log.log("Add call edge to set: %s (op 0x%x) -%s-> %s", newEdge.printFromNode(), fromNode.opcode,
-					newEdge.printUserLevel(), newEdge.printToNode());
+			List<RoutineEdge> nodeIncoming = incomingEdges.get(toRoutineHash);
+			if (nodeIncoming == null) {
+				nodeIncoming = new ArrayList<RoutineEdge>();
+				incomingEdges.put(toRoutineHash, nodeIncoming);
+			}
+			nodeIncoming.add(newEdge);
+
+			if (ScriptMergeWatchList.watchAny(fromRoutineHash, fromNode.index)
+					|| ScriptMergeWatchList.watch(toRoutineHash)) {
+				Log.log("Add call edge to set: %s (op 0x%x) -%s-> %s", newEdge.printFromNode(), fromNode.opcode,
+						newEdge.printUserLevel(), newEdge.printToNode());
+			}
 		}
+
 		return new NewEdgeResult(newEdge);
 	}
 

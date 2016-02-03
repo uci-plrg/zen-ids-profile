@@ -146,7 +146,7 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 				}
 				if (userLevel < branchNode.getBranchUserLevel()) {
 					reportBranchPermissionChange(fromRoutineHash, branchNode, userLevel);
-					if (skipRequestCount > 0 || mergeRequestCount > 0)
+					if (!isEvaluating())
 						branchNode.setBranchUserLevel(userLevel);
 				}
 			}
@@ -158,7 +158,7 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 			}
 
 			GraphEdgeSet.AddEdgeResult addResult = mergedEdges.addCallEdge(fromRoutineHash, fromNode, toRoutineHash,
-					userLevel, !(skipRequestCount > 0 || mergeRequestCount > 0));
+					userLevel, isEvaluating());
 			reportEdgeAddResult(addResult, fromNode);
 		}
 		return true;
@@ -184,6 +184,10 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 				mergedStaticRoutines.put(hash, graph);
 		}
 		return graph;
+	}
+
+	private boolean isEvaluating() {
+		return skipRequestCount == 0 && mergeRequestCount == 0;
 	}
 
 	private String printMode() {
@@ -215,11 +219,13 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 					Log.log("[%s] New edge %s (#%d) -> %s with user level %s", printMode(),
 							newEdge.edge.printFromNode(), fromNode.lineNumber, newEdge.edge.printToNode(),
 							RoutineEdge.printUserLevel(newEdge.edge.getUserLevel()));
-					for (RoutineEdge existingEdge : mergedEdges.getOutgoingEdges(fromNode)) {
-						if (existingEdge.getToRoutineHash() != newEdge.edge.getToRoutineHash()) {
-							Log.log("\tExisting edge %s (#%d) -> %s with user level %s", existingEdge.printFromNode(),
-									fromNode.lineNumber, existingEdge.printToNode(),
-									RoutineEdge.printUserLevel(existingEdge.getUserLevel()));
+					if (isEvaluating()) {
+						for (RoutineEdge existingEdge : mergedEdges.getOutgoingEdges(fromNode)) {
+							if (existingEdge.getToRoutineHash() != newEdge.edge.getToRoutineHash()) {
+								Log.log("\tExisting edge %s (#%d) -> %s with user level %s",
+										existingEdge.printFromNode(), fromNode.lineNumber, existingEdge.printToNode(),
+										RoutineEdge.printUserLevel(existingEdge.getUserLevel()));
+							}
 						}
 					}
 				}

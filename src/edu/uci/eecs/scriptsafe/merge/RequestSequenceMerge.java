@@ -57,8 +57,9 @@ public class RequestSequenceMerge implements ScriptDatasetGenerator.DataSource, 
 						mergedEdges.addExceptionEdge(edge.getFromRoutineHash(), fromNode, edge.getToRoutineHash(),
 								((RoutineExceptionEdge) edge).getToRoutineIndex(), edge.getUserLevel());
 					} else {
-						mergedEdges.addCallEdge(edge.getFromRoutineHash(), fromNode, edge.getToRoutineHash(),
-								edge.getUserLevel());
+						GraphEdgeSet.AddEdgeResult addResult = mergedEdges.addCallEdge(edge.getFromRoutineHash(),
+								fromNode, edge.getToRoutineHash(), edge.getUserLevel());
+						reportEdgeAddResult(addResult, fromNode);
 					}
 				}
 			}

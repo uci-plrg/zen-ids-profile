@@ -169,8 +169,15 @@ public class RoutineLineMap {
 		BufferedReader catalogReader = new BufferedReader(new FileReader(routineCatalog));
 		while (catalogReader.ready()) {
 			StringTokenizer tokenizer = new StringTokenizer(catalogReader.readLine(), " |");
-			int hash = Integer.parseInt(tokenizer.nextToken().substring(2), 16);
+			int hash = (int) Long.parseLong(tokenizer.nextToken().substring(2), 16);
+			if ((hash & 0x80000000) != 0)
+				continue; // eval
 			File phpFile = new File(phpSourceDir, tokenizer.nextToken());
+			if (!phpFile.exists()) {
+				Log.log("Skipping file '%s' because it does not exist in the site file tree anymore", phpFile.getName());
+				Log.log("\t%s", phpFile.getAbsolutePath());
+				continue;
+			}
 			ApplicationFile appFile = catalog.get(phpFile.toPath());
 			if (appFile == null) {
 				appFile = new ApplicationFile(phpFile); /* loads the source code lines */
@@ -182,7 +189,7 @@ public class RoutineLineMap {
 
 		return catalog.values();
 	}
-	
+
 	void installRoutineSpans(ApplicationFile appFile, ScriptFlowGraph cfg) {
 		if (appFile.lines.isEmpty())
 			return;
@@ -242,7 +249,7 @@ public class RoutineLineMap {
 			installRoutineSpans(appFile, cfg);
 	}
 
-	public Collection<ApplicationFile> countLines(File routineCatalog, File phpSourceDir, File dataset)
+	public Collection<ApplicationFile> analyzeFiles(File routineCatalog, File phpSourceDir, File dataset)
 			throws NumberFormatException, IOException {
 		Collection<ApplicationFile> datasetFiles = inflate(routineCatalog, phpSourceDir, dataset);
 
@@ -251,7 +258,7 @@ public class RoutineLineMap {
 
 		for (ApplicationFile appFile : datasetFiles)
 			appFile.mapLineCoverage(cfg);
-		
+
 		return datasetFiles;
 	}
 

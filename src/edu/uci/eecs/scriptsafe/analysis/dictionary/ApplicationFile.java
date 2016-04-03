@@ -39,6 +39,11 @@ class ApplicationFile {
 		}
 		for (Integer hash : routines) {
 			ScriptRoutineGraph routine = cfg.getRoutine(hash);
+			
+			if (routine == null) {
+				Log.error("Error: missing routine for hash 0x%x!", hash);
+				continue;
+			}
 
 			int entryUserLevel = cfg.edges.getMinUserLevel(routine.hash);
 			boolean changedUserLevel = false;

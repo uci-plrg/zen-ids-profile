@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -114,168 +115,6 @@ public class RoutineLineMap {
 		}
 	}
 
-	private class ApplicationFile {
-		final File phpFile;
-		final List<String> lines = new ArrayList<String>();
-		final List<Integer> routines = new ArrayList<Integer>();
-
-		ApplicationFile(File phpFile) throws IOException {
-			this.phpFile = phpFile;
-
-			BufferedReader in = new BufferedReader(new FileReader(phpFile));
-			while (in.ready()) {
-				lines.add(in.readLine());
-			}
-			lines.add(""); // file ending in html will have opcodes off the end
-			in.close();
-		}
-
-		void installRoutineSpans(ScriptFlowGraph cfg) {
-			if (lines.isEmpty())
-				return;
-
-			List<Integer> lineCoverage = new ArrayList<Integer>();
-			List<Integer> userLevelCoverage = new ArrayList<Integer>();
-			for (int i = 0; i < (lines.size() + 1); i++) {
-				lineCoverage.add(0);
-				userLevelCoverage.add(ScriptNode.USER_LEVEL_TOP);
-			}
-			for (Integer hash : routines) {
-				ScriptRoutineGraph routine = cfg.getRoutine(hash);
-
-				int entryUserLevel = cfg.edges.getMinUserLevel(routine.hash);
-				boolean changedUserLevel = false;
-
-				List<Integer> userLevelPhi = new ArrayList<Integer>();
-				for (ScriptNode node : routine.getNodes()) {
-					userLevelPhi.add(ScriptNode.USER_LEVEL_TOP);
-				}
-				for (ScriptNode node : routine.getNodes()) {
-					if (node.lineNumber > (lineCoverage.size() + 1)) {
-						Log.error("Node with opcode 0x%x in 0x%x has line number %d, but the file only has %d lines",
-								node.opcode, routine.hash, node.lineNumber, lineCoverage.size());
-						continue;
-					}
-					if (node.opcode == 0)
-						continue; // there is no opcode zero
-
-					if (node instanceof ScriptBranchNode) {
-						ScriptBranchNode branch = (ScriptBranchNode) node;
-						if (branch.getBranchUserLevel() != entryUserLevel) {
-							if (branch.getBranchUserLevel() != ScriptNode.USER_LEVEL_TOP) {
-								int targetIndex = branch.getTargetIndex();
-								if (targetIndex != ScriptBranchNode.UNASSIGNED_BRANCH_TARGET_ID) {
-									userLevelPhi.set(targetIndex, branch.getBranchUserLevel());
-									changedUserLevel = true;
-									Log.message("Starting phi %d on node %d, line %d of 0x%x",
-											branch.getBranchUserLevel(), targetIndex,
-											routine.getNode(targetIndex).lineNumber, routine.hash);
-								} else {
-									Log.message("Skipping phi for branch with unknown target in 0x%x", routine.hash);
-								}
-							} else {
-								Log.message("Skipping phi for branch with top user level in 0x%x", routine.hash);
-							}
-						}
-					}
-
-					lineCoverage.set(getLineIndex(node), routine.hash);
-					userLevelCoverage.set(getLineIndex(node), entryUserLevel);
-				}
-
-				int iteration = 0, maxIterations = 50;
-				while (changedUserLevel) {
-					if (++iteration > maxIterations)
-						break;
-					changedUserLevel = false;
-					for (int i = 0; i < userLevelPhi.size(); i++) {
-						int phi = userLevelPhi.get(i);
-						if (phi != ScriptNode.USER_LEVEL_TOP) {
-							for (int j = i; j < routine.getNodeCount(); j++) {
-								ScriptNode node = routine.getNode(j);
-								if (userLevelCoverage.get(getLineIndex(node)) != phi) {
-									userLevelCoverage.set(getLineIndex(node), phi);
-									Log.message("Changing user level on line %d of 0x%x to %d", node.lineNumber,
-											routine.hash, phi);
-									changedUserLevel = true;
-								}
-								if (node instanceof ScriptBranchNode) {
-									ScriptBranchNode branch = (ScriptBranchNode) node;
-									int targetIndex = branch.getTargetIndex();
-									if (targetIndex != ScriptBranchNode.UNASSIGNED_BRANCH_TARGET_ID) {
-										int targetPhi = userLevelPhi.get(targetIndex);
-										if (branch.getBranchUserLevel() < targetPhi) {
-											userLevelPhi.set(targetIndex, branch.getBranchUserLevel());
-											changedUserLevel = true;
-											Log.message("Propagating phi %d on node %d, line %d of 0x%x",
-													branch.getBranchUserLevel(), targetIndex,
-													routine.getNode(targetIndex).lineNumber, routine.hash);
-										}
-										if (branch.isConditional()
-												&& userLevelCoverage.get(getLineIndex(node)) < userLevelPhi.get(j + 1)) {
-											userLevelPhi.set(j + 1, userLevelCoverage.get(getLineIndex(node)));
-											changedUserLevel = true;
-											Log.message("Propagating phi %d on node %d, line %d of 0x%x",
-													userLevelCoverage.get(getLineIndex(node)), j + 1,
-													routine.getNode(j + 1).lineNumber, routine.hash);
-										}
-										break;
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			int i = 0, hash, userLevel, start, end = 0;
-			RoutineSpan currentSpan = null, nextSpan;
-			do {
-				hash = lineCoverage.get(i);
-				userLevel = userLevelCoverage.get(i++);
-				if (i >= lineCoverage.size())
-					return;
-			} while (hash == 0);
-			start = i - 1;
-			end = start + 1;
-			currentSpan = establishRoutineSpan(hash, userLevel);
-
-			for (; i < lineCoverage.size(); i++) {
-				hash = lineCoverage.get(i);
-				userLevel = userLevelCoverage.get(i);
-				if (hash == 0)
-					continue;
-
-				nextSpan = establishRoutineSpan(hash, userLevel);
-				if (currentSpan == nextSpan) {
-					end = i;
-					continue;
-				}
-
-				currentSpan.addSpan(lines, start, end + 1);
-
-				start = end + 1;
-				end = i;
-				currentSpan = nextSpan;
-			}
-			currentSpan.addSpan(lines, start, i - 1);
-		}
-
-		int getLineIndex(ScriptNode node) {
-			return Math.max(0, node.lineNumber - 1);
-		}
-
-		RoutineSpan establishRoutineSpan(int hash, int userLevel) {
-			ColoredRoutineSpan key = new ColoredRoutineSpan(hash, userLevel >= 2);
-			RoutineSpan span = routineSpans.get(key);
-			if (span == null) {
-				span = new RoutineSpan(hash, phpFile.toPath());
-				routineSpans.put(key, span);
-			}
-			return span;
-		}
-	}
-
 	private static class ColoredRoutineSpan {
 		final int hash;
 		final boolean isAdmin;
@@ -317,7 +156,8 @@ public class RoutineLineMap {
 
 	private final Map<ColoredRoutineSpan, RoutineSpan> routineSpans = new HashMap<ColoredRoutineSpan, RoutineSpan>();
 
-	public void load(File routineCatalog, File phpSourceDir, File dataset) throws NumberFormatException, IOException {
+	private Collection<ApplicationFile> inflate(File routineCatalog, File phpSourceDir, File dataset)
+			throws NumberFormatException, IOException {
 		if (!(routineCatalog.exists() && routineCatalog.isFile()))
 			throw new AnalysisException("Cannot find routine catalog '%s'", routineCatalog.getAbsolutePath());
 		if (!(phpSourceDir.exists() && phpSourceDir.isDirectory()))
@@ -340,11 +180,79 @@ public class RoutineLineMap {
 		}
 		catalogReader.close();
 
+		return catalog.values();
+	}
+	
+	void installRoutineSpans(ApplicationFile appFile, ScriptFlowGraph cfg) {
+		if (appFile.lines.isEmpty())
+			return;
+
+		appFile.mapLineCoverage(cfg);
+
+		int i = 0, hash, userLevel, start, end = 0;
+		RoutineSpan currentSpan = null, nextSpan;
+		do {
+			hash = appFile.lineCoverage.get(i);
+			userLevel = appFile.userLevelCoverage.get(i++);
+			if (i >= appFile.lineCoverage.size())
+				return;
+		} while (hash == 0);
+		start = i - 1;
+		end = start + 1;
+		currentSpan = establishRoutineSpan(appFile, hash, userLevel);
+
+		for (; i < appFile.lineCoverage.size(); i++) {
+			hash = appFile.lineCoverage.get(i);
+			userLevel = appFile.userLevelCoverage.get(i);
+			if (hash == 0)
+				continue;
+
+			nextSpan = establishRoutineSpan(appFile, hash, userLevel);
+			if (currentSpan == nextSpan) {
+				end = i;
+				continue;
+			}
+
+			currentSpan.addSpan(appFile.lines, start, end + 1);
+
+			start = end + 1;
+			end = i;
+			currentSpan = nextSpan;
+		}
+		currentSpan.addSpan(appFile.lines, start, i - 1);
+	}
+
+	RoutineSpan establishRoutineSpan(ApplicationFile appFile, int hash, int userLevel) {
+		ColoredRoutineSpan key = new ColoredRoutineSpan(hash, userLevel >= 2);
+		RoutineSpan span = routineSpans.get(key);
+		if (span == null) {
+			span = new RoutineSpan(hash, appFile.phpFile.toPath());
+			routineSpans.put(key, span);
+		}
+		return span;
+	}
+
+	public void load(File routineCatalog, File phpSourceDir, File dataset) throws NumberFormatException, IOException {
+		Collection<ApplicationFile> datasetFiles = inflate(routineCatalog, phpSourceDir, dataset);
+
 		ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, dataset.getAbsolutePath(), false);
 		cfgLoader.loadDataset(dataset, routineCatalog, cfg, false);
 
-		for (ApplicationFile appFile : catalog.values())
-			appFile.installRoutineSpans(cfg);
+		for (ApplicationFile appFile : datasetFiles)
+			installRoutineSpans(appFile, cfg);
+	}
+
+	public Collection<ApplicationFile> countLines(File routineCatalog, File phpSourceDir, File dataset)
+			throws NumberFormatException, IOException {
+		Collection<ApplicationFile> datasetFiles = inflate(routineCatalog, phpSourceDir, dataset);
+
+		ScriptFlowGraph cfg = new ScriptFlowGraph(Type.DATASET, dataset.getAbsolutePath(), false);
+		cfgLoader.loadDataset(dataset, routineCatalog, cfg, false);
+
+		for (ApplicationFile appFile : datasetFiles)
+			appFile.mapLineCoverage(cfg);
+		
+		return datasetFiles;
 	}
 
 	public List<WordAppearanceCount> getWords(int hash) {

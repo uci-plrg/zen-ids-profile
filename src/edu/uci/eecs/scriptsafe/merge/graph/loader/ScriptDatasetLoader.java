@@ -35,7 +35,7 @@ public class ScriptDatasetLoader {
 	private final List<ScriptNode> calls = new ArrayList<ScriptNode>();
 
 	private LittleEndianInputStream in;
-	
+
 	private boolean shallow;
 
 	public void loadDataset(File datasetFile, File routineCatalog, ScriptFlowGraph graph, boolean shallow)
@@ -61,6 +61,8 @@ public class ScriptDatasetLoader {
 		int dynamicRoutineId, dynamicRoutineCount, targetNodeIndex, userLevel;
 		ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash, RoutineId.Cache.INSTANCE.getId(routineHash),
 				false);
+		
+		Log.log("Loaded routine 0x%x", routineHash);
 
 		int nodeCount = in.readInt();
 		for (int i = 0; i < nodeCount; i++) {
@@ -77,9 +79,10 @@ public class ScriptDatasetLoader {
 				pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(routineHash, branch, target));
 				routine.addNode(branch);
 			} else {
-				ScriptNode call = new ScriptNode(routineHash, type, opcode, lineNumber, i);
-				calls.add(call); // use list seequence instead of `target` pointer
-				routine.addNode(call);
+				ScriptNode node = new ScriptNode(routineHash, type, opcode, lineNumber, i);
+				if (type == Type.CALL || type == Type.EVAL)
+					calls.add(node); // use list seequence instead of `target` pointer
+				routine.addNode(node);
 			}
 			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, type);
 			if (ScriptMergeWatchList.watch(routineHash))

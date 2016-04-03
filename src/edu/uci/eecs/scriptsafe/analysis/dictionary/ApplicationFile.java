@@ -39,11 +39,8 @@ class ApplicationFile {
 		}
 		for (Integer hash : routines) {
 			ScriptRoutineGraph routine = cfg.getRoutine(hash);
-			
-			if (routine == null) {
-				Log.error("Error: missing routine for hash 0x%x!", hash);
+			if (routine == null) // seems to be a statically targeted call that was compiled but never executed
 				continue;
-			}
 
 			int entryUserLevel = cfg.edges.getMinUserLevel(routine.hash);
 			boolean changedUserLevel = false;
@@ -69,9 +66,8 @@ class ApplicationFile {
 							if (targetIndex != ScriptBranchNode.UNASSIGNED_BRANCH_TARGET_ID) {
 								userLevelPhi.set(targetIndex, branch.getBranchUserLevel());
 								changedUserLevel = true;
-								Log.message("Starting phi %d on node %d, line %d of 0x%x",
-										branch.getBranchUserLevel(), targetIndex,
-										routine.getNode(targetIndex).lineNumber, routine.hash);
+								Log.message("Starting phi %d on node %d, line %d of 0x%x", branch.getBranchUserLevel(),
+										targetIndex, routine.getNode(targetIndex).lineNumber, routine.hash);
 							} else {
 								Log.message("Skipping phi for branch with unknown target in 0x%x", routine.hash);
 							}
@@ -130,7 +126,7 @@ class ApplicationFile {
 			}
 		}
 	}
-	
+
 	int getLineIndex(ScriptNode node) {
 		return Math.max(0, node.lineNumber - 1);
 	}

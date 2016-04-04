@@ -1,7 +1,9 @@
 package edu.uci.eecs.scriptsafe.analysis.dictionary;
 
 import java.io.File;
-import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -14,6 +16,13 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 
 public class UserLevelCoverage {
+	
+	private static class FilePathSorter implements Comparator<ApplicationFile> {
+		@Override
+		public int compare(ApplicationFile first, ApplicationFile second) {
+			return first.phpFile.getAbsolutePath().compareTo(second.phpFile.getAbsolutePath());
+		}
+	}
 
 	public static final OptionArgumentMap.StringOption datasetDir = OptionArgumentMap.createStringOption('d');
 	public static final OptionArgumentMap.StringOption phpDir = OptionArgumentMap.createStringOption('s');
@@ -56,29 +65,41 @@ public class UserLevelCoverage {
 
 			File datasetDirectory = new File(datasetDir.getValue());
 			File phpDirectory = new File(phpDir.getValue());
-			Collection<ApplicationFile> files = routineLineMap.analyzeFiles(
+			List<ApplicationFile> files = routineLineMap.analyzeFiles(
 					ScriptDataFilename.ROUTINE_CATALOG.requireFile(datasetDirectory), phpDirectory,
 					ScriptDataFilename.CFG.requireFile(datasetDirectory));
-
-			int anonymousLineTotal = 0, adminLineTotal = 0;
-			Map<String, Integer> anonymousLineCounts = new TreeMap<String, Integer>();
-			Map<String, Integer> adminLineCounts = new TreeMap<String, Integer>();
+			
+			Collections.sort(files, new FilePathSorter());
+			
+			String indent = "            ";
+			int anonymousLineTotal = 0, adminLineTotal = 0, index;
+			StringBuilder lineNumberList = new StringBuilder();
 			for (ApplicationFile file : files) {
+				index = 1;
+				lineNumberList.setLength(0);
+				lineNumberList.append(indent);
+
 				int anonymousLineCount = 0, adminLineCount = 0;
 				for (Integer userLevel : file.userLevelCoverage) {
-					if (userLevel < 2)
+					if (userLevel < 2) {
 						anonymousLineCount++;
-					else
+						
+						lineNumberList.append(index);
+						lineNumberList.append(", ");
+						if (anonymousLineCount % 10 == 0) {
+							lineNumberList.append("\n");
+							lineNumberList.append(indent);
+						}
+					} else if (userLevel < Integer.MAX_VALUE) {
 						adminLineCount++;
+					}
+					index++;
 				}
-				anonymousLineCounts.put(file.phpFile.getAbsolutePath(), anonymousLineCount);
-				adminLineCounts.put(file.phpFile.getAbsolutePath(), adminLineCount + anonymousLineCount);
 				anonymousLineTotal += anonymousLineCount;
 				adminLineTotal += adminLineCount + anonymousLineCount;
-			}
-
-			for (Map.Entry<String, Integer> entry : anonymousLineCounts.entrySet()) {
-				Log.log("%05d %05d %s", entry.getValue(), adminLineCounts.get(entry.getKey()), entry.getKey());
+				
+				Log.log("%05d %05d %s", anonymousLineCount, adminLineCount, file.phpFile.getAbsolutePath());
+				Log.log(lineNumberList.toString());
 			}
 			Log.log("%05d %05d Total", anonymousLineTotal, adminLineTotal);
 		} catch (Throwable t) {

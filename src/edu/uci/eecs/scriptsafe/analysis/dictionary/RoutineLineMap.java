@@ -249,7 +249,7 @@ public class RoutineLineMap {
 			installRoutineSpans(appFile, cfg);
 	}
 
-	public Collection<ApplicationFile> analyzeFiles(File routineCatalog, File phpSourceDir, File dataset)
+	public List<ApplicationFile> analyzeFiles(File routineCatalog, File phpSourceDir, File dataset)
 			throws NumberFormatException, IOException {
 		Collection<ApplicationFile> datasetFiles = inflate(routineCatalog, phpSourceDir, dataset);
 
@@ -259,7 +259,7 @@ public class RoutineLineMap {
 		for (ApplicationFile appFile : datasetFiles)
 			appFile.mapLineCoverage(cfg);
 
-		return datasetFiles;
+		return new ArrayList<ApplicationFile>(datasetFiles);
 	}
 
 	public List<WordAppearanceCount> getWords(int hash) {

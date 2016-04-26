@@ -12,6 +12,8 @@ public class ScriptDatasetFiles implements ScriptGraphDataFiles {
 	public final File routineCatalog;
 	public final File request;
 	public final File requestEdge;
+	public final File persistence;
+	public final File opcodes;
 
 	public final File mergeLog;
 
@@ -24,6 +26,8 @@ public class ScriptDatasetFiles implements ScriptGraphDataFiles {
 		request = ScriptDataFilename.REQUEST_FIELDS.getFile(directory);
 		requestEdge = ScriptDataFilename.REQUEST_GRAPH.getFile(directory);
 		mergeLog = ScriptDataFilename.MERGE_LOG.getFile(directory);
+		persistence = ScriptDataFilename.PERSISTENCE.getFile(directory);
+		opcodes = ScriptDataFilename.OPCODES.getFile(directory);
 	}
 
 	public boolean exists() {
@@ -53,5 +57,15 @@ public class ScriptDatasetFiles implements ScriptGraphDataFiles {
 	@Override
 	public File getRoutineCatalogFile() {
 		return routineCatalog;
+	}
+	
+	@Override
+	public File getPersistenceFile() {
+		return persistence;
+	}
+	
+	@Override
+	public File getOpcodesFile() {
+		return opcodes;
 	}
 }

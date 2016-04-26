@@ -2,7 +2,6 @@ package edu.uci.eecs.scriptsafe.merge.main;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -14,6 +13,7 @@ import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.scriptsafe.analysis.request.RequestFileSet;
 import edu.uci.eecs.scriptsafe.merge.CatalogMerge;
 import edu.uci.eecs.scriptsafe.merge.DatasetMerge;
+import edu.uci.eecs.scriptsafe.merge.OpcodesMerge;
 import edu.uci.eecs.scriptsafe.merge.RequestMerge;
 import edu.uci.eecs.scriptsafe.merge.RequestSequenceMerge;
 import edu.uci.eecs.scriptsafe.merge.ScriptDatasetGenerator;
@@ -128,6 +128,10 @@ public class ScriptSafeMerge {
 			if (leftRequestsAlreadyMerged.hasValue()) {
 				File outputEdges = outputFiles.getRequestEdgeFile();
 				File leftEdges = leftDataSource.getRequestEdgeFile();
+				File outputPersistence = outputFiles.getPersistenceFile();
+				File leftPersistence = leftDataSource.getPersistenceFile();
+				File outputOpcodes = outputFiles.getOpcodesFile();
+				File leftOpcodes = leftDataSource.getOpcodesFile();
 				if (!outputEdges.getAbsolutePath().equals(leftEdges.getAbsolutePath())) {
 					if (outputEdges.exists()) {
 						Log.warn(
@@ -137,10 +141,16 @@ public class ScriptSafeMerge {
 					Files.copy(new FileInputStream(leftDataSource.getRequestFile()),
 							Paths.get(outputFiles.getRequestFile().getPath()));
 					Files.copy(new FileInputStream(leftEdges), Paths.get(outputEdges.getPath()));
+					Files.copy(new FileInputStream(leftPersistence), Paths.get(outputPersistence.getPath()));
+					Files.copy(new FileInputStream(leftOpcodes), Paths.get(outputOpcodes.getPath()));
 				}
 			} else {
 				RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
 				requestMerge.merge(outputFiles);
+
+				OpcodesMerge opcodesMerge = new OpcodesMerge(leftDataSource.getOpcodesFile(),
+						rightDataSource.getOpcodesFile());
+				opcodesMerge.merge(outputFiles.getOpcodesFile());
 			}
 
 			CatalogMerge catalogMerge = new CatalogMerge(leftDataSource.getRoutineCatalogFile(),

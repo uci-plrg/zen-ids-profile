@@ -16,6 +16,10 @@ public interface ScriptGraphDataFiles {
 	File getRequestEdgeFile();
 
 	File getRoutineCatalogFile();
+	
+	File getPersistenceFile();
+	
+	File getOpcodesFile();
 
 	public enum Type {
 		RUN,

@@ -12,6 +12,8 @@ public class ScriptRunFiles implements ScriptGraphDataFiles {
 	public final File routineCatalog;
 	public final File request;
 	public final File requestEdge;
+	public final File persistence;
+	public final File opcodes;
 
 	ScriptRunFiles(File directory) {
 		nodeFile = ScriptDataFilename.NODE.getFile(directory);
@@ -20,6 +22,8 @@ public class ScriptRunFiles implements ScriptGraphDataFiles {
 		routineCatalog = ScriptDataFilename.ROUTINE_CATALOG.getFile(directory);
 		request = ScriptDataFilename.REQUEST_FIELDS.getFile(directory);
 		requestEdge = ScriptDataFilename.REQUEST_GRAPH.getFile(directory);
+		persistence = ScriptDataFilename.PERSISTENCE.getFile(directory);
+		opcodes = ScriptDataFilename.OPCODES.getFile(directory);
 
 		if (!nodeFile.exists())
 			throw new IllegalArgumentException("Invalid script run directory: node file " + nodeFile.getAbsolutePath()
@@ -49,5 +53,15 @@ public class ScriptRunFiles implements ScriptGraphDataFiles {
 	@Override
 	public File getRoutineCatalogFile() {
 		return routineCatalog;
+	}
+	
+	@Override
+	public File getPersistenceFile() {
+		return persistence;
+	}
+	
+	@Override
+	public File getOpcodesFile() {
+		return opcodes;
 	}
 }

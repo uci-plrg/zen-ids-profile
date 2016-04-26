@@ -13,6 +13,8 @@ public enum ScriptDataFilename {
 	ROUTINE_CATALOG("routine-catalog.tab"),
 	REQUEST_FIELDS("request.tab"),
 	REQUEST_GRAPH("request-edge.run"),
+	PERSISTENCE("persistence.log"),
+	OPCODES("opcodes.log"),
 	MERGE_LOG("merge.log");
 
 	public final String filename;

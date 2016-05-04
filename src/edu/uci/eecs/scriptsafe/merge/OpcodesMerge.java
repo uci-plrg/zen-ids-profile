@@ -10,6 +10,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -27,7 +28,7 @@ public class OpcodesMerge {
 
 	public void merge(File outputFile) throws NumberFormatException, IOException {
 		if (!right.getAbsolutePath().equals(outputFile.getAbsolutePath()))
-			Files.copy(new FileInputStream(right), Paths.get(outputFile.getPath()));
+			Files.copy(new FileInputStream(right), Paths.get(outputFile.getPath()), StandardCopyOption.REPLACE_EXISTING);
 
 		String line;
 		BufferedReader in;
@@ -50,8 +51,10 @@ public class OpcodesMerge {
 				if (appendRoutine)
 					routineNames.add(line);
 			}
-			if (appendRoutine)
+			if (appendRoutine) {
 				out.write(line);
+				out.write('\n');
+			}
 		}
 		in.close();
 		out.flush();

@@ -128,8 +128,8 @@ public class ScriptSafeMerge {
 			if (leftRequestsAlreadyMerged.hasValue()) {
 				File outputEdges = outputFiles.getRequestEdgeFile();
 				File leftEdges = leftDataSource.getRequestEdgeFile();
-				File outputPersistence = outputFiles.getPersistenceFile();
-				File leftPersistence = leftDataSource.getPersistenceFile();
+				// File outputPersistence = outputFiles.getPersistenceFile();
+				// File leftPersistence = leftDataSource.getPersistenceFile();
 				File outputOpcodes = outputFiles.getOpcodesFile();
 				File leftOpcodes = leftDataSource.getOpcodesFile();
 				if (!outputEdges.getAbsolutePath().equals(leftEdges.getAbsolutePath())) {
@@ -141,7 +141,7 @@ public class ScriptSafeMerge {
 					Files.copy(new FileInputStream(leftDataSource.getRequestFile()),
 							Paths.get(outputFiles.getRequestFile().getPath()));
 					Files.copy(new FileInputStream(leftEdges), Paths.get(outputEdges.getPath()));
-					Files.copy(new FileInputStream(leftPersistence), Paths.get(outputPersistence.getPath()));
+					// Files.copy(new FileInputStream(leftPersistence), Paths.get(outputPersistence.getPath()));
 					Files.copy(new FileInputStream(leftOpcodes), Paths.get(outputOpcodes.getPath()));
 				}
 			} else {

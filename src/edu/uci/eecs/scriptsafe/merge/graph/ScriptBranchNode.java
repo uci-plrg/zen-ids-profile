@@ -24,6 +24,10 @@ public class ScriptBranchNode extends ScriptNode {
 		return target;
 	}
 
+	public boolean isFallThrough(int targetIndex) {
+		return (isConditional() && getNext().index == targetIndex);
+	}
+	
 	public int getBranchUserLevel() {
 		return branchUserLevel;
 	}

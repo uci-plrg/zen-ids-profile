@@ -178,7 +178,7 @@ public class ScriptDatasetGenerator {
 
 	private void writeRoutineData(ScriptRoutineGraph routine) throws IOException {
 		List<ScriptNode> calls = new ArrayList<ScriptNode>();
-		int targetIndex;
+		int targetIndex = 0;
 		out.writeInt(routine.hash);
 		out.writeInt(routine.getNodeCount());
 		callTargetPtr = filePtr + (2 + (routine.getNodeCount() * 2));
@@ -190,17 +190,15 @@ public class ScriptDatasetGenerator {
 
 			switch (node.type) {
 				case NORMAL:
-					out.writeInt(0);
+					targetIndex = 0;
 					break;
 				case BRANCH:
 					ScriptBranchNode branch = (ScriptBranchNode) node;
 					targetIndex = branch.getTargetIndex();
-					targetIndex |= (branch.getBranchUserLevel() << 26);
-					out.writeInt(targetIndex);
 					break;
 				case CALL:
 					calls.add(node);
-					out.writeInt(callTargetPtr);
+					targetIndex = callTargetPtr;
 					if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {
 						Log.log("Reserved %d call targets for 0x%x %d at 0x%x", dataSource.getOutgoingEdgeCount(node),
 								routine.hash, node.index, callTargetPtr);
@@ -209,7 +207,7 @@ public class ScriptDatasetGenerator {
 					break;
 				case EVAL:
 					calls.add(node);
-					out.writeInt(callTargetPtr);
+					targetIndex = callTargetPtr;
 					if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {
 						Log.log("Dataset generator reserved %d exception targets for 0x%x %d at 0x%x",
 								dataSource.getOutgoingEdgeCount(node), routine.hash, node.index, callTargetPtr);
@@ -217,6 +215,8 @@ public class ScriptDatasetGenerator {
 					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
 					break;
 			}
+			targetIndex |= (node.getNodeUserLevel() << 26);
+			out.writeInt(targetIndex);
 		}
 		filePtr += (2 + (routine.getNodeCount() * 2));
 

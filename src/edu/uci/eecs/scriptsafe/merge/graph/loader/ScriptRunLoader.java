@@ -16,6 +16,8 @@ import edu.uci.eecs.scriptsafe.merge.graph.RoutineId;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.OpcodeTargetType;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
 class ScriptRunLoader {
@@ -174,6 +176,7 @@ class ScriptRunLoader {
 
 	private final Set<Integer> preloadedRoutines = new HashSet<Integer>();
 	private final Map<Integer, RawRoutineGraph> rawGraphs = new HashMap<Integer, RawRoutineGraph>();
+	private final Map<Integer, Integer> pendingNodeUserLevels = new HashMap<Integer, Integer>();
 	private DatasetMerge.Side side;
 
 	private final ScriptNodeLoadContext nodeLoadContext = new ScriptNodeLoadContext();
@@ -189,6 +192,12 @@ class ScriptRunLoader {
 			rawGraphs.put(hash, graph);
 		}
 		return graph;
+	}
+
+	private void pendNodeUserLevel(int nodeIndex, int userLevel) {
+		Integer alreadyPendingUserLevel = pendingNodeUserLevels.get(nodeIndex);
+		if (alreadyPendingUserLevel == null || alreadyPendingUserLevel > userLevel)
+			pendingNodeUserLevels.put(nodeIndex, userLevel);
 	}
 
 	void loadRun(ScriptRunFiles run, ScriptFlowGraph graph, DatasetMerge.Side side, boolean shallow) throws IOException {
@@ -249,13 +258,16 @@ class ScriptRunLoader {
 	}
 
 	private void linkNodes(ScriptFlowGraph graph) {
-		ScriptRoutineGraph routine, fromRoutine, toRoutine;
+		ScriptRoutineGraph routine, toRoutine;
 		ScriptNode fromNode;
 		ScriptBranchNode branchNode;
 		for (RawRoutineGraph rawGraph : rawGraphs.values()) {
+
+			routine = graph.getRoutine(rawGraph.hash);
+			pendingNodeUserLevels.clear();
+
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
 				for (RawOpcodeEdge edge : edges) {
-					routine = graph.getRoutine(edge.routineHash);
 					if (routine == null) {
 						Log.warn("Cannot find routine for hash 0x%x. Skipping it.", edge.routineHash);
 						continue;
@@ -266,6 +278,11 @@ class ScriptRunLoader {
 						continue;
 					} else {
 						fromNode = routine.getNode(edge.fromIndex);
+					}
+
+					if (fromNode.opcode == 0x3e) {
+						Log.error("Found a branch from a return node!");
+						continue;
 					}
 
 					if (!(fromNode instanceof ScriptBranchNode)) {
@@ -285,7 +302,13 @@ class ScriptRunLoader {
 								"Edge points to a non-existent node with index %d in a routine of size %d. Skipping it.",
 								edge.toIndex, routine.getNodeCount());
 					} else {
-						branchNode.setTarget(routine.getNode(edge.toIndex));
+						if (branchNode.isFallThrough(edge.toIndex)) {
+							pendNodeUserLevel(edge.toIndex, edge.userLevel);
+						} else {
+							branchNode.setTarget(routine.getNode(edge.toIndex));
+							if (edge.toIndex > branchNode.index)
+								pendNodeUserLevel(edge.toIndex, edge.userLevel);
+						}
 					}
 					branchNode.setBranchUserLevel(edge.userLevel);
 
@@ -305,25 +328,38 @@ class ScriptRunLoader {
 				}
 			}
 
+			Integer pendingUserLevel;
+			int propagatingUserLevel = ScriptNode.USER_LEVEL_TOP;
+			for (ScriptNode node : routine.getNodes()) {
+				pendingUserLevel = pendingNodeUserLevels.get(node.index);
+				if (pendingUserLevel != null && pendingUserLevel < propagatingUserLevel)
+					propagatingUserLevel = pendingUserLevel;
+				if (propagatingUserLevel < node.getNodeUserLevel())
+					node.setNodeUserLevel(propagatingUserLevel);
+				if (node.type == Type.BRANCH) {
+					propagatingUserLevel = ScriptNode.USER_LEVEL_TOP;
+
+					branchNode = (ScriptBranchNode) node;
+					if (ScriptNode.Opcode.forCode(branchNode.opcode).targetType == OpcodeTargetType.REQUIRED
+							&& branchNode.getTarget() == null) {
+						branchNode.setTarget(branchNode.getNext()); // hack for silly nop JNZ
+					}
+				}
+			}
+
 			for (Set<RawRoutineEdge> edges : rawGraph.routineEdges.values()) {
 				for (RawRoutineEdge edge : edges) {
-					fromRoutine = graph.getRoutine(edge.fromRoutineHash);
-					if (fromRoutine == null) {
-						throw new MergeException("Found an edge from unknown routine 0x%x @%d to 0x%x",
-								edge.fromRoutineHash, edge.fromIndex, edge.toRoutineHash);
-					}
-
-					if (edge.fromIndex >= fromRoutine.getNodeCount()) {
+					if (edge.fromIndex >= routine.getNodeCount()) {
 						Log.error(
 								"Found an edge from index %d in 0x%x|0x%x, which only has %d nodes! Skipping it for now.",
-								edge.fromIndex, edge.fromRoutineHash, edge.fromRoutineHash, fromRoutine.getNodeCount());
+								edge.fromIndex, edge.fromRoutineHash, edge.fromRoutineHash, routine.getNodeCount());
 						continue;
 					}
-					fromNode = fromRoutine.getNode(edge.fromIndex);
+					fromNode = routine.getNode(edge.fromIndex);
 					toRoutine = graph.getRoutine(edge.toRoutineHash);
 					if (toRoutine == null) {
-						Log.log("Skipping edge from 0x%x @%d to unknown routine 0x%x", fromRoutine.hash,
-								edge.fromIndex, edge.toRoutineHash);
+						Log.log("Skipping edge from 0x%x @%d to unknown routine 0x%x", routine.hash, edge.fromIndex,
+								edge.toRoutineHash);
 						continue;
 						// throw new IllegalArgumentException(String.format(
 						// "Found a routine edge to an unknown routine 0x%x", edge.toRoutineHash));
@@ -332,15 +368,15 @@ class ScriptRunLoader {
 					if (ScriptMergeWatchList.watchAny(edge.fromRoutineHash, edge.fromIndex)
 							|| ScriptMergeWatchList.watch(edge.toRoutineHash)) {
 						Log.log("Loader added routine edge to the %s graph from op 0x%x: 0x%x|0x%x %d -%s-> 0x%x|0x%x",
-								side, fromRoutine.getNode(edge.fromIndex).opcode, edge.fromRoutineHash,
+								side, routine.getNode(edge.fromIndex).opcode, edge.fromRoutineHash,
 								edge.fromRoutineHash, edge.fromIndex, RoutineEdge.printUserLevel(edge.userLevel),
 								edge.toRoutineHash, edge.toRoutineHash);
 					}
 
 					if (edge.toIndex == 0)
-						graph.edges.addCallEdge(fromRoutine.hash, fromNode, toRoutine.hash, edge.userLevel);
+						graph.edges.addCallEdge(routine.hash, fromNode, toRoutine.hash, edge.userLevel);
 					else
-						graph.edges.addExceptionEdge(fromRoutine.hash, fromNode, toRoutine.hash, edge.toIndex,
+						graph.edges.addExceptionEdge(routine.hash, fromNode, toRoutine.hash, edge.toIndex,
 								edge.userLevel);
 				}
 			}

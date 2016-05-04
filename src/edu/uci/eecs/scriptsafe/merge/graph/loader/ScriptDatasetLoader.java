@@ -61,7 +61,7 @@ public class ScriptDatasetLoader {
 		int dynamicRoutineId, dynamicRoutineCount, targetNodeIndex, userLevel;
 		ScriptRoutineGraph routine = new ScriptRoutineGraph(routineHash, RoutineId.Cache.INSTANCE.getId(routineHash),
 				false);
-		
+
 		int nodeCount = in.readInt();
 		for (int i = 0; i < nodeCount; i++) {
 			int nodeId = in.readInt();

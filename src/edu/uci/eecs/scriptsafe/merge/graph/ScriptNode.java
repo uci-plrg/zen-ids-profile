@@ -140,6 +140,7 @@ public class ScriptNode {
 				case ZEND_FE_FETCH:
 				case ZEND_CATCH:
 					return Type.BRANCH;
+				default:
 			}
 		}
 		return Type.NORMAL;
@@ -191,6 +192,7 @@ public class ScriptNode {
 	public final int index;
 
 	private ScriptNode next;
+	private int nodeUserLevel = USER_LEVEL_TOP;
 
 	private List<RoutineExceptionEdge> thrownExceptions = new ArrayList<RoutineExceptionEdge>();
 
@@ -212,6 +214,14 @@ public class ScriptNode {
 
 	public void setNext(ScriptNode next) {
 		this.next = next;
+	}
+
+	public int getNodeUserLevel() {
+		return nodeUserLevel;
+	}
+
+	public void setNodeUserLevel(int userLevel) {
+		this.nodeUserLevel = userLevel;
 	}
 
 	public void verifyEqual(ScriptNode other) {

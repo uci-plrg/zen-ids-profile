@@ -34,7 +34,7 @@ public class RequestMerge {
 				.equals(outputFiles.getRequestFile().getAbsolutePath());
 		File rightRequestFile = rightDataSource.getRequestFile();
 		File rightEdgeFile = rightDataSource.getRequestEdgeFile();
-		File rightPersistenceFile = rightDataSource.getPersistenceFile();
+		// File rightPersistenceFile = rightDataSource.getPersistenceFile();
 
 		Log.message("Is in place? %b for '%s' vs. '%s'", inPlaceMerge, rightDataSource.getRequestFile(),
 				outputFiles.getRequestFile());
@@ -44,12 +44,12 @@ public class RequestMerge {
 					.getRequestFile().getName() + ".tmp");
 			rightEdgeFile = new File(rightDataSource.getRequestEdgeFile().getParentFile(), rightDataSource
 					.getRequestEdgeFile().getName() + ".tmp");
-			rightPersistenceFile = new File(rightDataSource.getPersistenceFile().getParentFile(), rightDataSource
-					.getPersistenceFile().getName() + ".tmp");
+			// rightPersistenceFile = new File(rightDataSource.getPersistenceFile().getParentFile(), rightDataSource
+			// .getPersistenceFile().getName() + ".tmp");
 			Log.log("Moving right request file to '%s' for in-place merge", rightRequestFile.getAbsolutePath());
 			rightDataSource.getRequestFile().renameTo(rightRequestFile);
 			rightDataSource.getRequestEdgeFile().renameTo(rightEdgeFile);
-			rightDataSource.getPersistenceFile().renameTo(rightPersistenceFile);
+			// rightDataSource.getPersistenceFile().renameTo(rightPersistenceFile);
 		}
 
 		FileOutputStream requestOutput = new FileOutputStream(outputFiles.getRequestFile());
@@ -64,11 +64,14 @@ public class RequestMerge {
 		RequestEdgeParser rightEdgeParser = new RequestEdgeParser(new LittleEndianInputStream(rightEdgeFile),
 				requestEdgeOutput);
 
+		/**
+		 * <pre>
 		FileOutputStream persistenceOutput = new FileOutputStream(outputFiles.getPersistenceFile());
 		PersistenceParser leftPersistenceParser = new PersistenceParser(new FileInputStream(
 				leftDataSource.getPersistenceFile()), persistenceOutput);
 		PersistenceParser rightPersistenceParser = new PersistenceParser(new FileInputStream(rightPersistenceFile),
 				persistenceOutput);
+		 */
 
 		int nextRequestId = 0;
 		leftRequestParser.readRequestStart();
@@ -80,13 +83,13 @@ public class RequestMerge {
 				leftRequestParser.writeNextRequest(nextRequestId);
 				leftRequestParser.readRequestStart();
 				leftEdgeParser.writeNextRequest(nextRequestId);
-				leftPersistenceParser.writeNextRequest();
+				// leftPersistenceParser.writeNextRequest();
 			} else {
 				Log.message("Merge right request");
 				rightRequestParser.writeNextRequest(nextRequestId);
 				rightRequestParser.readRequestStart();
 				rightEdgeParser.writeNextRequest(nextRequestId);
-				rightPersistenceParser.writeNextRequest();
+				// rightPersistenceParser.writeNextRequest();
 			}
 			if (++nextRequestId == Integer.MAX_VALUE) {
 				nextRequestId = 0;

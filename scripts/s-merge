@@ -4,7 +4,7 @@
 
 function print_usage() {
   echo "Usage: s-merge -l <left-graph> -r <right-graph> -o <output-file> "
-  echo "               [ -q <request-count> ]"
+  echo "               [ -m <request-count> ] [ -y <left-is-full-merge> ]"
   echo "               [ -w <watch-list-file> ] [ -c <watch,list,codes> ]"
   exit
 }

@@ -35,7 +35,7 @@ public class ScriptNodeLoader {
 	public void loadNodes(File nodeFile) throws IOException {
 		int routineHash, opcodeField, opcode, extendedValue, lineNumber, nodeIndex = 0;
 		ScriptNode.Type type;
-		ScriptNode node, lastNode = null;
+		ScriptNode node, previousNode = null;
 		ScriptRoutineGraph routine = null;
 		LittleEndianInputStream input = new LittleEndianInputStream(nodeFile);
 
@@ -43,7 +43,7 @@ public class ScriptNodeLoader {
 			routineHash = input.readInt();
 
 			if (routine == null || routine.hash != routineHash) {
-				lastNode = null;
+				previousNode = null;
 				routine = loadContext.getRoutine(routineHash);
 			}
 
@@ -65,9 +65,9 @@ public class ScriptNodeLoader {
 				Log.warn("Skipping node %d with disjoint index %d", routine.getNodeCount(), nodeIndex);
 				continue;
 			}
-			if (lastNode != null)
-				lastNode.setNext(node);
-			lastNode = node;
+			if (previousNode != null)
+				previousNode.setNext(node);
+			previousNode = node;
 
 			Log.message("%s: @%d#%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, lineNumber, opcode,
 					routineHash, node.type);

@@ -96,12 +96,8 @@ public class ScriptRoutineGraph {
 				ScriptNode thisNode = nodes.get(i);
 				ScriptNode otherNode = other.nodes.get(i);
 				thisNode.verifyCompatible(otherNode);
-				if (thisNode.type == Type.BRANCH) {
-					ScriptBranchNode thisBranchNode = (ScriptBranchNode) thisNode;
-					ScriptBranchNode otherBranchNode = (ScriptBranchNode) otherNode;
-					if (otherBranchNode.getBranchUserLevel() > thisBranchNode.getBranchUserLevel())
-						thisBranchNode.setBranchUserLevel(otherBranchNode.getBranchUserLevel());
-				}
+				if (otherNode.getNodeUserLevel() > thisNode.getNodeUserLevel())
+					thisNode.setNodeUserLevel(otherNode.getNodeUserLevel());
 
 			}
 		} else {

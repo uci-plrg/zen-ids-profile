@@ -70,8 +70,8 @@ public class ScriptDatasetLoader {
 			int lineNumber = (nodeId >> 0x10);
 			ScriptNode.Type type = ScriptNode.Type.values()[typeOrdinal];
 			int target = in.readInt();
+			userLevel = shallow ? 0 : (target >>> 26);
 			if (type == Type.BRANCH) {
-				userLevel = shallow ? 0 : (target >>> 26);
 				target = (target & 0x3ffffff);
 				ScriptBranchNode branch = new ScriptBranchNode(routineHash, opcode, i, lineNumber, userLevel);
 				pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(routineHash, branch, target));
@@ -80,6 +80,7 @@ public class ScriptDatasetLoader {
 				ScriptNode node = new ScriptNode(routineHash, type, opcode, lineNumber, i);
 				if (type == Type.CALL || type == Type.EVAL)
 					calls.add(node); // use list seequence instead of `target` pointer
+				node.setNodeUserLevel(userLevel);
 				routine.addNode(node);
 			}
 			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, type);

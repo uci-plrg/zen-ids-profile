@@ -215,6 +215,10 @@ public class ScriptDatasetGenerator {
 					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
 					break;
 			}
+
+			// if (node.getNodeUserLevel() < 0x3f)
+			// System.out.println(String.format("%d in %s", node.getNodeUserLevel(), routine.id.name));
+
 			targetIndex |= (node.getNodeUserLevel() << 26);
 			out.writeInt(targetIndex);
 		}

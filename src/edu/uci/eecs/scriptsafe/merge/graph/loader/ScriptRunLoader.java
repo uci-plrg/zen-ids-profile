@@ -306,7 +306,7 @@ class ScriptRunLoader {
 							pendNodeUserLevel(edge.toIndex, edge.userLevel);
 						} else {
 							branchNode.setTarget(routine.getNode(edge.toIndex));
-							if (edge.toIndex > branchNode.index)
+							if (edge.toIndex > branchNode.index || branchNode.opcode == ScriptNode.Opcode.ZEND_JMP.code)
 								pendNodeUserLevel(edge.toIndex, edge.userLevel);
 						}
 					}
@@ -330,21 +330,21 @@ class ScriptRunLoader {
 
 			Integer pendingUserLevel;
 			int propagatingUserLevel = ScriptNode.USER_LEVEL_TOP;
-			for (ScriptNode node : routine.getNodes()) {
-				pendingUserLevel = pendingNodeUserLevels.get(node.index);
-				if (pendingUserLevel != null && pendingUserLevel < propagatingUserLevel)
-					propagatingUserLevel = pendingUserLevel;
-				if (propagatingUserLevel < node.getNodeUserLevel())
-					node.setNodeUserLevel(propagatingUserLevel);
-				if (node.type == Type.BRANCH) {
-					propagatingUserLevel = ScriptNode.USER_LEVEL_TOP;
+				for (ScriptNode node : routine.getNodes()) {
+					pendingUserLevel = pendingNodeUserLevels.get(node.index);
+					if (pendingUserLevel != null && pendingUserLevel < propagatingUserLevel)
+						propagatingUserLevel = pendingUserLevel;
+					if (propagatingUserLevel < node.getNodeUserLevel())
+						node.setNodeUserLevel(propagatingUserLevel);
+					if (node.type == Type.BRANCH) {
+						propagatingUserLevel = ScriptNode.USER_LEVEL_TOP;
 
-					branchNode = (ScriptBranchNode) node;
-					if (ScriptNode.Opcode.forCode(branchNode.opcode).targetType == OpcodeTargetType.REQUIRED
-							&& branchNode.getTarget() == null) {
-						branchNode.setTarget(branchNode.getNext()); // hack for silly nop JNZ
+						branchNode = (ScriptBranchNode) node;
+						if (ScriptNode.Opcode.forCode(branchNode.opcode).targetType == OpcodeTargetType.REQUIRED
+								&& branchNode.getTarget() == null) {
+							branchNode.setTarget(branchNode.getNext()); // hack for silly nop JNZ
+						}
 					}
-				}
 			}
 
 			for (Set<RawRoutineEdge> edges : rawGraph.routineEdges.values()) {

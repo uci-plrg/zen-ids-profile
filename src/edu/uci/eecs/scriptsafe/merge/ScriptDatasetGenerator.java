@@ -216,8 +216,10 @@ public class ScriptDatasetGenerator {
 					break;
 			}
 
-			// if (node.getNodeUserLevel() < 0x3f)
-			// System.out.println(String.format("%d in %s", node.getNodeUserLevel(), routine.id.name));
+			if (node.getNodeUserLevel() < 0x3f) {
+				Log.log("%d at %04d(L%04d) in %s", node.getNodeUserLevel(), node.index, node.lineNumber,
+						routine.id.name);
+			}
 
 			targetIndex |= (node.getNodeUserLevel() << 26);
 			out.writeInt(targetIndex);

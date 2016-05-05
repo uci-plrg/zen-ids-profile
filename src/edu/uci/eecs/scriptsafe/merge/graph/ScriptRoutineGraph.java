@@ -96,7 +96,7 @@ public class ScriptRoutineGraph {
 				ScriptNode thisNode = nodes.get(i);
 				ScriptNode otherNode = other.nodes.get(i);
 				thisNode.verifyCompatible(otherNode);
-				if (otherNode.getNodeUserLevel() > thisNode.getNodeUserLevel())
+				if (otherNode.getNodeUserLevel() < thisNode.getNodeUserLevel())
 					thisNode.setNodeUserLevel(otherNode.getNodeUserLevel());
 
 			}

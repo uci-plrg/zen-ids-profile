@@ -3,8 +3,8 @@ package edu.uci.eecs.scriptsafe.merge.graph;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
 public class ScriptRoutineGraph {
 
@@ -87,6 +87,10 @@ public class ScriptRoutineGraph {
 	}
 
 	public void mergeRoutine(ScriptRoutineGraph other) {
+		
+		if (hash == 0x214a43f0)
+			Log.log("hm?");
+		
 		if (nodes.size() != other.nodes.size())
 			throw new MergeException("Node counts differ at the same routine hash 0x%x: %d vs. %d!", hash,
 					nodes.size(), other.nodes.size());

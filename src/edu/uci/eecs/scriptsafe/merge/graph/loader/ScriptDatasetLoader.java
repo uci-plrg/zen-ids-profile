@@ -73,7 +73,9 @@ public class ScriptDatasetLoader {
 			userLevel = shallow ? 0 : (target >>> 26);
 			if (type == Type.BRANCH) {
 				target = (target & 0x3ffffff);
-				ScriptBranchNode branch = new ScriptBranchNode(routineHash, opcode, i, lineNumber, userLevel);
+				ScriptBranchNode branch = new ScriptBranchNode(routineHash, opcode, i, lineNumber,
+						ScriptNode.USER_LEVEL_TOP);
+				branch.setNodeUserLevel(userLevel);
 				pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(routineHash, branch, target));
 				routine.addNode(branch);
 			} else {
@@ -97,7 +99,9 @@ public class ScriptDatasetLoader {
 						break;
 					}
 				case REQUIRED:
-					pendingBranch.fromNode.setTarget(routine.getNode(pendingBranch.target));
+					ScriptNode targetNode = routine.getNode(pendingBranch.target);
+					pendingBranch.fromNode.setTarget(targetNode);
+					pendingBranch.fromNode.setBranchUserLevel(targetNode.getNodeUserLevel()); // approximately...
 					break;
 				default:
 					throw new MergeException("Illegal opcode for branch node 0x%x", pendingBranch.fromNode.opcode);

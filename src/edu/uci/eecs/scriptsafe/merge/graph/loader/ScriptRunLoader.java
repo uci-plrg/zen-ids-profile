@@ -16,6 +16,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.RoutineId;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Opcode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.OpcodeTargetType;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
@@ -330,21 +331,27 @@ class ScriptRunLoader {
 
 			Integer pendingUserLevel;
 			int propagatingUserLevel = ScriptNode.USER_LEVEL_TOP;
-				for (ScriptNode node : routine.getNodes()) {
-					pendingUserLevel = pendingNodeUserLevels.get(node.index);
-					if (pendingUserLevel != null && pendingUserLevel < propagatingUserLevel)
-						propagatingUserLevel = pendingUserLevel;
-					if (propagatingUserLevel < node.getNodeUserLevel())
-						node.setNodeUserLevel(propagatingUserLevel);
-					if (node.type == Type.BRANCH) {
-						propagatingUserLevel = ScriptNode.USER_LEVEL_TOP;
+			Opcode nodeOpcode;
+			for (ScriptNode node : routine.getNodes()) {
+				nodeOpcode = ScriptNode.Opcode.forCode(node.opcode);
+				pendingUserLevel = pendingNodeUserLevels.get(node.index);
+				if (pendingUserLevel != null && pendingUserLevel < propagatingUserLevel)
+					propagatingUserLevel = pendingUserLevel;
+				if (propagatingUserLevel < node.getNodeUserLevel())
+					node.setNodeUserLevel(propagatingUserLevel);
+				if (node.type == Type.BRANCH || nodeOpcode.isReturn()) {
+					propagatingUserLevel = ScriptNode.USER_LEVEL_TOP;
 
+					if (node.type == Type.BRANCH) {
 						branchNode = (ScriptBranchNode) node;
-						if (ScriptNode.Opcode.forCode(branchNode.opcode).targetType == OpcodeTargetType.REQUIRED
-								&& branchNode.getTarget() == null) {
-							branchNode.setTarget(branchNode.getNext()); // hack for silly nop JNZ
-						}
+						if (branchNode.opcode == Opcode.ZEND_JMP.code && branchNode.getTargetIndex() > branchNode.index)
+							pendNodeUserLevel(branchNode.getTargetIndex(), branchNode.getNodeUserLevel());
+
+						// hack for silly nop JNZ
+						if (nodeOpcode.targetType == OpcodeTargetType.REQUIRED && branchNode.getTarget() == null)
+							branchNode.setTarget(branchNode.getNext());
 					}
+				}
 			}
 
 			for (Set<RawRoutineEdge> edges : rawGraph.routineEdges.values()) {

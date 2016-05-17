@@ -81,9 +81,6 @@ class ScriptRunLoader {
 			this.toRoutineHash = toRoutineHash;
 			this.toIndex = toIndex;
 			this.userLevel = userLevel;
-
-			if (toRoutineHash >= 0 && toRoutineHash < 0x100)
-				Log.log("hm...");
 		}
 
 		@Override
@@ -266,6 +263,9 @@ class ScriptRunLoader {
 
 			routine = graph.getRoutine(rawGraph.hash);
 			pendingNodeUserLevels.clear();
+			
+			if (routine == null)
+				break;
 
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
 				for (RawOpcodeEdge edge : edges) {

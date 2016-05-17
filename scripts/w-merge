@@ -19,7 +19,7 @@ shift $(( $OPTIND - 1 ))
 if [ ! -f $output_dir/cfg.set ]
 then # starting a new dataset
   echo "Merging $# workers into a new dataset"
-  s-merge -o $output_dir -l $1 -r $2
+  s-merge -o $output_dir -l $2 -r $1 # N.B.: first run is the base!
   [ $? -ne 0 ] && echo "Error, exiting now." && exit
   shift 2
 else

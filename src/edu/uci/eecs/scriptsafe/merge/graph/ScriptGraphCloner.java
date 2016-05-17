@@ -42,9 +42,15 @@ public class ScriptGraphCloner {
 	}
 
 	private void shallowCopy(ScriptRoutineGraph routineOriginal, ScriptRoutineGraph routineCopy) {
+		ScriptNode previousNodeCopy = null;
 		for (int i = 0; i < routineOriginal.getNodeCount(); i++) {
 			ScriptNode nodeOriginal = routineOriginal.getNode(i);
 			ScriptNode nodeCopy = nodeOriginal.copy();
+			
+			if (previousNodeCopy != null)
+				previousNodeCopy.setNext(nodeCopy);
+			previousNodeCopy = nodeCopy;
+			
 			routineCopy.addNode(nodeCopy);
 		}
 	}

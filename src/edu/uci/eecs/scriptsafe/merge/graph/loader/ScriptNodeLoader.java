@@ -41,6 +41,9 @@ public class ScriptNodeLoader {
 
 		while (input.ready(0xc)) {
 			routineHash = input.readInt();
+			
+			if (routineHash == 1)
+				Log.log("entry");
 
 			if (routine == null || routine.hash != routineHash) {
 				previousNode = null;

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.log.Log.FileMode;
@@ -145,18 +146,41 @@ public class ScriptSafeMerge {
 					Files.copy(new FileInputStream(leftOpcodes), Paths.get(outputOpcodes.getPath()));
 				}
 			} else {
-				RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
-				requestMerge.merge(outputFiles);
+				if (isUnityMerge(leftDataSource.getRequestFile(), rightDataSource.getRequestFile(),
+						outputFiles.getRequestFile())) {
+					Files.copy(new FileInputStream(rightDataSource.getRequestFile()),
+							Paths.get(outputFiles.getRequestFile().getPath()), StandardCopyOption.REPLACE_EXISTING);
+					Files.copy(new FileInputStream(rightDataSource.getRequestEdgeFile()),
+							Paths.get(outputFiles.getRequestEdgeFile().getPath()), StandardCopyOption.REPLACE_EXISTING);
+				} else {
+					RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
+					requestMerge.merge(outputFiles);
+				}
 
-				OpcodesMerge opcodesMerge = new OpcodesMerge(leftDataSource.getOpcodesFile(),
-						rightDataSource.getOpcodesFile());
-				opcodesMerge.merge(outputFiles.getOpcodesFile());
+				if (rightDataSource.getOpcodesFile().exists()) {
+					if (!leftDataSource.getOpcodesFile().exists()
+							|| isUnityMerge(leftDataSource.getOpcodesFile(), rightDataSource.getOpcodesFile(),
+									outputFiles.getOpcodesFile())) {
+						Files.copy(new FileInputStream(rightDataSource.getOpcodesFile()),
+								Paths.get(outputFiles.getOpcodesFile().getPath()), StandardCopyOption.REPLACE_EXISTING);
+					} else {
+						OpcodesMerge opcodesMerge = new OpcodesMerge(leftDataSource.getOpcodesFile(),
+								rightDataSource.getOpcodesFile());
+						opcodesMerge.merge(outputFiles.getOpcodesFile());
+					}
+				}
 			}
 
-			CatalogMerge catalogMerge = new CatalogMerge(leftDataSource.getRoutineCatalogFile(),
-					rightDataSource.getRoutineCatalogFile());
-			catalogMerge.merge();
-			catalogMerge.generateCatalog(outputFiles.getRoutineCatalogFile());
+			if (isUnityMerge(leftDataSource.getRoutineCatalogFile(), rightDataSource.getRoutineCatalogFile(),
+					outputFiles.getRoutineCatalogFile())) {
+				Files.copy(new FileInputStream(rightDataSource.getRoutineCatalogFile()),
+						Paths.get(outputFiles.getRoutineCatalogFile().getPath()), StandardCopyOption.REPLACE_EXISTING);
+			} else {
+				CatalogMerge catalogMerge = new CatalogMerge(leftDataSource.getRoutineCatalogFile(),
+						rightDataSource.getRoutineCatalogFile());
+				catalogMerge.merge();
+				catalogMerge.generateCatalog(outputFiles.getRoutineCatalogFile());
+			}
 
 			ScriptDatasetGenerator.DataSource merge;
 			if (isSequentialMerge) {
@@ -185,6 +209,11 @@ public class ScriptSafeMerge {
 		} catch (Throwable t) {
 			Log.log(t);
 		}
+	}
+
+	private boolean isUnityMerge(File left, File right, File out) {
+		return left.getAbsolutePath().equals(right.getAbsolutePath())
+				&& !right.getAbsolutePath().equals(out.getAbsolutePath());
 	}
 
 	private void printUsage() {

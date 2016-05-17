@@ -63,6 +63,7 @@ public class ScriptDatasetLoader {
 				false);
 
 		int nodeCount = in.readInt();
+		ScriptNode node, previousNode = null;
 		for (int i = 0; i < nodeCount; i++) {
 			int nodeId = in.readInt();
 			int opcode = nodeId & 0xff;
@@ -78,13 +79,19 @@ public class ScriptDatasetLoader {
 				branch.setNodeUserLevel(userLevel);
 				pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(routineHash, branch, target));
 				routine.addNode(branch);
+				node = branch;
 			} else {
-				ScriptNode node = new ScriptNode(routineHash, type, opcode, lineNumber, i);
+				node = new ScriptNode(routineHash, type, opcode, lineNumber, i);
 				if (type == Type.CALL || type == Type.EVAL)
 					calls.add(node); // use list seequence instead of `target` pointer
 				node.setNodeUserLevel(userLevel);
 				routine.addNode(node);
 			}
+			
+			if (previousNode != null) 
+				previousNode.setNext(node);
+			previousNode = node;
+				
 			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, type);
 			if (ScriptMergeWatchList.watch(routineHash))
 				Log.log("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, type);

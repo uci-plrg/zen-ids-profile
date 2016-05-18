@@ -54,9 +54,9 @@ public class ScriptBranchNode extends ScriptNode {
 			case ZEND_JMP:
 			case ZEND_BRK:
 			case ZEND_CONT:
-			case ZEND_FE_RESET:
 			case ZEND_FE_FETCH:
 				return false;
+			case ZEND_FE_RESET:
 			case ZEND_JMPZ:
 			case ZEND_JMPNZ:
 			case ZEND_JMPNZ_EX:

@@ -20,8 +20,8 @@ public class ScriptBranchNode extends ScriptNode {
 	}
 
 	public void setTarget(ScriptNode target) {
-		if (target != null && isFallThrough(target.index))
-			throw new MergeException("The branch fall-through is implied and should not be set on the node.");
+		// if (target != null && isFallThrough(target.index))
+		// throw new MergeException("The branch fall-through is implied and should not be set on the node.");
 
 		this.target = target;
 	}

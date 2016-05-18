@@ -12,7 +12,8 @@ public class ScriptBranchNode extends ScriptNode {
 	private int branchUserLevel;
 	private ScriptNode target = null;
 
-	public ScriptBranchNode(int routineHash, Set<TypeFlag> typeFlags, int opcode, int index, int lineNumber, int branchUserLevel) {
+	public ScriptBranchNode(int routineHash, Set<TypeFlag> typeFlags, int opcode, int index, int lineNumber,
+			int branchUserLevel) {
 		super(routineHash, typeFlags, opcode, lineNumber, index);
 
 		this.branchUserLevel = branchUserLevel;
@@ -29,7 +30,7 @@ public class ScriptBranchNode extends ScriptNode {
 	public boolean isFallThrough(int targetIndex) {
 		return (isConditional() && getNext().index == targetIndex);
 	}
-	
+
 	public int getBranchUserLevel() {
 		return branchUserLevel;
 	}
@@ -82,8 +83,10 @@ public class ScriptBranchNode extends ScriptNode {
 		}
 
 		if (target != null) {
-			if (target.index != ((ScriptBranchNode) other).target.index)
-				throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x", index, opcode);
+			if (target.index != ((ScriptBranchNode) other).target.index) {
+				throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x: %d vs. %d",
+						index, opcode, target.index, ((ScriptBranchNode) other).target.index);
+			}
 		}
 	}
 
@@ -103,8 +106,10 @@ public class ScriptBranchNode extends ScriptNode {
 			return;
 
 		if (target != null) {
-			if (target.index != ((ScriptBranchNode) other).target.index)
-				throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x", index, opcode);
+			if (target.index != ((ScriptBranchNode) other).target.index) {
+				throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x: %d vs. %d",
+						index, opcode, target.index, ((ScriptBranchNode) other).target.index);
+			}
 		}
 	}
 

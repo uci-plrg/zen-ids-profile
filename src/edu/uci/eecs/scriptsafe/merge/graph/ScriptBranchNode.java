@@ -20,6 +20,9 @@ public class ScriptBranchNode extends ScriptNode {
 	}
 
 	public void setTarget(ScriptNode target) {
+		if (isFallThrough(target.index))
+			throw new MergeException("The branch fall-through is implied and should not be set on the node.");
+
 		this.target = target;
 	}
 
@@ -66,24 +69,26 @@ public class ScriptBranchNode extends ScriptNode {
 	}
 
 	@Override
-	public void verifyEqual(ScriptNode other) {
-		super.verifyEqual(other);
+	public void verifyEqual(ScriptNode node) {
+		super.verifyEqual(node);
+
+		ScriptBranchNode other = (ScriptBranchNode) node;
 
 		switch (Opcode.forCode(opcode)) {
 			case ZEND_BRK:
 			case ZEND_CONT:
 			case ZEND_CATCH:
-				if (target == null || ((ScriptBranchNode) other).target == null)
+				if (target == null || other.target == null)
 					return;
 		}
 
-		if ((target == null) != (((ScriptBranchNode) other).target == null)) {
+		if ((target == null) != (other.target == null)) {
 			Log.error("Target mismatch for branch node at index %d with opcode 0x%x: %s is null", index, opcode,
 					target == null ? "this.target" : "other.target");
 		}
 
 		if (target != null) {
-			if (target.index != ((ScriptBranchNode) other).target.index) {
+			if (target.index != other.target.index) {
 				throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x: %d vs. %d",
 						index, opcode, target.index, ((ScriptBranchNode) other).target.index);
 			}

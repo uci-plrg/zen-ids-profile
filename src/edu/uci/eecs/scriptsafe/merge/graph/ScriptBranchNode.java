@@ -94,8 +94,9 @@ public class ScriptBranchNode extends ScriptNode {
 				else if (isFallThrough(other.target.index))
 					other.target = this.target;
 				else
-					throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x: %d vs. %d",
-							index, opcode, target.index, ((ScriptBranchNode) other).target.index);
+					throw new MergeException(
+							"Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
+							routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
 			}
 		}
 	}
@@ -124,8 +125,9 @@ public class ScriptBranchNode extends ScriptNode {
 				else if (isFallThrough(other.target.index))
 					other.target = this.target;
 				else
-					throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x: %d vs. %d",
-							index, opcode, target.index, ((ScriptBranchNode) other).target.index);
+					throw new MergeException(
+							"Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
+							routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
 			}
 		}
 	}

@@ -348,8 +348,8 @@ class ScriptRunLoader {
 							pendNodeUserLevel(branchNode.getTargetIndex(), branchNode.getNodeUserLevel());
 
 						// hack for silly nop JNZ
-						if (nodeOpcode.targetType == OpcodeTargetType.REQUIRED && branchNode.getTarget() == null)
-							branchNode.setTarget(branchNode.getNext());
+						// if (nodeOpcode.targetType == OpcodeTargetType.REQUIRED && branchNode.getTarget() == null)
+						// branchNode.setTarget(branchNode.getNext());
 					}
 				}
 			}

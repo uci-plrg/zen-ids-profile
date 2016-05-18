@@ -89,31 +89,43 @@ public class ScriptBranchNode extends ScriptNode {
 
 		if (target != null) {
 			if (target.index != other.target.index) {
-				throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x: %d vs. %d",
-						index, opcode, target.index, ((ScriptBranchNode) other).target.index);
+				if (isFallThrough(target.index))
+					this.target = other.target;
+				else if (isFallThrough(other.target.index))
+					other.target = this.target;
+				else
+					throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x: %d vs. %d",
+							index, opcode, target.index, ((ScriptBranchNode) other).target.index);
 			}
 		}
 	}
 
 	@Override
-	public void verifyCompatible(ScriptNode other) {
-		super.verifyEqual(other);
+	public void verifyCompatible(ScriptNode node) {
+		super.verifyEqual(node);
+
+		ScriptBranchNode other = (ScriptBranchNode) node;
 
 		switch (Opcode.forCode(opcode)) {
 			case ZEND_BRK:
 			case ZEND_CONT:
 			case ZEND_CATCH:
-				if (target == null || ((ScriptBranchNode) other).target == null)
+				if (target == null || other.target == null)
 					return;
 		}
 
-		if ((target == null) != (((ScriptBranchNode) other).target == null))
+		if ((target == null) != (other.target == null))
 			return;
 
 		if (target != null) {
-			if (target.index != ((ScriptBranchNode) other).target.index) {
-				throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x: %d vs. %d",
-						index, opcode, target.index, ((ScriptBranchNode) other).target.index);
+			if (target.index != other.target.index) {
+				if (isFallThrough(target.index))
+					this.target = other.target;
+				else if (isFallThrough(other.target.index))
+					other.target = this.target;
+				else
+					throw new MergeException("Target mismatch for branch node at index %d with opcode 0x%x: %d vs. %d",
+							index, opcode, target.index, ((ScriptBranchNode) other).target.index);
 			}
 		}
 	}

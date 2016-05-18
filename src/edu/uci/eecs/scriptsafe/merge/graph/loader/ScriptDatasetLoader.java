@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
@@ -14,7 +15,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.RoutineId;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.TypeFlag;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
 public class ScriptDatasetLoader {
@@ -67,34 +68,33 @@ public class ScriptDatasetLoader {
 		for (int i = 0; i < nodeCount; i++) {
 			int nodeId = in.readInt();
 			int opcode = nodeId & 0xff;
-			int typeOrdinal = (nodeId >> 8) & 0xff;
+			int typeFlagBits = (nodeId >> 8) & 0xff;
 			int lineNumber = (nodeId >> 0x10);
-			ScriptNode.Type type = ScriptNode.Type.values()[typeOrdinal];
-			int target = in.readInt();
-			userLevel = shallow ? 0 : (target >>> 26);
-			if (type == Type.BRANCH) {
-				target = (target & 0x3ffffff);
-				ScriptBranchNode branch = new ScriptBranchNode(routineHash, opcode, i, lineNumber,
+			Set<ScriptNode.TypeFlag> typeFlags = ScriptNode.TypeFlag.decode(typeFlagBits);
+			int targetIndexField = in.readInt(), targetIndex;
+			in.readInt(); // callTargetsField (ignored--using in-order walk instead)
+			userLevel = shallow ? 0 : (targetIndexField >>> 26);
+			if (typeFlags.contains(TypeFlag.BRANCH)) {
+				targetIndex = (targetIndexField & 0x3ffffff);
+				ScriptBranchNode branch = new ScriptBranchNode(routineHash, typeFlags, opcode, i, lineNumber,
 						ScriptNode.USER_LEVEL_TOP);
-				branch.setNodeUserLevel(userLevel);
-				pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(routineHash, branch, target));
-				routine.addNode(branch);
+				pendingBranches.add(new PendingEdges<ScriptBranchNode, Integer>(routineHash, branch, targetIndex));
 				node = branch;
 			} else {
-				node = new ScriptNode(routineHash, type, opcode, lineNumber, i);
-				if (type == Type.CALL || type == Type.EVAL)
-					calls.add(node); // use list seequence instead of `target` pointer
-				node.setNodeUserLevel(userLevel);
-				routine.addNode(node);
+				node = new ScriptNode(routineHash, typeFlags, opcode, lineNumber, i);
 			}
-			
-			if (previousNode != null) 
+			if (typeFlags.contains(TypeFlag.CALL) || typeFlags.contains(TypeFlag.EVAL))
+				calls.add(node); // use list seequence instead of `target` pointer
+			node.setNodeUserLevel(userLevel);
+			routine.addNode(node);
+
+			if (previousNode != null)
 				previousNode.setNext(node);
 			previousNode = node;
-				
-			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, type);
+
+			Log.message("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, typeFlags);
 			if (ScriptMergeWatchList.watch(routineHash))
-				Log.log("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, type);
+				Log.log("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), i, opcode, routineHash, typeFlags);
 		}
 
 		for (PendingEdges<ScriptBranchNode, Integer> pendingBranch : pendingBranches) {
@@ -116,53 +116,47 @@ public class ScriptDatasetLoader {
 		}
 
 		for (ScriptNode call : calls) {
-			switch (call.type) {
-				case CALL: {
-					int callCount = in.readInt();
-					for (int i = 0; i < callCount; i++) {
-						routineHash = in.readInt();
-						targetNodeIndex = in.readInt();
-						userLevel = (targetNodeIndex >>> 26);
-						targetNodeIndex = (targetNodeIndex & 0x3ffffff);
+			if (call.typeFlags.contains(TypeFlag.CALL)) {
+				int callCount = in.readInt();
+				for (int i = 0; i < callCount; i++) {
+					routineHash = in.readInt();
+					targetNodeIndex = in.readInt();
+					userLevel = (targetNodeIndex >>> 26);
+					targetNodeIndex = (targetNodeIndex & 0x3ffffff);
 
-						if (!shallow) {
-							if (ScriptMergeWatchList.watchAny(routine.hash, call.index)
-									|| ScriptMergeWatchList.watch(routineHash)) {
-								Log.log("Loader added routine edge to the dataset graph: 0x%x %d -%s-> 0x%x",
-										routine.hash, call.index, RoutineEdge.printUserLevel(userLevel), routineHash);
-							}
+					if (!shallow) {
+						if (ScriptMergeWatchList.watchAny(routine.hash, call.index)
+								|| ScriptMergeWatchList.watch(routineHash)) {
+							Log.log("Loader added routine edge to the dataset graph: 0x%x %d -%s-> 0x%x", routine.hash,
+									call.index, RoutineEdge.printUserLevel(userLevel), routineHash);
+						}
 
-							if (targetNodeIndex == 0) {
-								graph.edges.addCallEdge(routine.hash, call, routineHash, userLevel);
-							} else {
-								graph.edges.addExceptionEdge(routine.hash, call, routineHash, targetNodeIndex,
-										userLevel);
-							}
+						if (targetNodeIndex == 0) {
+							graph.edges.addCallEdge(routine.hash, call, routineHash, userLevel);
+						} else {
+							graph.edges.addExceptionEdge(routine.hash, call, routineHash, targetNodeIndex, userLevel);
 						}
 					}
 				}
-					break;
-				case EVAL: {
-					dynamicRoutineCount = in.readInt();
-					for (int i = 0; i < dynamicRoutineCount; i++) {
-						dynamicRoutineId = in.readInt();
-						targetNodeIndex = in.readInt();
-						userLevel = (targetNodeIndex >>> 26);
-						targetNodeIndex = (targetNodeIndex & 0x3ffffff);
+			} else {
+				dynamicRoutineCount = in.readInt();
+				for (int i = 0; i < dynamicRoutineCount; i++) {
+					dynamicRoutineId = in.readInt();
+					targetNodeIndex = in.readInt();
+					userLevel = (targetNodeIndex >>> 26);
+					targetNodeIndex = (targetNodeIndex & 0x3ffffff);
 
-						if (!shallow) {
-							if (targetNodeIndex == 0) {
-								graph.edges.addCallEdge(routine.hash, call,
-										ScriptRoutineGraph.constructDynamicHash(dynamicRoutineId), userLevel);
-							} else {
-								graph.edges.addExceptionEdge(routine.hash, call,
-										ScriptRoutineGraph.constructDynamicHash(dynamicRoutineId), targetNodeIndex,
-										userLevel);
-							}
+					if (!shallow) {
+						if (targetNodeIndex == 0) {
+							graph.edges.addCallEdge(routine.hash, call,
+									ScriptRoutineGraph.constructDynamicHash(dynamicRoutineId), userLevel);
+						} else {
+							graph.edges.addExceptionEdge(routine.hash, call,
+									ScriptRoutineGraph.constructDynamicHash(dynamicRoutineId), targetNodeIndex,
+									userLevel);
 						}
 					}
 				}
-					break;
 			}
 		}
 

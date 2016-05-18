@@ -1,5 +1,7 @@
 package edu.uci.eecs.scriptsafe.merge.graph;
 
+import java.util.Set;
+
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 
@@ -10,8 +12,8 @@ public class ScriptBranchNode extends ScriptNode {
 	private int branchUserLevel;
 	private ScriptNode target = null;
 
-	public ScriptBranchNode(int routineHash, int opcode, int index, int lineNumber, int branchUserLevel) {
-		super(routineHash, Type.BRANCH, opcode, lineNumber, index);
+	public ScriptBranchNode(int routineHash, Set<TypeFlag> typeFlags, int opcode, int index, int lineNumber, int branchUserLevel) {
+		super(routineHash, typeFlags, opcode, lineNumber, index);
 
 		this.branchUserLevel = branchUserLevel;
 	}
@@ -108,6 +110,6 @@ public class ScriptBranchNode extends ScriptNode {
 
 	@Override
 	public ScriptNode copy() {
-		return new ScriptBranchNode(routineHash, opcode, index, lineNumber, branchUserLevel);
+		return new ScriptBranchNode(routineHash, typeFlags, opcode, index, lineNumber, branchUserLevel);
 	}
 }

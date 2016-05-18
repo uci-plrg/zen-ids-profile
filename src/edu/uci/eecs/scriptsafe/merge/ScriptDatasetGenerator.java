@@ -13,6 +13,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineExceptionEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.TypeFlag;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
 public class ScriptDatasetGenerator {
@@ -176,92 +177,81 @@ public class ScriptDatasetGenerator {
 		}
 	}
 
+	private int getEdgeSpace(ScriptNode node) {
+		return (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
+	}
+
 	private void writeRoutineData(ScriptRoutineGraph routine) throws IOException {
 		List<ScriptNode> calls = new ArrayList<ScriptNode>();
-		int targetIndex = 0;
+		int targetIndexField = 0, callTargetsField = 0;
 		out.writeInt(routine.hash);
 		out.writeInt(routine.getNodeCount());
-		callTargetPtr = filePtr + (2 + (routine.getNodeCount() * 2));
+		int nodeSpace = (2/*accounts for the previous 2 lines*/ + (routine.getNodeCount() * 3));
+		callTargetPtr = filePtr + nodeSpace;
 
 		for (int i = 0; i < routine.getNodeCount(); i++) {
 			ScriptNode node = routine.getNode(i);
-			int nodeId = (node.lineNumber << 0x10) | (node.type.ordinal() << 8) | node.opcode;
+			int nodeId = (node.lineNumber << 0x10) | (TypeFlag.encode(node.typeFlags) << 8) | node.opcode;
 			out.writeInt(nodeId);
 
-			switch (node.type) {
-				case NORMAL:
-					targetIndex = 0;
-					break;
-				case BRANCH:
-					ScriptBranchNode branch = (ScriptBranchNode) node;
-					targetIndex = branch.getTargetIndex();
-					break;
-				case CALL:
-					calls.add(node);
-					targetIndex = callTargetPtr;
-					if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {
-						Log.log("Reserved %d call targets for 0x%x %d at 0x%x", dataSource.getOutgoingEdgeCount(node),
-								routine.hash, node.index, callTargetPtr);
-					}
-					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
-					break;
-				case EVAL:
-					calls.add(node);
-					targetIndex = callTargetPtr;
-					if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {
-						Log.log("Dataset generator reserved %d exception targets for 0x%x %d at 0x%x",
-								dataSource.getOutgoingEdgeCount(node), routine.hash, node.index, callTargetPtr);
-					}
-					callTargetPtr += (1 + (2 * dataSource.getOutgoingEdgeCount(node)));
-					break;
+			targetIndexField = 0;
+			if (node.typeFlags.contains(TypeFlag.BRANCH)) {
+				ScriptBranchNode branch = (ScriptBranchNode) node;
+				targetIndexField = branch.getTargetIndex();
 			}
-
+			targetIndexField |= (node.getNodeUserLevel() << 26);
 			if (node.getNodeUserLevel() < 0x3f) {
-				Log.log("%d at %04d(L%04d) in %s", node.getNodeUserLevel(), node.index, node.lineNumber,
+				Log.message("%d at %04d(L%04d) in %s", node.getNodeUserLevel(), node.index, node.lineNumber,
 						routine.id.name);
 			}
+			out.writeInt(targetIndexField);
 
-			targetIndex |= (node.getNodeUserLevel() << 26);
-			out.writeInt(targetIndex);
+			callTargetsField = 0;
+			if (node.typeFlags.contains(TypeFlag.EVAL) | node.typeFlags.contains(TypeFlag.CALL)) {
+				calls.add(node);
+				callTargetsField = callTargetPtr;
+				if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {
+					Log.log("Dataset generator reserved %d exception targets for 0x%x %d at 0x%x",
+							dataSource.getOutgoingEdgeCount(node), routine.hash, node.index, callTargetPtr);
+				}
+				callTargetPtr += getEdgeSpace(node);
+			}
+			out.writeInt(callTargetsField);
 		}
-		filePtr += (2 + (routine.getNodeCount() * 2));
+		filePtr += nodeSpace;
 
 		for (ScriptNode call : calls) {
-			switch (call.type) {
-				case CALL: {
-					out.writeInt(dataSource.getOutgoingEdgeCount(call));
-					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
-						out.writeInt(target.getToRoutineHash());
-						if (target.getEntryType() == Type.CALL)
-							targetIndex = 0; // routine entry point
-						else
-							targetIndex = ((RoutineExceptionEdge) target).getToRoutineIndex();
-						targetIndex |= (target.getUserLevel() << 26); // sign?
-						out.writeInt(targetIndex);
+			if (call.typeFlags.contains(TypeFlag.CALL)) {
+				out.writeInt(dataSource.getOutgoingEdgeCount(call));
+				for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
+					out.writeInt(target.getToRoutineHash());
+					if (target.getEntryType() == Type.CALL)
+						targetIndexField = 0; // routine entry point
+					else
+						targetIndexField = ((RoutineExceptionEdge) target).getToRoutineIndex();
+					targetIndexField |= (target.getUserLevel() << 26); // sign?
+					out.writeInt(targetIndexField);
 
-						if (ScriptMergeWatchList.watchAny(routine.hash, call.index)
-								|| ScriptMergeWatchList.watch(target.getToRoutineHash())) {
-							Log.log("Wrote edge [%s -> %s] with user level %d as [ -> 0x%x 0x%x] at offset 0x%x",
-									target.printFromNode(), target.printToNode(), target.getUserLevel(),
-									target.getToRoutineHash(), targetIndex, filePtr);
-						}
+					if (ScriptMergeWatchList.watchAny(routine.hash, call.index)
+							|| ScriptMergeWatchList.watch(target.getToRoutineHash())) {
+						Log.log("Wrote edge [%s -> %s] with user level %d as [ -> 0x%x 0x%x] at offset 0x%x",
+								target.printFromNode(), target.printToNode(), target.getUserLevel(),
+								target.getToRoutineHash(), targetIndexField, filePtr);
 					}
-					filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
 				}
-					break;
-				case EVAL: {
-					out.writeInt(dataSource.getOutgoingEdgeCount(call));
-					for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
-						out.writeInt(ScriptRoutineGraph.getDynamicRoutineIndex(target.getToRoutineHash()));
-						if (target.getEntryType() == Type.CALL)
-							targetIndex = 0; // routine entry point
-						else
-							targetIndex = ((RoutineExceptionEdge) target).getToRoutineIndex();
-						targetIndex |= (target.getUserLevel() << 26); // sign?
-						out.writeInt(targetIndex);
-					}
-					filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
+				filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
+			} else if (call.typeFlags.contains(TypeFlag.EVAL)) {
+				out.writeInt(dataSource.getOutgoingEdgeCount(call));
+				for (RoutineEdge target : dataSource.getOutgoingEdges(call)) {
+					out.writeInt(ScriptRoutineGraph.getDynamicRoutineIndex(target.getToRoutineHash()));
+					if (target.getEntryType() == Type.CALL)
+						targetIndexField = 0; // routine entry point
+					else
+						targetIndexField = ((RoutineExceptionEdge) target).getToRoutineIndex();
+					targetIndexField |= (target.getUserLevel() << 26); // sign?
+					out.writeInt(targetIndexField);
 				}
+				filePtr += (1 + (2 * dataSource.getOutgoingEdgeCount(call)));
 			}
 		}
 	}

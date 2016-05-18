@@ -3,17 +3,40 @@ package edu.uci.eecs.scriptsafe.merge.graph;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.MergeException;
 
 public class ScriptNode {
 
-	public enum Type {
-		NORMAL,
-		BRANCH,
-		CALL,
-		EVAL;
+	public enum TypeFlag {
+		BRANCH(0x1),
+		CALL(0x2),
+		EVAL(0x4);
+
+		private int bit;
+
+		private TypeFlag(int bit) {
+			this.bit = bit;
+		}
+
+		public static int encode(Set<TypeFlag> flags) {
+			int bits = 0;
+			for (TypeFlag flag : flags) {
+				bits |= flag.bit;
+			}
+			return bits;
+		}
+
+		public static Set<TypeFlag> decode(int bits) {
+			Set<ScriptNode.TypeFlag> typeFlags = EnumSet.noneOf(ScriptNode.TypeFlag.class);
+			for (TypeFlag flag : TypeFlag.values()) {
+				if ((flag.bit & bits) == flag.bit)
+					typeFlags.add(flag);
+			}
+			return typeFlags;
+		}
 	}
 
 	private enum SubscriptType {
@@ -70,12 +93,20 @@ public class ScriptNode {
 		ZEND_FE_FETCH(0x4e, OpcodeTargetType.REQUIRED),
 		ZEND_FETCH_DIM_R(0x51, OpcodeTargetType.NONE),
 		ZEND_FETCH_OBJ_R(0x52, OpcodeTargetType.EXTERNAL),
+		ZEND_FETCH_DIM_W(0x54, OpcodeTargetType.NONE),
 		ZEND_FETCH_OBJ_W(0x55, OpcodeTargetType.EXTERNAL),
+		ZEND_FETCH_DIM_RW(0x57, OpcodeTargetType.NONE),
 		ZEND_FETCH_OBJ_RW(0x58, OpcodeTargetType.EXTERNAL),
+		ZEND_FETCH_DIM_IS(0x5a, OpcodeTargetType.NONE),
 		ZEND_FETCH_OBJ_IS(0x5b, OpcodeTargetType.EXTERNAL),
 		ZEND_FETCH_DIM_FUNC_ARG(0x5d, OpcodeTargetType.NONE),
+		ZEND_FETCH_OBJ_FUNC_ARG(0x5e, OpcodeTargetType.NONE),
+		ZEND_FETCH_DIM_UNSET(0x60, OpcodeTargetType.EXTERNAL),
 		ZEND_FETCH_OBJ_UNSET(0x61, OpcodeTargetType.EXTERNAL),
+		ZEND_FETCH_CONSTANT(0x63, OpcodeTargetType.NONE),
 		ZEND_SEND_VAR_NO_REF(0x6a, OpcodeTargetType.NONE),
+		ZEND_THROW(0x6c, OpcodeTargetType.NONE),
+		ZEND_FETCH_CLASS(0x6d, OpcodeTargetType.NONE),
 		ZEND_CATCH(0x6b, OpcodeTargetType.NULLABLE), // may branch to next catch
 		ZEND_RETURN_BY_REF(0x6f, OpcodeTargetType.NONE),
 		ZEND_INIT_METHOD_CALL(0x70, OpcodeTargetType.NONE),
@@ -85,9 +116,10 @@ public class ScriptNode {
 		ZEND_SEND_VAR_EX(0x75, OpcodeTargetType.NONE),
 		ZEND_INIT_USER_CALL(0x76, OpcodeTargetType.NONE),
 		ZEND_ASSIGN_OBJ(0x88, OpcodeTargetType.EXTERNAL),
+		ZEND_ADD_INTERFACE(0x90, OpcodeTargetType.NONE),
+		ZEND_ASSIGN_DIM(0x93, OpcodeTargetType.NONE),
 		ZEND_ISSET_ISEMPTY_PROP_OBJ(0x94, OpcodeTargetType.EXTERNAL), // may call an accessor
 		ZEND_JMP_SET(0x98, OpcodeTargetType.REQUIRED),
-		ZEND_ASSIGN_DIM(0x93, OpcodeTargetType.NONE),
 		ZEND_FAST_RET(0xa3, OpcodeTargetType.NONE),
 		OTHER(-1, OpcodeTargetType.NONE);
 
@@ -98,7 +130,7 @@ public class ScriptNode {
 			this.code = code;
 			this.targetType = targetType;
 		}
-		
+
 		public boolean isReturn() {
 			switch (this) {
 				case ZEND_RETURN:
@@ -118,25 +150,11 @@ public class ScriptNode {
 		}
 	}
 
-	public static Type identifyType(int opcodeValue, int extendedValue) {
+	public static Set<TypeFlag> identifyTypes(int opcodeValue, int extendedValue) {
+		Set<TypeFlag> flags = EnumSet.noneOf(TypeFlag.class);
 		Opcode opcode = Opcode.forCode(opcodeValue);
 		if (opcode != null) {
 			switch (opcode) {
-				case ZEND_INCLUDE_OR_EVAL:
-					if (SubscriptType.forFlag(extendedValue) == SubscriptType.EVAL)
-						return Type.EVAL;
-					else
-						return Type.CALL;
-				case ZEND_DO_FCALL:
-				case ZEND_FETCH_OBJ_R:
-				case ZEND_FETCH_OBJ_W:
-				case ZEND_FETCH_OBJ_RW:
-				case ZEND_FETCH_OBJ_IS:
-				case ZEND_FETCH_OBJ_UNSET:
-				case ZEND_ISSET_ISEMPTY_DIM_OBJ:
-				case ZEND_ASSIGN_OBJ:
-				case ZEND_ISSET_ISEMPTY_PROP_OBJ:
-					return Type.CALL;
 				case ZEND_JMP:
 				case ZEND_JMPZ:
 				case ZEND_JMPNZ:
@@ -148,11 +166,47 @@ public class ScriptNode {
 				case ZEND_FE_RESET:
 				case ZEND_FE_FETCH:
 				case ZEND_CATCH:
-					return Type.BRANCH;
+					flags.add(TypeFlag.BRANCH);
+					break;
 				default:
 			}
+			switch (opcode) {
+				case ZEND_DO_FCALL:
+				case ZEND_INIT_FCALL:
+				case ZEND_THROW:
+				case ZEND_NEW:
+				case ZEND_INIT_NS_FCALL_BY_NAME:
+				case ZEND_INCLUDE_OR_EVAL:
+				case ZEND_FE_RESET:
+				case ZEND_FE_FETCH:
+				case ZEND_FETCH_DIM_R:
+				case ZEND_FETCH_OBJ_R:
+				case ZEND_FETCH_DIM_W:
+				case ZEND_FETCH_OBJ_W:
+				case ZEND_FETCH_DIM_RW:
+				case ZEND_FETCH_OBJ_RW:
+				case ZEND_FETCH_DIM_IS:
+				case ZEND_FETCH_OBJ_IS:
+				case ZEND_FETCH_DIM_FUNC_ARG:
+				case ZEND_FETCH_OBJ_FUNC_ARG:
+				case ZEND_FETCH_DIM_UNSET:
+				case ZEND_FETCH_OBJ_UNSET:
+				case ZEND_FETCH_CONSTANT:
+				case ZEND_FETCH_CLASS:
+				case ZEND_INIT_METHOD_CALL:
+				case ZEND_INIT_STATIC_METHOD_CALL:
+				case ZEND_ISSET_ISEMPTY_DIM_OBJ:
+				case ZEND_ASSIGN_OBJ:
+				case ZEND_ADD_INTERFACE:
+				case ZEND_ASSIGN_DIM:
+				case ZEND_ISSET_ISEMPTY_PROP_OBJ:
+					flags.add(TypeFlag.CALL);
+				default:
+			}
+			if (opcode == Opcode.ZEND_INCLUDE_OR_EVAL && SubscriptType.forFlag(extendedValue) == SubscriptType.EVAL)
+				flags.add(TypeFlag.EVAL);
 		}
-		return Type.NORMAL;
+		return flags;
 	}
 
 	public static boolean isCallInit(int opcode) {
@@ -195,7 +249,7 @@ public class ScriptNode {
 	public static final int USER_LEVEL_TOP = 0x3f;
 
 	public final int routineHash;
-	public final Type type;
+	public final Set<TypeFlag> typeFlags;
 	public final int opcode; // TODO: use Opcode
 	public final int lineNumber;
 	public final int index;
@@ -205,16 +259,16 @@ public class ScriptNode {
 
 	private List<RoutineExceptionEdge> thrownExceptions = new ArrayList<RoutineExceptionEdge>();
 
-	public ScriptNode(int routineHash, Type type, int opcode, int lineNumber, int index) {
+	public ScriptNode(int routineHash, Set<TypeFlag> typeFlags, int opcode, int lineNumber, int index) {
 		this.routineHash = routineHash;
-		this.type = type;
+		this.typeFlags = typeFlags;
 		this.opcode = opcode;
 		this.lineNumber = lineNumber;
 		this.index = index;
 	}
 
 	public ScriptNode copy() {
-		return new ScriptNode(routineHash, type, opcode, lineNumber, index);
+		return new ScriptNode(routineHash, typeFlags, opcode, lineNumber, index);
 	}
 
 	public ScriptNode getNext() {
@@ -234,9 +288,6 @@ public class ScriptNode {
 	}
 
 	public void verifyEqual(ScriptNode other) {
-		if (type != other.type) {
-			throw new MergeException("Matching nodes have differing type: %s vs. %s", type, other.type);
-		}
 		if (index != other.index) {
 			throw new MergeException("Matching nodes have differing index: %d vs. %d", index, other.index);
 		}
@@ -251,7 +302,7 @@ public class ScriptNode {
 	}
 
 	public boolean isEqual(ScriptNode other) {
-		return (type == other.type && index == other.index && opcode == other.opcode);
+		return (index == other.index && opcode == other.opcode);
 	}
 
 	public void addThrownException(RoutineExceptionEdge throwEdge) {

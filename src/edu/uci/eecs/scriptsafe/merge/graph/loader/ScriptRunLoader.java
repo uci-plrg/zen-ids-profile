@@ -18,7 +18,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.ScriptFlowGraph;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Opcode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.OpcodeTargetType;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.TypeFlag;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
 class ScriptRunLoader {
@@ -263,7 +263,7 @@ class ScriptRunLoader {
 
 			routine = graph.getRoutine(rawGraph.hash);
 			pendingNodeUserLevels.clear();
-			
+
 			if (routine == null)
 				break;
 
@@ -339,10 +339,10 @@ class ScriptRunLoader {
 					propagatingUserLevel = pendingUserLevel;
 				if (propagatingUserLevel < node.getNodeUserLevel())
 					node.setNodeUserLevel(propagatingUserLevel);
-				if (node.type == Type.BRANCH || nodeOpcode.isReturn()) {
+				if (node.typeFlags.contains(TypeFlag.BRANCH) || nodeOpcode.isReturn()) {
 					propagatingUserLevel = ScriptNode.USER_LEVEL_TOP;
 
-					if (node.type == Type.BRANCH) {
+					if (node.typeFlags.contains(TypeFlag.BRANCH)) {
 						branchNode = (ScriptBranchNode) node;
 						if (branchNode.opcode == Opcode.ZEND_JMP.code && branchNode.getTargetIndex() > branchNode.index)
 							pendNodeUserLevel(branchNode.getTargetIndex(), branchNode.getNodeUserLevel());

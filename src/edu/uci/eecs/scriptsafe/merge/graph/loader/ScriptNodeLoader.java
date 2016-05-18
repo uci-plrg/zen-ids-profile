@@ -2,14 +2,15 @@ package edu.uci.eecs.scriptsafe.merge.graph.loader;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.TypeFlag;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
-import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.Type;
 
 public class ScriptNodeLoader {
 
@@ -34,14 +35,14 @@ public class ScriptNodeLoader {
 
 	public void loadNodes(File nodeFile) throws IOException {
 		int routineHash, opcodeField, opcode, extendedValue, lineNumber, nodeIndex = 0;
-		ScriptNode.Type type;
+		Set<TypeFlag> typeFlags;
 		ScriptNode node, previousNode = null;
 		ScriptRoutineGraph routine = null;
 		LittleEndianInputStream input = new LittleEndianInputStream(nodeFile);
 
 		while (input.ready(0xc)) {
 			routineHash = input.readInt();
-			
+
 			if (routineHash == 1)
 				Log.log("entry");
 
@@ -59,11 +60,11 @@ public class ScriptNodeLoader {
 			opcode = opcodeField & 0xff;
 			extendedValue = (opcodeField >> 8) & 0xff;
 			lineNumber = opcodeField >> 0x10;
-			type = ScriptNode.identifyType(opcode, extendedValue);
+			typeFlags = ScriptNode.identifyTypes(opcode, extendedValue);
 
 			// parse out extended value for include/eval nodes
 			nodeIndex = input.readInt();
-			node = createNode(routineHash, opcode, type, lineNumber, nodeIndex);
+			node = createNode(routineHash, opcode, typeFlags, lineNumber, nodeIndex);
 			if (nodeIndex > routine.getNodeCount()) {
 				Log.warn("Skipping node %d with disjoint index %d", routine.getNodeCount(), nodeIndex);
 				continue;
@@ -73,10 +74,10 @@ public class ScriptNodeLoader {
 			previousNode = node;
 
 			Log.message("%s: @%d#%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, lineNumber, opcode,
-					routineHash, node.type);
+					routineHash, node.typeFlags);
 			if (ScriptMergeWatchList.watch(routineHash)) {
 				Log.log("%s: @%d Opcode 0x%x (%x) [%s]", getClass().getSimpleName(), nodeIndex, opcode, routineHash,
-						node.type);
+						node.typeFlags);
 			}
 
 			routine.addNode(node);
@@ -87,13 +88,13 @@ public class ScriptNodeLoader {
 		input.close();
 	}
 
-	private ScriptNode createNode(int routineHash, int opcode, ScriptNode.Type type, int lineNumber, int index) {
-		if (type == Type.BRANCH) {
+	private ScriptNode createNode(int routineHash, int opcode, Set<TypeFlag> typeFlags, int lineNumber, int index) {
+		if (typeFlags.contains(TypeFlag.BRANCH)) {
 			int userLevel = (index >>> 26);
-			index = (index & 0x3ffffff);
-			return new ScriptBranchNode(routineHash, opcode, index, lineNumber, userLevel);
+			index = (index & 0xfff);
+			return new ScriptBranchNode(routineHash, typeFlags, opcode, index, lineNumber, userLevel);
 		} else {
-			return new ScriptNode(routineHash, type, opcode, lineNumber, index);
+			return new ScriptNode(routineHash, typeFlags, opcode, lineNumber, index);
 		}
 	}
 }

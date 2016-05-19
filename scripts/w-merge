@@ -18,8 +18,23 @@ shift $(( $OPTIND - 1 ))
 
 if [ ! -f $output_dir/cfg.set ]
 then # starting a new dataset
+  for d in "${@}"
+  do
+    shift # N.B.: first run is the base!
+    [ -s $d/request.tab ] && right=$d && break
+  done
+
+  for d in "${@}"
+  do
+    shift
+    [ -s $d/request.tab ] && left=$d && break
+  done
+
+  [ -z "$left" ] && left=$right
+  [ -z "$right" ] && echo "Failed to find a non-empty run. Exiting with nothing to do." && exit
+
   echo "Merging $# workers into a new dataset"
-  s-merge -o $output_dir -l $2 -r $1 # N.B.: first run is the base!
+  s-merge -o $output_dir -l $left -r $right 
   [ $? -ne 0 ] && echo "Error, exiting now." && exit
   shift 2
 else

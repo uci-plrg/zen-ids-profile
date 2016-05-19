@@ -80,6 +80,7 @@ public class ScriptBranchNode extends ScriptNode {
 			case ZEND_CATCH:
 				if (target == null || other.target == null)
 					return;
+			default:
 		}
 
 		if ((target == null) != (other.target == null)) {
@@ -88,15 +89,11 @@ public class ScriptBranchNode extends ScriptNode {
 		}
 
 		if (target != null) {
-			if (target.index != other.target.index) {
-				if (isFallThrough(target.index))
-					this.target = other.target;
-				else if (isFallThrough(other.target.index))
-					other.target = this.target;
-				else
-					throw new MergeException(
-							"Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
-							routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
+			if (target.index != other.target.index
+					&& !(isFallThrough(target.index) || isFallThrough(other.target.index))) {
+				throw new MergeException(
+						"Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
+						routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
 			}
 		}
 	}
@@ -113,21 +110,18 @@ public class ScriptBranchNode extends ScriptNode {
 			case ZEND_CATCH:
 				if (target == null || other.target == null)
 					return;
+			default:
 		}
 
 		if ((target == null) != (other.target == null))
 			return;
 
 		if (target != null) {
-			if (target.index != other.target.index) {
-				if (isFallThrough(target.index))
-					this.target = other.target;
-				else if (isFallThrough(other.target.index))
-					other.target = this.target;
-				else
-					throw new MergeException(
-							"Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
-							routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
+			if (target.index != other.target.index
+					&& !(isFallThrough(target.index) || isFallThrough(other.target.index))) {
+				throw new MergeException(
+						"Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
+						routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
 			}
 		}
 	}

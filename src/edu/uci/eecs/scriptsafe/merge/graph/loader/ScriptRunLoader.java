@@ -272,10 +272,10 @@ class ScriptRunLoader {
 					if (routine == null) {
 						Log.warn("Cannot find routine for hash 0x%x. Skipping it.", edge.routineHash);
 						continue;
-					} else if (edge.fromIndex > routine.getNodeCount()) {
+					} else if (edge.fromIndex >= routine.getNodeCount()) {
 						Log.warn(
-								"Edge originates at a non-existent node with index %d in a routine of size %d. Skipping it.",
-								edge.fromIndex, routine.getNodeCount());
+								"Edge originates at a non-existent node with index %d in routine 0x%x of size %d. Skipping it.",
+								edge.fromIndex, edge.routineHash, routine.getNodeCount());
 						continue;
 					} else {
 						fromNode = routine.getNode(edge.fromIndex);
@@ -300,8 +300,8 @@ class ScriptRunLoader {
 					branchNode = (ScriptBranchNode) routine.getNode(edge.fromIndex);
 					if (edge.toIndex > routine.getNodeCount()) {
 						Log.warn(
-								"Edge points to a non-existent node with index %d in a routine of size %d. Skipping it.",
-								edge.toIndex, routine.getNodeCount());
+								"Edge points to a non-existent node with index %d in a routine 0x%x size %d. Skipping it.",
+								edge.toIndex, routine.hash, routine.getNodeCount());
 					} else {
 						if (branchNode.isFallThrough(edge.toIndex)) {
 							pendNodeUserLevel(edge.toIndex, edge.userLevel);
@@ -318,8 +318,8 @@ class ScriptRunLoader {
 
 					if (edge.toIndex > routine.getNodeCount()) {
 						Log.warn(
-								"Edge points to a non-existent node with index %d in a routine of size %d. Skipping it.",
-								edge.toIndex, routine.getNodeCount());
+								"Edge points to a non-existent node with index %d in routine 0x%x of size %d. Skipping it.",
+								edge.toIndex, routine.hash, routine.getNodeCount());
 					} else {
 						if (routine.getNode(edge.toIndex).index != edge.toIndex) {
 							throw new MergeException("Incorrect node index: expected %d but found %d", edge.toIndex,
@@ -348,8 +348,8 @@ class ScriptRunLoader {
 							pendNodeUserLevel(branchNode.getTargetIndex(), branchNode.getNodeUserLevel());
 
 						// hack for silly nop JNZ
-						// if (nodeOpcode.targetType == OpcodeTargetType.REQUIRED && branchNode.getTarget() == null)
-						// branchNode.setTarget(branchNode.getNext());
+//						if (nodeOpcode.targetType == OpcodeTargetType.REQUIRED && branchNode.getTarget() == null)
+//							branchNode.setTarget(branchNode.getNext());
 					}
 				}
 			}

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.scriptsafe.merge.MergeException;
 import edu.uci.eecs.scriptsafe.merge.ScriptMergeWatchList;
 
 public class GraphEdgeSet {
@@ -102,6 +103,9 @@ public class GraphEdgeSet {
 
 	public AddEdgeResult addCallEdge(int fromRoutineHash, ScriptNode fromNode, int toRoutineHash, int userLevel,
 			boolean evaluating) {
+		if (fromNode == null)
+			throw new MergeException("Cannot create a routine edge from a missing from node.");
+		
 		List<RoutineEdge> nodeOutgoing = outgoingEdges.get(fromNode);
 		if (nodeOutgoing == null) {
 			nodeOutgoing = new ArrayList<RoutineEdge>();

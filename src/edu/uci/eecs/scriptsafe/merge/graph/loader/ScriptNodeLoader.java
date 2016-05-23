@@ -66,7 +66,8 @@ public class ScriptNodeLoader {
 			nodeIndex = input.readInt();
 			node = createNode(routineHash, opcode, typeFlags, lineNumber, nodeIndex);
 			if (nodeIndex > routine.getNodeCount()) {
-				Log.warn("Skipping node %d with disjoint index %d", routine.getNodeCount(), nodeIndex);
+				Log.warn("Skipping node with disjoint index %d in routine 0x%x with %d nodes", nodeIndex, routineHash,
+						routine.getNodeCount());
 				continue;
 			}
 			if (previousNode != null)

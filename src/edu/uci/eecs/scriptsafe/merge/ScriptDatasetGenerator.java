@@ -186,7 +186,7 @@ public class ScriptDatasetGenerator {
 		int targetIndexField = 0, callTargetsField = 0;
 		out.writeInt(routine.hash);
 		out.writeInt(routine.getNodeCount());
-		int nodeSpace = (2/*accounts for the previous 2 lines*/ + (routine.getNodeCount() * 3));
+		int nodeSpace = (2/* accounts for the previous 2 lines */+ (routine.getNodeCount() * 3));
 		callTargetPtr = filePtr + nodeSpace;
 
 		for (int i = 0; i < routine.getNodeCount(); i++) {
@@ -208,11 +208,18 @@ public class ScriptDatasetGenerator {
 
 			callTargetsField = 0;
 			if (node.typeFlags.contains(TypeFlag.EVAL) || node.typeFlags.contains(TypeFlag.CALL)) {
+				int callTargetCount = 0, exceptionTargetCount = 0;
 				calls.add(node);
 				callTargetsField = callTargetPtr;
+				for (RoutineEdge target : dataSource.getOutgoingEdges(node)) {
+					if (target.getEntryType() == Type.CALL)
+						callTargetCount++;
+					else
+						exceptionTargetCount++;
+				}
 				if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {
-					Log.log("Dataset generator reserved %d exception targets for 0x%x %d at 0x%x",
-							dataSource.getOutgoingEdgeCount(node), routine.hash, node.index, callTargetPtr);
+					Log.log("Dataset generator reserved %d call targets and %d exception targets for 0x%x %d at 0x%x",
+							callTargetCount, exceptionTargetCount, routine.hash, node.index, callTargetPtr);
 				}
 				callTargetPtr += getEdgeSpace(node);
 			}

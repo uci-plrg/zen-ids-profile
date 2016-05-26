@@ -96,7 +96,7 @@ public class ScriptMergeWatchList {
 	}
 
 	public void loadFromFile(File watchlist) throws NumberFormatException, IOException {
-		String line;
+		String line, nodeIndexString;
 		int routineHash, nodeIndex, split;
 		BufferedReader in = new BufferedReader(new FileReader(watchlist));
 		while (in.ready()) {
@@ -108,7 +108,11 @@ public class ScriptMergeWatchList {
 				routines.add(Integer.parseInt(line, 16));
 			} else {
 				routineHash = Integer.parseInt(line.substring(0, split), 16);
-				nodeIndex = Integer.parseInt(line.substring(split + 1));
+				nodeIndexString = line.substring(split + 1);
+				if (nodeIndexString.startsWith("0x"))
+					nodeIndex = Integer.parseInt(nodeIndexString.substring(2), 16);
+				else
+					nodeIndex = Integer.parseInt(nodeIndexString);
 				branchpoints.add(new BranchSource(routineHash, nodeIndex));
 			}
 		}

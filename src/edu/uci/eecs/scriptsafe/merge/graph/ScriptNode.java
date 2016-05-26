@@ -71,6 +71,7 @@ public class ScriptNode {
 	}
 
 	public enum Opcode {
+		ZEND_NOP(0, OpcodeTargetType.NONE),
 		ZEND_JMP(0x2a, OpcodeTargetType.REQUIRED),
 		ZEND_JMPZ(0x2b, OpcodeTargetType.REQUIRED),
 		ZEND_JMPNZ(0x2c, OpcodeTargetType.REQUIRED),
@@ -171,6 +172,7 @@ public class ScriptNode {
 				default:
 			}
 			switch (opcode) {
+				case ZEND_NOP: /* might load a class from a script top nop! */
 				case ZEND_DO_FCALL:
 				case ZEND_INIT_FCALL:
 				case ZEND_THROW:
@@ -238,6 +240,7 @@ public class ScriptNode {
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_SEND_VAR, Opcode.ZEND_SEND_VAR_EX, Opcode.ZEND_SEND_REF,
 				Opcode.ZEND_SEND_VAR_NO_REF));
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_FETCH_DIM_R, Opcode.ZEND_FETCH_DIM_FUNC_ARG));
+		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_NOP, Opcode.ZEND_FETCH_CLASS));
 	}
 
 	public static final List<EnumSet<Opcode>> COMPATIBLE_OPCODE_SETS = new ArrayList<EnumSet<Opcode>>();

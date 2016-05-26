@@ -380,7 +380,7 @@ class ScriptRunLoader {
 								edge.toRoutineHash, edge.toRoutineHash);
 					}
 
-					if (edge.toIndex == 0)
+					if (edge.toIndex == 0) 
 						graph.edges.addCallEdge(routine.hash, fromNode, toRoutine.hash, edge.userLevel);
 					else
 						graph.edges.addExceptionEdge(routine.hash, fromNode, toRoutine.hash, edge.toIndex,

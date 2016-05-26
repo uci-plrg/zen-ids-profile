@@ -207,7 +207,7 @@ public class ScriptDatasetGenerator {
 			out.writeInt(targetIndexField);
 
 			callTargetsField = 0;
-			if (node.typeFlags.contains(TypeFlag.EVAL) | node.typeFlags.contains(TypeFlag.CALL)) {
+			if (node.typeFlags.contains(TypeFlag.EVAL) || node.typeFlags.contains(TypeFlag.CALL)) {
 				calls.add(node);
 				callTargetsField = callTargetPtr;
 				if (ScriptMergeWatchList.watchAny(routine.hash, node.index)) {

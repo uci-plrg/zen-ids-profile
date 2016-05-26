@@ -55,7 +55,7 @@ public class ScriptNodeLoader {
 				Log.message("Create routine %x", routineHash);
 				routine = loadContext.createRoutine(routineHash);
 			}
-
+			
 			opcodeField = input.readInt();
 			opcode = opcodeField & 0xff;
 			extendedValue = (opcodeField >> 8) & 0xff;

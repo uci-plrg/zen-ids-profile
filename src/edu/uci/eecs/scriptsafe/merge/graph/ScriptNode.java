@@ -117,6 +117,7 @@ public class ScriptNode {
 		ZEND_SEND_VAR_EX(0x75, OpcodeTargetType.NONE),
 		ZEND_INIT_USER_CALL(0x76, OpcodeTargetType.NONE),
 		ZEND_ASSIGN_OBJ(0x88, OpcodeTargetType.EXTERNAL),
+		ZEND_DECLARE_INHERITED_CLASS(0x8c, OpcodeTargetType.NONE),
 		ZEND_ADD_INTERFACE(0x90, OpcodeTargetType.NONE),
 		ZEND_ASSIGN_DIM(0x93, OpcodeTargetType.NONE),
 		ZEND_ISSET_ISEMPTY_PROP_OBJ(0x94, OpcodeTargetType.EXTERNAL), // may call an accessor
@@ -200,6 +201,7 @@ public class ScriptNode {
 				case ZEND_ISSET_ISEMPTY_DIM_OBJ:
 				case ZEND_ASSIGN_OBJ:
 				case ZEND_ADD_INTERFACE:
+				case ZEND_DECLARE_INHERITED_CLASS:
 				case ZEND_ASSIGN_DIM:
 				case ZEND_ISSET_ISEMPTY_PROP_OBJ:
 					flags.add(TypeFlag.CALL);
@@ -240,7 +242,7 @@ public class ScriptNode {
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_SEND_VAR, Opcode.ZEND_SEND_VAR_EX, Opcode.ZEND_SEND_REF,
 				Opcode.ZEND_SEND_VAR_NO_REF));
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_FETCH_DIM_R, Opcode.ZEND_FETCH_DIM_FUNC_ARG));
-		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_NOP, Opcode.ZEND_FETCH_CLASS));
+		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_NOP, Opcode.ZEND_FETCH_CLASS, Opcode.ZEND_DECLARE_INHERITED_CLASS));
 	}
 
 	public static final List<EnumSet<Opcode>> COMPATIBLE_OPCODE_SETS = new ArrayList<EnumSet<Opcode>>();

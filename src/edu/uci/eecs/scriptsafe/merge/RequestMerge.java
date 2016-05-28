@@ -33,7 +33,8 @@ public class RequestMerge {
 		boolean inPlaceMerge = rightDataSource.getRequestFile().getAbsolutePath()
 				.equals(outputFiles.getRequestFile().getAbsolutePath());
 		File rightRequestFile = rightDataSource.getRequestFile();
-		File rightEdgeFile = rightDataSource.getRequestEdgeFile();
+		File rightEdgeFile = rightDataSource.getRequestEdgeFile().exists() ? rightDataSource.getRequestEdgeFile()
+				: null;
 		// File rightPersistenceFile = rightDataSource.getPersistenceFile();
 
 		Log.message("Is in place? %b for '%s' vs. '%s'", inPlaceMerge, rightDataSource.getRequestFile(),
@@ -42,13 +43,16 @@ public class RequestMerge {
 		if (inPlaceMerge) {
 			rightRequestFile = new File(rightDataSource.getRequestFile().getParentFile(), rightDataSource
 					.getRequestFile().getName() + ".tmp");
-			rightEdgeFile = new File(rightDataSource.getRequestEdgeFile().getParentFile(), rightDataSource
-					.getRequestEdgeFile().getName() + ".tmp");
+			if (rightEdgeFile != null) {
+				rightEdgeFile = new File(rightDataSource.getRequestEdgeFile().getParentFile(), rightDataSource
+						.getRequestEdgeFile().getName() + ".tmp");
+			}
 			// rightPersistenceFile = new File(rightDataSource.getPersistenceFile().getParentFile(), rightDataSource
 			// .getPersistenceFile().getName() + ".tmp");
 			Log.log("Moving right request file to '%s' for in-place merge", rightRequestFile.getAbsolutePath());
 			rightDataSource.getRequestFile().renameTo(rightRequestFile);
-			rightDataSource.getRequestEdgeFile().renameTo(rightEdgeFile);
+			if (rightEdgeFile != null)
+				rightDataSource.getRequestEdgeFile().renameTo(rightEdgeFile);
 			// rightDataSource.getPersistenceFile().renameTo(rightPersistenceFile);
 		}
 
@@ -57,12 +61,17 @@ public class RequestMerge {
 				requestOutput);
 		RequestParser rightRequestParser = new RequestParser(new FileInputStream(rightRequestFile), requestOutput);
 
-		LittleEndianOutputStream requestEdgeOutput = new LittleEndianOutputStream(new FileOutputStream(
-				outputFiles.getRequestEdgeFile(), true), "file:" + outputFiles.getRequestEdgeFile().getAbsolutePath());
-		RequestEdgeParser leftEdgeParser = new RequestEdgeParser(new LittleEndianInputStream(
-				leftDataSource.getRequestEdgeFile()), requestEdgeOutput);
-		RequestEdgeParser rightEdgeParser = new RequestEdgeParser(new LittleEndianInputStream(rightEdgeFile),
-				requestEdgeOutput);
+		LittleEndianOutputStream requestEdgeOutput = null;
+		RequestEdgeParser leftEdgeParser = null;
+		RequestEdgeParser rightEdgeParser = null;
+
+		if (rightEdgeFile != null) {
+			requestEdgeOutput = new LittleEndianOutputStream(new FileOutputStream(outputFiles.getRequestEdgeFile(),
+					true), "file:" + outputFiles.getRequestEdgeFile().getAbsolutePath());
+			leftEdgeParser = new RequestEdgeParser(new LittleEndianInputStream(leftDataSource.getRequestEdgeFile()),
+					requestEdgeOutput);
+			rightEdgeParser = new RequestEdgeParser(new LittleEndianInputStream(rightEdgeFile), requestEdgeOutput);
+		}
 
 		/**
 		 * <pre>
@@ -82,13 +91,15 @@ public class RequestMerge {
 				Log.message("Merge left request");
 				leftRequestParser.writeNextRequest(nextRequestId);
 				leftRequestParser.readRequestStart();
-				leftEdgeParser.writeNextRequest(nextRequestId);
+				if (rightEdgeFile != null)
+					leftEdgeParser.writeNextRequest(nextRequestId);
 				// leftPersistenceParser.writeNextRequest();
 			} else {
 				Log.message("Merge right request");
 				rightRequestParser.writeNextRequest(nextRequestId);
 				rightRequestParser.readRequestStart();
-				rightEdgeParser.writeNextRequest(nextRequestId);
+				if (rightEdgeFile != null)
+					rightEdgeParser.writeNextRequest(nextRequestId);
 				// rightPersistenceParser.writeNextRequest();
 			}
 			if (++nextRequestId == Integer.MAX_VALUE) {
@@ -101,14 +112,17 @@ public class RequestMerge {
 		rightRequestParser.close();
 		requestOutput.flush();
 		requestOutput.close();
-		leftEdgeParser.close();
-		rightEdgeParser.close();
-		requestEdgeOutput.flush();
-		requestEdgeOutput.close();
+		if (rightEdgeFile != null) {
+			leftEdgeParser.close();
+			rightEdgeParser.close();
+			requestEdgeOutput.flush();
+			requestEdgeOutput.close();
+		}
 
 		if (inPlaceMerge) {
 			rightRequestFile.delete();
-			rightEdgeFile.delete();
+			if (rightEdgeFile != null)
+				rightEdgeFile.delete();
 		}
 	}
 }

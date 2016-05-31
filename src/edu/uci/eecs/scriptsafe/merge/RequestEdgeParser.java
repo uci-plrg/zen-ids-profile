@@ -8,7 +8,7 @@ import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
 
 public class RequestEdgeParser {
 
-	private static final int REQUEST_HEADER_TAG = 2;
+	private static final int REQUEST_HEADER_TAG = 3;
 
 	final LittleEndianInputStream in;
 	final LittleEndianOutputStream out;

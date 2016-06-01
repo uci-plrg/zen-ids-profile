@@ -348,8 +348,8 @@ class ScriptRunLoader {
 							pendNodeUserLevel(branchNode.getTargetIndex(), branchNode.getNodeUserLevel());
 
 						// hack for silly nop JNZ
-//						if (nodeOpcode.targetType == OpcodeTargetType.REQUIRED && branchNode.getTarget() == null)
-//							branchNode.setTarget(branchNode.getNext());
+						// if (nodeOpcode.targetType == OpcodeTargetType.REQUIRED && branchNode.getTarget() == null)
+						// branchNode.setTarget(branchNode.getNext());
 					}
 				}
 			}
@@ -365,11 +365,18 @@ class ScriptRunLoader {
 					fromNode = routine.getNode(edge.fromIndex);
 					toRoutine = graph.getRoutine(edge.toRoutineHash);
 					if (toRoutine == null) {
-						Log.log("Skipping edge from 0x%x @%d to unknown routine 0x%x", routine.hash, edge.fromIndex,
-								edge.toRoutineHash);
-						continue;
-						// throw new IllegalArgumentException(String.format(
-						// "Found a routine edge to an unknown routine 0x%x", edge.toRoutineHash));
+						RoutineId routineId = RoutineId.Cache.INSTANCE.getId(edge.toRoutineHash);
+						if (routineId != null && routineId.isBuiltin()) {
+							toRoutine = new ScriptRoutineGraph(edge.toRoutineHash, routineId,
+									graph.isNewUserLevelSample);
+							graph.addRoutine(toRoutine);
+						} else {
+							Log.log("Skipping edge from 0x%x @%d to unknown routine 0x%x", routine.hash,
+									edge.fromIndex, edge.toRoutineHash);
+							continue;
+							// throw new IllegalArgumentException(String.format(
+							// "Found a routine edge to an unknown routine 0x%x", edge.toRoutineHash));
+						}
 					}
 
 					if (ScriptMergeWatchList.watchAny(edge.fromRoutineHash, edge.fromIndex)
@@ -380,7 +387,7 @@ class ScriptRunLoader {
 								edge.toRoutineHash, edge.toRoutineHash);
 					}
 
-					if (edge.toIndex == 0) 
+					if (edge.toIndex == 0)
 						graph.edges.addCallEdge(routine.hash, fromNode, toRoutine.hash, edge.userLevel);
 					else
 						graph.edges.addExceptionEdge(routine.hash, fromNode, toRoutine.hash, edge.toIndex,

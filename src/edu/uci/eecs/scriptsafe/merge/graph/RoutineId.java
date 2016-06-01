@@ -127,4 +127,8 @@ public class RoutineId {
 		this.name = name;
 		this.sourceFile = sourceFile;
 	}
+	
+	public boolean isBuiltin() {
+		return name.startsWith("builtin:");
+	}
 }

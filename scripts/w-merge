@@ -6,12 +6,15 @@ function usage() {
 
 [ "$1" == "--help" ] && usage && exit
 
-while getopts "o:v:w:" option
+test_file="request.tab"
+
+while getopts "o:v:w:s" option
 do
   case $option in
     o) output_dir=$OPTARG;;
     v) options="$options -v $OPTARG";;
     w) options="$options -w $OPTARG";;
+    s) test_file="node.run";;
   esac
 done
 shift $(( $OPTIND - 1 ))
@@ -23,20 +26,20 @@ then # starting a new dataset
   for d in "${@}"
   do
     shift # N.B.: first run is the base!
-    [ -s $d/request.tab ] && right=$d && break
+    [ -s $d/$test_file ] && right=$d && break
   done
 
   for d in "${@}"
   do
     shift
-    [ -s $d/request.tab ] && left=$d && break
+    [ -s $d/$test_file ] && left=$d && break
   done
 
   [ -z "$left" ] && left=$right
   [ -z "$right" ] && echo "Failed to find a non-empty run. Exiting with nothing to do." && exit
 
   echo "Merging $# workers into a new dataset"
-  s-merge $options -o $output_dir -l $left -r $right 
+  s-merge $options -o $output_dir -l $left -r $right
   [ $? -ne 0 ] && echo "Error, exiting now." && exit
   shift 2
 else
@@ -46,7 +49,7 @@ fi
 
 for d in "${@}"
 do
-  [ -s $d/request.tab ] || { echo "Skipping empty directory $d" && continue; }
+  [ -s $d/$test_file ] || { echo "Skipping empty directory $d" && continue; }
   s-merge $options -o $output_dir -l $d
   [ $? -ne 0 ] && echo "Error, exiting now." && exit
 done

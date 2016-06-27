@@ -55,7 +55,7 @@ public class ScriptNodeLoader {
 				Log.message("Create routine %x", routineHash);
 				routine = loadContext.createRoutine(routineHash);
 			}
-			
+
 			opcodeField = input.readInt();
 			opcode = opcodeField & 0xff;
 			extendedValue = (opcodeField >> 8) & 0xff;
@@ -91,9 +91,9 @@ public class ScriptNodeLoader {
 
 	private ScriptNode createNode(int routineHash, int opcode, Set<TypeFlag> typeFlags, int lineNumber, int index) {
 		if (typeFlags.contains(TypeFlag.BRANCH)) {
-			int userLevel = (index >>> 26);
-			index = (index & 0xfff);
-			return new ScriptBranchNode(routineHash, typeFlags, opcode, index, lineNumber, userLevel);
+			// int userLevel = (index >>> 26);
+			// index = (index & 0xfff);
+			return new ScriptBranchNode(routineHash, typeFlags, opcode, index, lineNumber, 0);
 		} else {
 			return new ScriptNode(routineHash, typeFlags, opcode, lineNumber, index);
 		}

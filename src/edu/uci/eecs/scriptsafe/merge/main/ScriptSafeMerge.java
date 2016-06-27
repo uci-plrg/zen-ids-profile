@@ -155,7 +155,7 @@ public class ScriptSafeMerge {
 								Paths.get(outputFiles.getRequestEdgeFile().getPath()),
 								StandardCopyOption.REPLACE_EXISTING);
 					}
-				} else {
+				} else if (leftDataSource.getRequestFile().exists() && rightDataSource.getRequestFile().exists()) {
 					RequestMerge requestMerge = new RequestMerge(leftDataSource, rightDataSource);
 					requestMerge.merge(outputFiles);
 				}

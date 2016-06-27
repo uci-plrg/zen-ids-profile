@@ -13,6 +13,7 @@ import edu.uci.eecs.scriptsafe.merge.graph.RoutineEdge.Type;
 import edu.uci.eecs.scriptsafe.merge.graph.RoutineExceptionEdge;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptBranchNode;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode;
+import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.OpcodeTargetType;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptNode.TypeFlag;
 import edu.uci.eecs.scriptsafe.merge.graph.ScriptRoutineGraph;
 
@@ -198,6 +199,9 @@ public class ScriptDatasetGenerator {
 			if (node.typeFlags.contains(TypeFlag.BRANCH)) {
 				ScriptBranchNode branch = (ScriptBranchNode) node;
 				targetIndexField = branch.getTargetIndex();
+				if (targetIndexField == ScriptBranchNode.UNASSIGNED_BRANCH_TARGET_ID
+						&& ScriptNode.Opcode.forCode(branch.opcode).targetType == OpcodeTargetType.REQUIRED)
+					targetIndexField = node.index + 1; // hack for silly JMPZ +1
 			}
 			targetIndexField |= (node.getNodeUserLevel() << 26);
 			if (node.getNodeUserLevel() < 0x3f) {

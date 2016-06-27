@@ -20,6 +20,8 @@ public class ScriptBranchNode extends ScriptNode {
 	}
 
 	public void setTarget(ScriptNode target) {
+		if (target == null && ScriptNode.Opcode.forCode(opcode).targetType == OpcodeTargetType.REQUIRED)
+			throw new MergeException("Cannot set a null target on a branch with opcode 0x%x", opcode);
 		// if (target != null && isFallThrough(target.index))
 		// throw new MergeException("The branch fall-through is implied and should not be set on the node.");
 

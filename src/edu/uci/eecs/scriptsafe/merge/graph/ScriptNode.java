@@ -72,6 +72,9 @@ public class ScriptNode {
 
 	public enum Opcode {
 		ZEND_NOP(0, OpcodeTargetType.NONE),
+		ZEND_CONCAT(8, OpcodeTargetType.NONE),
+		ZEND_CAST(0x15, OpcodeTargetType.NONE),
+		ZEND_ASSIGN_CONCAT(0x1e, OpcodeTargetType.NONE),
 		ZEND_JMP(0x2a, OpcodeTargetType.REQUIRED),
 		ZEND_JMPZ(0x2b, OpcodeTargetType.REQUIRED),
 		ZEND_JMPNZ(0x2c, OpcodeTargetType.REQUIRED),
@@ -122,6 +125,7 @@ public class ScriptNode {
 		ZEND_ASSIGN_DIM(0x93, OpcodeTargetType.NONE),
 		ZEND_ISSET_ISEMPTY_PROP_OBJ(0x94, OpcodeTargetType.EXTERNAL), // may call an accessor
 		ZEND_JMP_SET(0x98, OpcodeTargetType.REQUIRED),
+		ZEND_ADD_TRAIT(0x9a, OpcodeTargetType.NONE),
 		ZEND_FAST_RET(0xa3, OpcodeTargetType.NONE),
 		OTHER(-1, OpcodeTargetType.NONE);
 
@@ -174,6 +178,9 @@ public class ScriptNode {
 			}
 			switch (opcode) {
 				case ZEND_NOP: /* might load a class from a script top nop! */
+				case ZEND_CONCAT: /* might call __toString()! */
+				case ZEND_ASSIGN_CONCAT: /* might call __toString()! */
+				case ZEND_CAST: /* might call __toString()! */
 				case ZEND_DO_FCALL:
 				case ZEND_INIT_FCALL:
 				case ZEND_THROW:
@@ -201,6 +208,7 @@ public class ScriptNode {
 				case ZEND_ISSET_ISEMPTY_DIM_OBJ:
 				case ZEND_ASSIGN_OBJ:
 				case ZEND_ADD_INTERFACE:
+				case ZEND_ADD_TRAIT:
 				case ZEND_DECLARE_INHERITED_CLASS:
 				case ZEND_ASSIGN_DIM:
 				case ZEND_ISSET_ISEMPTY_PROP_OBJ:
@@ -242,7 +250,8 @@ public class ScriptNode {
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_SEND_VAR, Opcode.ZEND_SEND_VAR_EX, Opcode.ZEND_SEND_REF,
 				Opcode.ZEND_SEND_VAR_NO_REF));
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_FETCH_DIM_R, Opcode.ZEND_FETCH_DIM_FUNC_ARG));
-		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_NOP, Opcode.ZEND_FETCH_CLASS, Opcode.ZEND_DECLARE_INHERITED_CLASS));
+		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_NOP, Opcode.ZEND_FETCH_CLASS,
+				Opcode.ZEND_DECLARE_INHERITED_CLASS));
 	}
 
 	public static final List<EnumSet<Opcode>> COMPATIBLE_OPCODE_SETS = new ArrayList<EnumSet<Opcode>>();

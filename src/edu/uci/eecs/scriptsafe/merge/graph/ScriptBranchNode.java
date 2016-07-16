@@ -93,9 +93,27 @@ public class ScriptBranchNode extends ScriptNode {
 		if (target != null) {
 			if (target.index != other.target.index
 					&& !(isFallThrough(target.index) || isFallThrough(other.target.index))) {
-				throw new MergeException(
-						"Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
-						routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
+                ScriptBranchNode otherNode = (ScriptBranchNode) other;
+                boolean patched = false;
+
+                if (!isConditional()) {
+                    if (target.index == index + 1) {
+                        patched = true;
+                        target = otherNode.target;
+                    } else if (otherNode.target.index == index + 1) {
+                        patched = true;
+                        otherNode.target = target;
+                    }
+
+                    if (patched)
+                        Log.error("Patching impossible fall-through from unconditional branch 0x%x\n", opcode);
+                }
+
+                if (!patched) {
+                    throw new MergeException(
+                            "Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
+                            routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
+                }
 			}
 		}
 	}
@@ -121,9 +139,27 @@ public class ScriptBranchNode extends ScriptNode {
 		if (target != null) {
 			if (target.index != other.target.index
 					&& !(isFallThrough(target.index) || isFallThrough(other.target.index))) {
-				throw new MergeException(
-						"Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
-						routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
+                ScriptBranchNode otherNode = (ScriptBranchNode) other;
+                boolean patched = false;
+
+                if (!isConditional()) {
+                    if (target.index == index + 1) {
+                        patched = true;
+                        target = otherNode.target;
+                    } else if (otherNode.target.index == index + 1) {
+                        patched = true;
+                        otherNode.target = target;
+                    }
+
+                    if (patched)
+                        Log.error("Patching impossible fall-through from unconditional branch 0x%x\n", opcode);
+                }
+
+                if (!patched) {
+                    throw new MergeException(
+                            "Target mismatch for branch node at index %d of 0x%x with opcode 0x%x: %d vs. %d", index,
+                            routineHash, opcode, target.index, ((ScriptBranchNode) other).target.index);
+                }
 			}
 		}
 	}

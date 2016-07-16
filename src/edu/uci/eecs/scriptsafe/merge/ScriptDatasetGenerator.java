@@ -189,7 +189,7 @@ public class ScriptDatasetGenerator {
 		out.writeInt(routine.getNodeCount());
 		int nodeSpace = (2/* accounts for the previous 2 lines */+ (routine.getNodeCount() * 3));
 		callTargetPtr = filePtr + nodeSpace;
-
+		
 		for (int i = 0; i < routine.getNodeCount(); i++) {
 			ScriptNode node = routine.getNode(i);
 			int nodeId = (node.lineNumber << 0x10) | (TypeFlag.encode(node.typeFlags) << 8) | node.opcode;
@@ -226,6 +226,9 @@ public class ScriptDatasetGenerator {
 							callTargetCount, exceptionTargetCount, routine.hash, node.index, callTargetPtr);
 				}
 				callTargetPtr += getEdgeSpace(node);
+			} else if (dataSource.getOutgoingEdgeCount(node) > 0) {
+				Log.error("Error: skipping %d outgoing edges from opcode 0x%x at 0x%x %d",
+						dataSource.getOutgoingEdgeCount(node), node.opcode, routine.hash, node.index);
 			}
 			out.writeInt(callTargetsField);
 		}

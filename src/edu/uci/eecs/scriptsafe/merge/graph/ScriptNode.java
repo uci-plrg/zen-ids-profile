@@ -81,20 +81,19 @@ public class ScriptNode {
 		ZEND_JMPZNZ(0x2d, OpcodeTargetType.REQUIRED),
 		ZEND_JMPZ_EX(0x2e, OpcodeTargetType.REQUIRED),
 		ZEND_JMPNZ_EX(0x2f, OpcodeTargetType.REQUIRED),
-		ZEND_BRK(0x32, OpcodeTargetType.DYNAMIC),
-		ZEND_CONT(0x33, OpcodeTargetType.DYNAMIC),
+		ZEND_SEND_VAR_NO_REF_EX(0x32, OpcodeTargetType.NONE),
 		ZEND_INIT_FCALL_BY_NAME(0x3b, OpcodeTargetType.NONE),
 		ZEND_DO_FCALL(0x3c, OpcodeTargetType.EXTERNAL),
 		ZEND_INIT_FCALL(0x3d, OpcodeTargetType.NONE),
 		ZEND_RETURN(0x3e, OpcodeTargetType.NONE),
 		ZEND_SEND_VAL(0x41, OpcodeTargetType.NONE),
-		ZEND_SEND_VAR(0x42, OpcodeTargetType.NONE),
+		ZEND_SEND_VAR_EX(0x42, OpcodeTargetType.NONE),
 		ZEND_SEND_REF(0x43, OpcodeTargetType.NONE),
 		ZEND_NEW(0x44, OpcodeTargetType.NONE),
 		ZEND_INIT_NS_FCALL_BY_NAME(0x45, OpcodeTargetType.NONE),
 		ZEND_INCLUDE_OR_EVAL(0x49, OpcodeTargetType.EXTERNAL),
-		ZEND_FE_RESET(0x4d, OpcodeTargetType.REQUIRED),
-		ZEND_FE_FETCH(0x4e, OpcodeTargetType.REQUIRED),
+		ZEND_FE_RESET_R(0x4d, OpcodeTargetType.REQUIRED),
+		ZEND_FE_FETCH_R(0x4e, OpcodeTargetType.REQUIRED),
 		ZEND_FETCH_DIM_R(0x51, OpcodeTargetType.NONE),
 		ZEND_FETCH_OBJ_R(0x52, OpcodeTargetType.EXTERNAL),
 		ZEND_FETCH_DIM_W(0x54, OpcodeTargetType.NONE),
@@ -117,8 +116,9 @@ public class ScriptNode {
 		ZEND_INIT_STATIC_METHOD_CALL(0x71, OpcodeTargetType.NONE),
 		ZEND_ISSET_ISEMPTY_DIM_OBJ(0x73, OpcodeTargetType.EXTERNAL),
 		ZEND_SEND_VAL_EX(0x74, OpcodeTargetType.NONE),
-		ZEND_SEND_VAR_EX(0x75, OpcodeTargetType.NONE),
+		ZEND_SEND_VAR(0x75, OpcodeTargetType.NONE),
 		ZEND_INIT_USER_CALL(0x76, OpcodeTargetType.NONE),
+		ZEND_DO_ICALL(0x81, OpcodeTargetType.NONE),
 		ZEND_ASSIGN_OBJ(0x88, OpcodeTargetType.EXTERNAL),
 		ZEND_DECLARE_INHERITED_CLASS(0x8c, OpcodeTargetType.NONE),
 		ZEND_ADD_INTERFACE(0x90, OpcodeTargetType.NONE),
@@ -167,10 +167,8 @@ public class ScriptNode {
 				case ZEND_JMPNZ_EX:
 				case ZEND_JMPZ_EX:
 				case ZEND_JMPZNZ:
-				case ZEND_BRK:
-				case ZEND_CONT:
-				case ZEND_FE_RESET:
-				case ZEND_FE_FETCH:
+				case ZEND_FE_RESET_R:
+				case ZEND_FE_FETCH_R:
 				case ZEND_CATCH:
 					flags.add(TypeFlag.BRANCH);
 					break;
@@ -183,12 +181,13 @@ public class ScriptNode {
 				case ZEND_CAST: /* might call __toString()! */
 				case ZEND_DO_FCALL:
 				case ZEND_INIT_FCALL:
+				case ZEND_DO_ICALL:
 				case ZEND_THROW:
 				case ZEND_NEW:
 				case ZEND_INIT_NS_FCALL_BY_NAME:
 				case ZEND_INCLUDE_OR_EVAL:
-				case ZEND_FE_RESET:
-				case ZEND_FE_FETCH:
+				case ZEND_FE_RESET_R:
+				case ZEND_FE_FETCH_R:
 				case ZEND_FETCH_DIM_R:
 				case ZEND_FETCH_OBJ_R:
 				case ZEND_FETCH_DIM_W:
@@ -248,7 +247,7 @@ public class ScriptNode {
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_INIT_FCALL, Opcode.ZEND_INIT_FCALL_BY_NAME));
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_SEND_VAL, Opcode.ZEND_SEND_VAL_EX));
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_SEND_VAR, Opcode.ZEND_SEND_VAR_EX, Opcode.ZEND_SEND_REF,
-				Opcode.ZEND_SEND_VAR_NO_REF));
+				Opcode.ZEND_SEND_VAR_NO_REF, Opcode.ZEND_SEND_VAR_NO_REF_EX));
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_FETCH_DIM_R, Opcode.ZEND_FETCH_DIM_FUNC_ARG));
 		COMPATIBLE_OPCODE_SETS.add(EnumSet.of(Opcode.ZEND_NOP, Opcode.ZEND_FETCH_CLASS,
 				Opcode.ZEND_DECLARE_INHERITED_CLASS));

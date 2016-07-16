@@ -54,11 +54,9 @@ public class ScriptBranchNode extends ScriptNode {
 	public boolean isConditional() {
 		switch (Opcode.forCode(opcode)) {
 			case ZEND_JMP:
-			case ZEND_BRK:
-			case ZEND_CONT:
-			case ZEND_FE_FETCH:
+			case ZEND_FE_FETCH_R:
 				return false;
-			case ZEND_FE_RESET:
+			case ZEND_FE_RESET_R:
 			case ZEND_JMPZ:
 			case ZEND_JMPNZ:
 			case ZEND_JMPNZ_EX:
@@ -76,14 +74,8 @@ public class ScriptBranchNode extends ScriptNode {
 
 		ScriptBranchNode other = (ScriptBranchNode) node;
 
-		switch (Opcode.forCode(opcode)) {
-			case ZEND_BRK:
-			case ZEND_CONT:
-			case ZEND_CATCH:
-				if (target == null || other.target == null)
-					return;
-			default:
-		}
+		if (Opcode.forCode(opcode) == Opcode.ZEND_CATCH && (target == null || other.target == null))
+			return;
 
 		if ((target == null) != (other.target == null)) {
 			Log.error("Target mismatch for branch node at index %d with opcode 0x%x: %s is null", index, opcode,
@@ -106,14 +98,8 @@ public class ScriptBranchNode extends ScriptNode {
 
 		ScriptBranchNode other = (ScriptBranchNode) node;
 
-		switch (Opcode.forCode(opcode)) {
-			case ZEND_BRK:
-			case ZEND_CONT:
-			case ZEND_CATCH:
-				if (target == null || other.target == null)
-					return;
-			default:
-		}
+		if (Opcode.forCode(opcode) == Opcode.ZEND_CATCH && (target == null || other.target == null))
+			return;
 
 		if ((target == null) != (other.target == null))
 			return;

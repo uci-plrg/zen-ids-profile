@@ -2,6 +2,10 @@
 
 function usage() {
   echo "w-merge -o <output-dir> <run-dir> [ <run-dir> ... ]"
+  echo "        [ -w <watch-file> ]"
+  echo "        watch file entries:"
+  echo "           0x12345678|0x14 # node and all edges"
+  echo "           0x12345678      # all nodes in a routine"
 }
 
 [ "$1" == "--help" ] && usage && exit

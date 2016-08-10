@@ -5,7 +5,11 @@
 function print_usage() {
   echo "Usage: s-merge -l <left-graph> -r <right-graph> -o <output-file> "
   echo "               [ -m <request-count> ] [ -y <left-is-full-merge> ]"
-  echo "               [ -w <watch-list-file> ] [ -c <watch,list,codes> ]"
+  echo "               [ -c <watch,list,codes> ]"
+  echo "               [ -w <watch-file> ]"
+  echo "                  watch file entries:"
+  echo "                      0x12345678|0x14 # node and all edges"
+  echo "                      0x12345678      # all nodes in a routine"
   exit
 }
 
@@ -19,4 +23,4 @@ append_classpath "CROWD_SAFE_COMMON_DIR"
 main_class="edu.uci.eecs.scriptsafe.merge.main.ScriptSafeMerge"
 
 java $vm_args -cp $cp $main_class $@
-  
+

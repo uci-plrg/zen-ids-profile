@@ -20,7 +20,7 @@ append_classpath "CROWD_SAFE_COMMON_DIR"
 
 # echo "classpath: $cp"
 
-main_class="edu.uci.eecs.scriptsafe.merge.main.ScriptSafeMerge"
+main_class="edu.uci.plrg.cfi.php.merge.main.ScriptSafeMerge"
 
 java $vm_args -cp $cp $main_class $@
 

@@ -11,6 +11,7 @@ import edu.uci.plrg.cfi.common.log.Log;
 import edu.uci.plrg.cfi.php.merge.graph.RoutineEdge;
 import edu.uci.plrg.cfi.php.merge.graph.RoutineEdge.Type;
 import edu.uci.plrg.cfi.php.merge.graph.RoutineExceptionEdge;
+import edu.uci.plrg.cfi.php.merge.graph.RoutineId;
 import edu.uci.plrg.cfi.php.merge.graph.ScriptBranchNode;
 import edu.uci.plrg.cfi.php.merge.graph.ScriptNode;
 import edu.uci.plrg.cfi.php.merge.graph.ScriptNode.OpcodeTargetType;
@@ -189,12 +190,12 @@ public class ScriptDatasetGenerator {
 		out.writeInt(routine.getNodeCount());
 		int nodeSpace = (2/* accounts for the previous 2 lines */+ (routine.getNodeCount() * 3));
 		callTargetPtr = filePtr + nodeSpace;
-		
+
 		for (int i = 0; i < routine.getNodeCount(); i++) {
 			ScriptNode node = routine.getNode(i);
 			int nodeId = (node.lineNumber << 0x10) | (TypeFlag.encode(node.typeFlags) << 8) | node.opcode;
 			out.writeInt(nodeId);
-			
+
 			targetIndexField = 0;
 			if (node.typeFlags.contains(TypeFlag.BRANCH)) {
 				ScriptBranchNode branch = (ScriptBranchNode) node;
@@ -215,7 +216,7 @@ public class ScriptDatasetGenerator {
 				int callTargetCount = 0, exceptionTargetCount = 0;
 				calls.add(node);
 				callTargetsField = callTargetPtr;
-				for (RoutineEdge target : dataSource.getOutgoingEdges(node)) { 
+				for (RoutineEdge target : dataSource.getOutgoingEdges(node)) {
 					if (target.getEntryType() == Type.CALL)
 						callTargetCount++;
 					else
@@ -229,6 +230,11 @@ public class ScriptDatasetGenerator {
 			} else if (dataSource.getOutgoingEdgeCount(node) > 0) {
 				Log.error("Error: skipping %d outgoing edges from opcode 0x%x at 0x%x %d",
 						dataSource.getOutgoingEdgeCount(node), node.opcode, routine.hash, node.index);
+				for (RoutineEdge target : dataSource.getOutgoingEdges(node)) {
+					RoutineId targetId = RoutineId.Cache.INSTANCE.getId(target.getToRoutineHash());
+					String edgeType = (target.getEntryType() == Type.CALL) ? "Call" : "Exception";
+					Log.error("\t%s to %s", edgeType, targetId.id);
+				}
 			}
 			out.writeInt(callTargetsField);
 		}

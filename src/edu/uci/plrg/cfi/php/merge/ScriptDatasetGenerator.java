@@ -233,7 +233,8 @@ public class ScriptDatasetGenerator {
 				for (RoutineEdge target : dataSource.getOutgoingEdges(node)) {
 					RoutineId targetId = RoutineId.Cache.INSTANCE.getId(target.getToRoutineHash());
 					String edgeType = (target.getEntryType() == Type.CALL) ? "Call" : "Exception";
-					Log.error("\t%s to %s", edgeType, targetId.id);
+                    int toIndex = (target.getEntryType() == Type.CALL) ? 0 : ((RoutineExceptionEdge) target).getToRoutineIndex();
+					Log.error("\t%s to op %d of %s", edgeType, toIndex, targetId.id);
 				}
 			}
 			out.writeInt(callTargetsField);

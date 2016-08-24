@@ -92,6 +92,7 @@ public class ScriptNode {
 		ZEND_NEW(0x44, OpcodeTargetType.NONE),
 		ZEND_INIT_NS_FCALL_BY_NAME(0x45, OpcodeTargetType.NONE),
 		ZEND_INCLUDE_OR_EVAL(0x49, OpcodeTargetType.EXTERNAL),
+		ZEND_UNSET_OBJ(0x4c, OpcodeTargetType.NONE),
 		ZEND_FE_RESET_R(0x4d, OpcodeTargetType.REQUIRED),
 		ZEND_FE_FETCH_R(0x4e, OpcodeTargetType.REQUIRED),
 		ZEND_FETCH_DIM_R(0x51, OpcodeTargetType.NONE),
@@ -211,6 +212,7 @@ public class ScriptNode {
 				case ZEND_DECLARE_INHERITED_CLASS:
 				case ZEND_ASSIGN_DIM:
 				case ZEND_ISSET_ISEMPTY_PROP_OBJ:
+                case ZEND_UNSET_OBJ:
 					flags.add(TypeFlag.CALL);
 				default:
 			}

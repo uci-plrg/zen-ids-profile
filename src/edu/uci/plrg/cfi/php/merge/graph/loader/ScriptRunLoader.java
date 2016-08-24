@@ -264,8 +264,8 @@ class ScriptRunLoader {
 			routine = graph.getRoutine(rawGraph.hash);
 			pendingNodeUserLevels.clear();
 
-			if (routine == null)
-				break;
+			if (routine == null) 
+				break; 
 
 			for (Set<RawOpcodeEdge> edges : rawGraph.opcodeEdges.values()) {
 				for (RawOpcodeEdge edge : edges) {

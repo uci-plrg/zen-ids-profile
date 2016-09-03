@@ -1,4 +1,4 @@
-# zen-ids-profile
+# Zen IDS Profile Tools
 Profile building tools for Zen IDS.
 
 ### Build
